@@ -6,7 +6,7 @@
  * Permission is hereby granted, free of charge, to use, copy, modify, merge,
  * publish, and distribute this software, provided that the following credit
  * is included in any derivative or distributed version:
- * "Created by Pooya Deperson pooyadeperson@gmail.com https://github.com/PooyaDeperson"
+ * "Created by Pooya Deperson pooyadeperson@gmail.com https://github.com/PooyaDeperson" some chages
  */
 
 
