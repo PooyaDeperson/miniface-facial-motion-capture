@@ -13,7 +13,7 @@
 // AvatarOrbitControls.tsx
 import React, { useRef } from "react";
 import { OrbitControls } from "@react-three/drei";
-import { Camera, Vector3 } from "three";
+import { Vector3 } from "three";
 
 interface AvatarOrbitControlsProps {
   target?: [number, number, number];

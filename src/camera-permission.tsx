@@ -1,16 +1,4 @@
-
-/*
- * Copyright (c) 2025 Pooya Deperson pooyadeperson@gmail.com https://github.com/PooyaDeperson
- * Licensed under the MIT License with Attribution.
- * 
- * Permission is hereby granted, free of charge, to use, copy, modify, merge,
- * publish, and distribute this software, provided that the following credit
- * is included in any derivative or distributed version:
- * "Created by Pooya Deperson pooyadeperson@gmail.com https://github.com/PooyaDeperson"
- */
-
-
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import CustomDropdown, { Option } from "./components/CustomDropdown";
 
 const CameraIcon = (
@@ -35,7 +23,14 @@ interface PermissionPopupProps {
   variant: "prompt" | "denied" | "refresh";
 }
 
-function PermissionPopup({ title, subtitle, buttonText, onClick, showButton, variant }: PermissionPopupProps) {
+function PermissionPopup({
+  title,
+  subtitle,
+  buttonText,
+  onClick,
+  showButton,
+  variant,
+}: PermissionPopupProps) {
   return (
     <div className={`popup-container ${variant}-popup reveal fade scaleIn w-100 tb:w-392 pos-abs z-7 m-5 p-1 br-20 top-0`}>
       <div className="inner-container p-5 flex-col br-16">
@@ -58,36 +53,42 @@ interface CameraPermissionsProps {
 }
 
 export default function CameraPermissions({ onStreamReady }: CameraPermissionsProps) {
-  const [permissionState, setPermissionState] = useState<"prompt" | "denied" | "granted">("prompt");
+  const [permissionState, setPermissionState] =
+    useState<"prompt" | "denied" | "granted">("prompt");
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string | null>(null);
   const [showRefreshPopup, setShowRefreshPopup] = useState(false);
 
-  const requestCamera = async (deviceId?: string) => {
-    try {
-      const constraints: MediaStreamConstraints = {
-        video: deviceId ? { deviceId: { exact: deviceId } } : { width: 1280, height: 720 },
-        audio: false,
-      };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      setPermissionState("granted");
+  const requestCamera = useCallback(
+    async (deviceId?: string) => {
+      try {
+        const constraints: MediaStreamConstraints = {
+          video: deviceId ? { deviceId: { exact: deviceId } } : { width: 1280, height: 720 },
+          audio: false,
+        };
 
-      const video = document.getElementById("video") as HTMLVideoElement;
-      if (video) video.srcObject = stream;
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        setPermissionState("granted");
 
-      onStreamReady(stream);
-    } catch (err) {
-      console.error("Camera error:", err);
-      setPermissionState("denied");
-    }
-  };
+        const video = document.getElementById("video") as HTMLVideoElement;
+        if (video) video.srcObject = stream;
 
-  const loadCameras = async () => {
+        onStreamReady(stream);
+      } catch (err) {
+        console.error("Camera error:", err);
+        setPermissionState("denied");
+      }
+    },
+    [onStreamReady]
+  );
+
+  const loadCameras = useCallback(async () => {
     const devices = await navigator.mediaDevices.enumerateDevices();
     const videoInputs = devices.filter((d) => d.kind === "videoinput");
     setCameras(videoInputs);
 
     const savedCamera = localStorage.getItem("selectedCamera");
+
     if (savedCamera && videoInputs.find((d) => d.deviceId === savedCamera)) {
       setSelectedCamera(savedCamera);
       requestCamera(savedCamera);
@@ -96,7 +97,7 @@ export default function CameraPermissions({ onStreamReady }: CameraPermissionsPr
       setSelectedCamera(firstCam);
       requestCamera(firstCam);
     }
-  };
+  }, [requestCamera]);
 
   const handleCameraChange = (deviceId: string) => {
     setSelectedCamera(deviceId);
@@ -105,27 +106,24 @@ export default function CameraPermissions({ onStreamReady }: CameraPermissionsPr
   };
 
   useEffect(() => {
-    if (navigator.permissions) {
-      navigator.permissions.query({ name: "camera" as PermissionName }).then((result) => {
+    if (!navigator.permissions) return;
+
+    navigator.permissions.query({ name: "camera" as PermissionName }).then((result) => {
+      setPermissionState(result.state as any);
+      if (result.state === "granted") loadCameras();
+
+      result.onchange = () => {
         setPermissionState(result.state as any);
         if (result.state === "granted") loadCameras();
+      };
+    });
+  }, [loadCameras]);
 
-        result.onchange = () => {
-          setPermissionState(result.state as any);
-          if (result.state === "granted") loadCameras();
-        };
-      });
-    }
-  }, []);
-
-  const dropdownOptions: Option[] = cameras.map((cam, idx) => {
-    const icon = idx % 2 === 0 ? CameraIcon : VideoIcon;
-    return {
-      label: cam.label || `Camera ${idx + 1}`,
-      value: cam.deviceId,
-      icon,
-    };
-  });
+  const dropdownOptions: Option[] = cameras.map((cam, idx) => ({
+    label: cam.label || `Camera ${idx + 1}`,
+    value: cam.deviceId,
+    icon: idx % 2 === 0 ? CameraIcon : VideoIcon,
+  }));
 
   return (
     <>
@@ -143,8 +141,7 @@ export default function CameraPermissions({ onStreamReady }: CameraPermissionsPr
       {permissionState === "denied" && (
         <PermissionPopup
           variant="denied"
-          title="oh... you haven’t given camera access yet.
-"
+          title="oh... you haven’t given camera access yet."
           subtitle="At the top ⬆️, tap the ℹ️ Site Info icon and turn on camera toggle."
           showButton={false}
         />
