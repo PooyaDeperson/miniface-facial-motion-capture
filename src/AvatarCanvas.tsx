@@ -58,9 +58,9 @@ const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarRe
         dpr={[1, window.devicePixelRatio]}
         shadows
       >
-        <ambientLight intensity={0.5} />
-        <pointLight position={[10, 10, 10]} intensity={0.5} castShadow />
-        <pointLight position={[-10, 0, 10]} intensity={0.5} castShadow />
+        <ambientLight intensity={0.6} />
+        <pointLight position={[10, 10, 10]} intensity={900} castShadow />
+        <pointLight position={[-10, 0, 10]} intensity={50} castShadow />
         <pointLight position={[0, 0, 10]} intensity={0.5} castShadow />
 
         <AvatarOrbitControls target={avatarCenter} enableZoom={true} />
