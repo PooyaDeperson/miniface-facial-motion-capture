@@ -12,7 +12,9 @@
 import { useEffect } from "react";
 import { useFrame, useGraph } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
+import { Mesh } from "three";
 import { blendshapes, rotation, headMesh } from "./FaceTracking";
+import { captureFrame, setSceneForExport } from "./useMotionRecorder";
 
 interface AvatarProps {
   url: string;
@@ -31,8 +33,12 @@ function Avatar({ url, onLoaded }: AvatarProps) {
     if (nodes.Wolf3D_Avatar) headMesh.push(nodes.Wolf3D_Avatar);
     if (nodes.Wolf3D_Head_Custom) headMesh.push(nodes.Wolf3D_Head_Custom);
 
-    if (onLoaded) onLoaded(); // ✅ fire callback
-  }, [nodes, url, onLoaded]);
+    // Provide the recorder with the live scene + nodes so it can build the
+    // AnimationClip and export when the user hits "Save GLB".
+    setSceneForExport(scene, nodes, headMesh as Mesh[]);
+
+    if (onLoaded) onLoaded();
+  }, [nodes, url, onLoaded, scene]);
 
   useFrame(() => {
     if (blendshapes.length > 0) {
@@ -47,6 +53,11 @@ function Avatar({ url, onLoaded }: AvatarProps) {
       nodes.Head.rotation.set(rotation.x, rotation.y, rotation.z);
       nodes.Neck.rotation.set(rotation.x / 5 + 0.3, rotation.y / 5, rotation.z / 5);
       nodes.Spine2.rotation.set(rotation.x / 10, rotation.y / 10, rotation.z / 10);
+
+      // Capture this frame into the recorder (no-op when not recording).
+      // Called after all bone/morph updates so captured values match what
+      // is currently displayed on screen.
+      captureFrame(blendshapes, [rotation.x, rotation.y, rotation.z]);
     }
   });
 

@@ -60,6 +60,8 @@ It leverages the power of MediaPipe and Three.js to create an immersive experien
 ### ✅ Implemented Features
 - **🎤 Real-time Face Tracking**: Captures facial landmarks using MediaPipe.
 - **🎬 3D Avatar Integration**: Renders Ready Player Me avatars with Three.js.
+- **📹 Motion Capture Recording**: Record facial blendshapes and head/neck/spine bone movements in real-time.
+- **💾 GLB Animation Export**: Save recorded animations as self-contained `.glb` files with full avatar geometry and animation data.
 - **🎨 Avatar and Color Switcher**: Easily switch between different avatars and background colors.
 - **⚙️ Component-Based Architecture**: Built with React for a modular and maintainable codebase.
 - **🌐 Web Application**: Runs entirely in the browser.
@@ -110,7 +112,75 @@ To deploy quickly, we temporarily set `CI=false` in Vercel (`vercel.json` or das
 
 ---
 
-## 📁 Project Structure
+## 📹 Motion Capture Recording
+
+### Overview
+Capture your facial expressions and head movements as animations on your selected avatar, then export them as `.glb` files for use in other 3D applications.
+
+### How It Works
+1. **Load an avatar** and enable MediaPipe face tracking
+2. **Click "Record"** — The recording UI appears at the bottom of the screen
+3. **Animate** with your face and head movements — A live timer shows recording duration
+4. **Click "Stop"** to complete the recording
+5. **Review** the captured animation with frame count and duration stats
+6. **Save as GLB** — Exports a complete `.glb` file containing:
+   - Full avatar mesh with all geometry
+   - All skeletal bones (even if not animated)
+   - All blendshapes (morphtargets) that were animated
+   - Animation clip with keyframes for all animated properties
+7. **Download** starts automatically with timestamped filename: `avatar-YYYY-MM-DD-HHmmss.glb`
+
+### Recording UI States
+
+#### Idle (Ready to Record)
+- Shows a "Record" button in a pill-shaped container at the bottom
+- Only visible when both avatar and MediaPipe are loaded
+- Click to start recording
+
+#### Recording (Live Capture)
+- Red pulsing dot indicating active recording
+- Live MM:SS timer showing elapsed time
+- Frame counter showing number of frames captured
+- "Stop" button to end recording
+- UI stays visible even if MediaPipe momentarily loses the face
+
+#### Review (Before Save)
+- Displays final stats: frame count, total duration, frame rate
+- "Save as GLB" button to export the animation
+- "Discard" button to clear and start over
+- Export error messages (if any) appear here
+- Spinner shown during export
+
+### Technical Details
+
+**Captured Data per Frame:**
+- All 52 facial blendshape scores (0-1 values)
+- Head rotation (Euler angles: X, Y, Z)
+- Timestamp for precise animation timing
+
+**Export Format:**
+- Binary GLB (gltf + embedded textures + animation)
+- One `NumberKeyframeTrack` per animated morph target
+- Three `QuaternionKeyframeTrack` entries for Head, Neck, and Spine2 bones
+- AnimationClip automatically bound to the exported model
+
+**File Size:**
+- Typically 2–5 MB depending on animation length and complexity
+- Optimized to skip static blendshapes (keeps file lean)
+
+**Compatibility:**
+- Opens in any GLB/glTF viewer (Babylon.js, Three.js, Blender, etc.)
+- Animation included and ready to play
+- Can be imported into game engines (Unity, Unreal) as FBX or GLB
+
+### Edge Cases Handled
+- Switching avatars automatically discards stale recordings
+- Fewer than 2 captured frames rejected on export
+- Missing bones safely handled (guard for non-RPM rigs)
+- Export errors caught and displayed in UI
+- Live timer stops recording if browser tab loses focus briefly
+
+---
 
 ```
 facial-motion-capture/
@@ -118,6 +188,7 @@ facial-motion-capture/
 ├── 📄 package.json        # Lists the project's dependencies and scripts
 ├── 📄 package-lock.json  # Records the exact version of each installed package
 ├── 📄 README.md           # This file, providing an overview of the project
+├── 📄 PROJECT_OVERVIEW.md # Detailed technical documentation of the codebase
 ├── 📄 tsconfig.json       # The configuration file for the TypeScript compiler
 ├── 📁 public/              # Contains static assets that are publicly accessible
 │   ├── 📁 avatar/          # Stores the 3D avatar models in .glb format
@@ -126,15 +197,16 @@ facial-motion-capture/
 │   └── 📄 logo.png        # The project's logo
 └── 📁 src/                # Contains the main source code for the application
     ├── 📁 components/     # Reusable React components used throughout the app
-    │   ├── 📄 AvatarSwitcher.tsx # Allows users to switch between different avatars
-    │   ├── 📄 ColorSwitcher.tsx  # Enables changing the background color
-    │   └── 📄 CustomDropdown.tsx # A custom dropdown component for UI elements
+    │   ├── 📄 AvatarSwitcher.tsx     # Allows users to switch between different avatars
+    │   ├── 📄 ColorSwitcher.tsx      # Enables changing the background color
+    │   ├── 📄 CustomDropdown.tsx     # A custom dropdown component for UI elements
+    │   └── 📄 RecordingControls.tsx  # Motion capture recording UI (NEW)
     ├── 📁 hooks/          # Custom React hooks for managing state and logic
     ├── 📁 icons/          # SVG icons used in the user interface
     ├── 📁 images/         # Image assets specific to components
-    ├── 📄 App.css         # Styles for the main application component / all styles are found here
+    ├── 📄 App.css         # Styles for the main application component (includes recording UI)
     ├── 📄 App.tsx         # The root component of the application
-    ├── 📄 Avatar.tsx      # Renders the 3D avatar model
+    ├── 📄 Avatar.tsx      # Renders the 3D avatar model (updated for motion capture)
     ├── 📄 AvatarCanvas.tsx # The Three.js canvas where the avatar is displayed
     ├── 📄 AvatarOrbitControls.tsx # Implements camera controls for the avatar
     ├── 📄 camera-permission.tsx # Handles requesting and managing camera permissions
@@ -142,5 +214,6 @@ facial-motion-capture/
     ├── 📄 index.css       # Not used / Empty
     ├── 📄 index.tsx       # The entry point for the React application
     ├── 📄 AvatarLoader.tsx      # A loading avatar indicator component
+    ├── 📄 useMotionRecorder.ts  # Motion capture recording engine (NEW)
     └── 📄 react-app-env.d.ts # TypeScript type declarations for the React environment
 ```

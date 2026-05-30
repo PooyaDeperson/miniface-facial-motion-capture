@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2025 Pooya Moradi M. pooyadeperson@gmail.com https://github.com/PooyaDeperson
  * Licensed under the MIT License with Attribution.
@@ -70,6 +69,14 @@ svg {
   display: block;
   max-width: 100%;
   height: auto;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-row {
+  flex-direction: row;
 }
 
 /* Reset forms */
@@ -579,6 +586,10 @@ html {
   bottom: 0;
 }
 
+.bottom-10 {
+  bottom: 10px;
+}
+
 .z-1 {
   z-index: 1;
 }
@@ -869,6 +880,11 @@ svg {
 
 /* ------------------------ ------------------------ mobile only */
 @media (max-width: 768px) {
+  .recording-controls {
+    bottom: 38px !important;
+    left: calc(50% + 37px) !important;
+  }
+
   .avatar-container.mb\:pos {
 
     --scale: 1.05;
@@ -1247,9 +1263,11 @@ button.icon-holder.tab-button:not(.active) {
   }
 }
 
-@media (min-width:1025px) and (orientation: landscape) , (max-height:400px), (orientation: landscape) {
+@media (min-width:1025px) and (orientation: landscape),
+(max-height:400px),
+(orientation: landscape) {
   .avatar-loader-container {
-      background-size: contain;
+    background-size: contain;
   }
 }
 
@@ -1285,4 +1303,318 @@ canvas:active {
 .mediapipe-loader p {
   font-size: 1.5rem;
   color: var(--gray-100);
+}
+
+/* ====== z-index utility for recording controls ====== */
+.z-rec {
+  z-index: 100;
+}
+
+/* ====== Recording Controls ====== */
+
+/*
+ * Fixed bottom-center pill that hosts the three phases of the recording flow:
+ * idle → recording → review.
+ *
+ * Design tokens used (matching the rest of the app):
+ *   --gray-100 / --gray-900 for text
+ *   rgba black for glass backgrounds
+ *   red accent (#e53e3e / #ff4444) for the record dot / stop button
+ */
+
+.recording-controls {
+  position: fixed;
+  bottom: 38px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+/* ── shared button base ── */
+.rec-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  transition: opacity 0.15s ease, transform 0.1s ease, background 0.2s ease;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.rec-btn:active {
+  transform: scale(0.96);
+}
+
+.rec-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ── idle: "Record" ── */
+.rec-btn-record {
+  background-color: rgba(255, 255, 255, 1);
+  /* backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px); */
+  color: #ff3333;
+  /* box-shadow: 0 2px 16px rgba(0, 0, 0, 0.35); */
+  outline: 5px solid rgba(255, 255, 255, 0.5);
+}
+
+.rec-btn-record:hover {
+  background-color: rgb(230, 230, 230);
+}
+
+/* ── recording live bar ── */
+.rec-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  /* box-shadow: 0 2px 16px rgba(0, 0, 0, 0.35); */
+
+  outline: 5px solid rgba(0, 0, 0, 0.35);
+}
+
+.rec-bar-live {
+  background: rgba(237, 234, 234, 1);
+}
+
+.rec-bar-review {
+  background: rgba(242, 242, 242, 0.88);
+  flex-direction: row;
+  gap: 33px;
+  padding: 8px 21px;
+  border-radius: 44px;
+  min-width: 220px;
+}
+
+/* ── red recording dot ── */
+.rec-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.rec-dot-idle {
+  background: #ff4444;
+}
+
+.rec-dot-pulse {
+  background: #ff4444;
+  box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7);
+  animation: rec-pulse 1.2s cubic-bezier(0.66, 0, 0, 1) infinite;
+}
+
+@keyframes rec-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7);
+  }
+
+  70% {
+    box-shadow: 0 0 0 8px rgba(255, 68, 68, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 68, 68, 0);
+  }
+}
+
+/* ── timer & frame counter ── */
+.rec-timer {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #060606;
+  font-variant-numeric: tabular-nums;
+  min-width: 40px;
+  letter-spacing: 0.04em;
+}
+
+.rec-frames {
+  font-size: 0.75rem;
+  color: rgba(33, 33, 33, 0.6);
+  font-variant-numeric: tabular-nums;
+  min-width: 36px;
+}
+
+/* ── stop button ── */
+.rec-btn-stop {
+  background: #e53e3e;
+  color: #fff;
+  padding: 7px 18px;
+  font-size: 0.8rem;
+  box-shadow: 0 1px 6px rgba(229, 62, 62, 0.45);
+}
+
+.rec-btn-stop:hover {
+  background: #c53030;
+}
+
+/* stop square icon */
+.rec-stop-icon {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: #fff;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ── review stats ── */
+.rec-stats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  color: rgb(23, 22, 22) !important;
+}
+
+.rec-stat-item {
+  font-size: 0.8rem;
+  color: rgba(14, 13, 13, 0.8);
+  font-variant-numeric: tabular-nums;
+}
+
+.rec-stat-divider {
+  color: rgba(21, 20, 20, 0.35);
+}
+
+/* ── error message ── */
+.rec-error {
+  font-size: 0.75rem;
+  color: #fc8181;
+  text-align: center;
+  max-width: 240px;
+  line-height: 1.4;
+  position: absolute;
+  bottom: 76px;
+  color: #fb6060;
+  padding: 13px;
+  background: white;
+  border-radius: 16px;
+}
+
+/* ── review action buttons row ── */
+.rec-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  justify-content: center;
+}
+
+/* save GLB */
+.rec-btn-save {
+  background: #01060b;
+  color: #fff;
+  padding: 8px 20px;
+  /* font-size: 0.82rem; */
+  flex: 1;
+  justify-content: center;
+  box-shadow: 0 1px 6px rgba(43, 108, 176, 0.4);
+}
+
+.rec-btn-save:hover:not(:disabled) {
+  background: rgb(1, 3, 6);
+}
+
+/* discard */
+.rec-btn-discard {
+  /* background: rgba(255, 255, 255, 0.08); */
+  color: rgba(0, 0, 0, 0.75);
+  padding: 8px 8px;
+  font-size: 0.82rem;
+  /* border: 1px solid rgba(255, 255, 255, 0.12); */
+}
+
+.rec-btn-discard:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* save icon — simple down-arrow */
+.rec-save-icon {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg) translateY(-2px);
+  flex-shrink: 0;
+}
+
+/* ── export spinner ── */
+.rec-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: rec-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes rec-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── tablet: nudge up so it clears AvatarSwitcher on landscape ── */
+@media (min-width: 769px) {
+  .recording-controls {
+    bottom: 48px;
+  }
+}
+
+/* ── small landscape (phones in landscape): keep it from overlapping controls ── */
+@media (max-height: 400px) {
+  .recording-controls {
+    bottom: 48px;
+    left: calc(50% + 37px);
+  }
+
+  .rec-bar-review {
+    padding: 10px 16px;
+    gap: 6px;
+  }
+}
+
+/* ── AvatarSwitcher disabled state (recording or review phase) ── */
+.avatar-switcher-disabled {
+  opacity: 0.4;
+  pointer-events: none;
+  cursor: not-allowed;
+  transition: all 0.2s ease;
+  opacity: 0.5 !important;
+  /* right: -54px !important; */
+  /* position: relative; or absolute/fixed if needed */
+  animation: hide-right 0.3s ease forwards;
+}
+
+@keyframes hide-right {
+  0% {
+    opacity: 1;
+    right: 0;
+  }
+
+  100% {
+    opacity: 0.5;
+    right: -54px;
+  }
 }

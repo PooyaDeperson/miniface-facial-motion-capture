@@ -15,9 +15,10 @@ import React, { useEffect } from "react";
 interface AvatarSwitcherProps {
   onAvatarChange: (newUrl: string) => void;
   activeUrl: string | null;
+  disabled?: boolean;
 }
 
-const AvatarSwitcher: React.FC<AvatarSwitcherProps> = ({ onAvatarChange, activeUrl }) => {
+const AvatarSwitcher: React.FC<AvatarSwitcherProps> = ({ onAvatarChange, activeUrl, disabled = false }) => {
   const avatars = [
     { name: "Avatar 1", url: "/avatar/avatar1.glb" },
     { name: "Avatar 2", url: "/avatar/avatar2.glb" },
@@ -46,15 +47,16 @@ const AvatarSwitcher: React.FC<AvatarSwitcherProps> = ({ onAvatarChange, activeU
   }, [activeUrl]);
 
   return (
-    <div className="avatar-switcher reveal slide-left bottom-0 m-6 tb:center-horizontal flex-col pos-fixed z-6">
+    <div className={`avatar-switcher reveal slide-left bottom-0 m-6 tb:center-horizontal flex-col pos-fixed z-6${disabled ? " avatar-switcher-disabled" : ""}`}>
       {avatars.map((avatar, index) => {
         const isActive = activeUrl === avatar.url;
         return (
           <button
             key={avatar.name}
-            onClick={() => !isActive && onAvatarChange(avatar.url)}
+            onClick={() => !isActive && !disabled && onAvatarChange(avatar.url)}
             className={`avatar-btn avatar-selection avatar${index + 1} ${isActive ? "active" : ""}`}
-            disabled={isActive} // prevent re-selecting
+            disabled={isActive || disabled}
+            aria-disabled={disabled || undefined}
           >
             {/* {avatar.name} */}
           </button>
