@@ -10,13 +10,15 @@
  */
 
 import "./App.css";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useGLTF } from "@react-three/drei";
 import CameraPermissions from "./camera-permission";
 import ColorSwitcher from "./components/ColorSwitcher";
 import AvatarSwitcher from "./components/AvatarSwitcher";
+import RecordingControls from "./components/RecordingControls";
 import FaceTracking from "./FaceTracking";
 import AvatarCanvas from "./AvatarCanvas";
+import { discardRecording } from "./useMotionRecorder";
 
 function App() {
   const [url, setUrl] = useState<string | null>(null);
@@ -24,12 +26,23 @@ function App() {
   const [avatarReady, setAvatarReady] = useState(false);
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
   const [mediapipeReady, setMediapipeReady] = useState(false);
+  const [recordingPhase, setRecordingPhase] = useState<"idle" | "recording" | "review">("idle");
+
+  const isSwitcherDisabled = recordingPhase !== "idle";
+
+  const handlePhaseChange = useCallback((phase: "idle" | "recording" | "review") => {
+    setRecordingPhase(phase);
+  }, []);
 
   const handleStreamReady = (stream: MediaStream) => {
     setVideoStream(stream);
   };
 
   const handleAvatarChange = (newUrl: string) => {
+    // Discard any in-progress or completed recording when the avatar changes
+    // so stale frames from a different avatar never contaminate a new export.
+    discardRecording();
+
     useGLTF.clear(newUrl);
 
     if (url === newUrl) {
@@ -68,7 +81,14 @@ function App() {
       <AvatarCanvas url={url} avatarKey={avatarKey} setAvatarReady={setAvatarReady} />
 
       <ColorSwitcher />
-      <AvatarSwitcher activeUrl={url} onAvatarChange={handleAvatarChange} />
+      <AvatarSwitcher activeUrl={url} onAvatarChange={handleAvatarChange} disabled={isSwitcherDisabled} />
+
+      {/* Motion capture recording controls — visible once avatar + mediapipe are both live */}
+      <RecordingControls
+        mediapipeReady={mediapipeReady}
+        avatarReady={avatarReady}
+        onPhaseChange={handlePhaseChange}
+      />
     </div>
   );
 }
