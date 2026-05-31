@@ -18,6 +18,9 @@ export let blendshapes: any[] = [];
 export let rotation: Euler;
 export let headMesh: any[] = [];
 
+/** True while MediaPipe face detection is running. Avatar reads this to switch modes. */
+export let isMediaPipeActive = false;
+
 let faceLandmarker: FaceLandmarker;
 let lastVideoTime = -1;
 
@@ -51,6 +54,8 @@ function FaceTracking({
     if (onMediapipeReady) onMediapipeReady();
   };
 
+  const predictLoopRef = useRef<number | null>(null);
+
   const predict = () => {
     const vid = videoRef.current;
     if (!vid || !faceLandmarker) return;
@@ -65,10 +70,13 @@ function FaceTracking({
 
         const matrix = new Matrix4().fromArray(result.facialTransformationMatrixes![0].data);
         rotation = new Euler().setFromRotationMatrix(matrix);
+
+        // Mark MediaPipe as actively providing data.
+        isMediaPipeActive = true;
       }
     }
 
-    requestAnimationFrame(predict);
+    predictLoopRef.current = requestAnimationFrame(predict);
   };
 
   useEffect(() => {
@@ -80,6 +88,16 @@ function FaceTracking({
     vid.srcObject = videoStream;
     vid.onloadeddata = () => {
       setupFaceLandmarker().then(predict);
+    };
+
+    return () => {
+      // Stop the prediction loop and signal that MediaPipe is inactive.
+      if (predictLoopRef.current !== null) {
+        cancelAnimationFrame(predictLoopRef.current);
+        predictLoopRef.current = null;
+      }
+      isMediaPipeActive = false;
+      blendshapes = [];
     };
   }, [videoStream]);
 
