@@ -182,55 +182,63 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   // ── render ───────────────────────────────────────────────────────────────────
   return (
     <div
-      className="recording-controls reveal fade pos-fixed z-rec bottom-10"
+      className="recording-controls reveal bottom-36 fade pos-fixed z-rec"
       role="region"
       aria-label="Motion capture recording"
     >
       {/* ── IDLE ── */}
       {phase === "idle" && (
         <button
-          className="rec-btn rec-btn-record"
+          className="rec-btn rec-btn-record pt-10 pb-10 pl-22 pr-22 outline-5 outline-soft gap-2"
           onClick={handleRecord}
           aria-label="Start recording motion"
         >
           <span className="rec-dot rec-dot-idle" aria-hidden="true" />
-          <span>Record</span>
+          <span>record</span>
         </button>
       )}
 
       {/* ── RECORDING ── */}
       {phase === "recording" && (
-        <div className="rec-bar rec-bar-live" role="status" aria-live="polite">
-          <span
-            className="rec-dot rec-dot-pulse"
-            aria-hidden="true"
-          />
-          <span className="rec-timer" aria-label={`Recording time: ${formatTime(elapsed)}`}>
-            {formatTime(elapsed)}
-          </span>
-          <span className="rec-frames" aria-label={`${frameCount} frames captured`}>
-            {frameCount}&thinsp;f
-          </span>
+        <div
+          className="rec-bar rec-bar-live outline-5 outline-danger"
+          role="status"
+          aria-live="polite"
+        >
+          {/* <span className="rec-dot rec-dot-pulse" aria-hidden="true" /> */}
           <button
-            className="rec-btn rec-btn-stop"
+            className="rec-btn rec-btn-stop bg-danger gap-8 pl-22 pr-22 pt-10 pb-10"
             onClick={handleStop}
             aria-label="Stop recording"
           >
             <span className="rec-stop-icon" aria-hidden="true" />
-            Stop
+            recording
+            <span
+              className="rec-timer"
+              aria-label={`Recording time: ${formatTime(elapsed)}`}
+            >
+              {formatTime(elapsed)}
+            </span>
+            <span
+              className="rec-frames"
+              aria-label={`${frameCount} frames captured`}
+            >
+              {frameCount}&thinsp;f
+            </span>
+            
           </button>
         </div>
       )}
 
       {/* ── REVIEW ── */}
       {phase === "review" && (
-        <div className="rec-bar rec-bar-review">
+        <div className="rec-bar p-20 gap-12 rec-bar-review p-20 flex flex-col">
           {/* Stats row */}
           <div className="rec-stats" aria-label="Recording stats">
-            <span className="rec-stat-item">
-              {frameCount}&thinsp;frames
+            <span className="rec-stat-item">{frameCount}&thinsp;frames</span>
+            <span className="rec-stat-divider" aria-hidden="true">
+              ·
             </span>
-            <span className="rec-stat-divider" aria-hidden="true">·</span>
             <span className="rec-stat-item">{formatTime(elapsed)}</span>
           </div>
 
@@ -242,9 +250,9 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
           )}
 
           {/* Actions */}
-          <div className="rec-actions">
+          <div className="rec-actions flex flex-col">
             <button
-              className="rec-btn rec-btn-save"
+              className="rec-btn gap-8 justify-center w-full rec-btn-save"
               onClick={handleSave}
               disabled={isExporting}
               aria-label="Save recording as GLB file"
@@ -258,18 +266,18 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
               ) : (
                 <>
                   {/* <span className="rec-save-icon" aria-hidden="true" /> */}
-                  Save&nbsp;GLB
+                  save &nbsp;.glb
                 </>
               )}
             </button>
 
             <button
-              className="rec-btn rec-btn-discard"
+              className="rec-btn rec-btn-discard w-full justify-center border-3 border-inverse"
               onClick={handleDiscard}
               disabled={isExporting}
               aria-label="Discard this recording"
             >
-              ✖
+              another take
             </button>
           </div>
         </div>
