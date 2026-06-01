@@ -1761,6 +1761,7 @@ canvas:active {
 
 .rec-bar-live {
   background: var(--white-color);
+  animation: recording-pulse 2s ease-in-out infinite;
 }
 
 .rec-bar-review {
@@ -1814,8 +1815,13 @@ canvas:active {
   min-width: 40px;
   letter-spacing: 0.04em; */
   /* font-size:  1em; */
-  min-width: 36px;
+  min-width: 50px;
+  max-width: 50px;
   font-variant-numeric: tabular-nums;
+  padding: 2px 9px;
+    background: var(--red-600);
+    border-radius: 6px;
+
 }
 
 .rec-frames {
@@ -2008,5 +2014,18 @@ canvas:active {
   100% {
     opacity: 0.5;
     bottom: -64px;
+  }
+}
+@keyframes recording-pulse {
+  0% {
+   outline-color: var(--outline-danger)
+  }
+
+  50% {
+      outline-color: var(--outline-soft)
+
+  }
+  100% {
+   outline-color: var(--outline-danger)
   }
 }

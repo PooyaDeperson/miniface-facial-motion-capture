@@ -158,6 +158,7 @@
   --outline-primary: var(--gray-400);
   --outline-brand: var(--purple-500);
   --outline-danger: var(--red-500);
+  --outline-softdanger: var(--red-400);
 
    --outline-soft: var(--gray-100-op50);
 
@@ -293,6 +294,7 @@
 .outline-primary { outline-color: var(--outline-primary); }
 .outline-brand { outline-color: var(--outline-brand); }
 .outline-danger { outline-color: var(--outline-danger); }
+.outline-softdanger { outline-color: var(--outline-softdanger); }
 .outline-soft { outline-color: var(--outline-soft); }
 
 /* ==========================================================================

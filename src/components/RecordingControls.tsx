@@ -201,7 +201,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
       {/* ── RECORDING ── */}
       {phase === "recording" && (
         <div
-          className="rec-bar rec-bar-live outline-5 outline-danger"
+          className="rec-bar rec-bar-live outline-5 outline-softdanger"
           role="status"
           aria-live="polite"
         >
