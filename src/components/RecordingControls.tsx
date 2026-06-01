@@ -189,7 +189,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
       {/* ── IDLE ── */}
       {phase === "idle" && (
         <button
-          className="rec-btn rec-btn-record pt-10 pb-10 pl-22 pr-22 outline-5 outline-soft gap-2"
+          className="rec-btn pos-rel rec-btn-record pt-10 pb-10 pl-22 pr-22 outline-5 outline-soft gap-2"
           onClick={handleRecord}
           aria-label="Start recording motion"
         >
