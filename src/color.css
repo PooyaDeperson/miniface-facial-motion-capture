@@ -293,6 +293,7 @@
 .outline-primary { outline-color: var(--outline-primary); }
 .outline-brand { outline-color: var(--outline-brand); }
 .outline-danger { outline-color: var(--outline-danger); }
+.outline-soft { outline-color: var(--outline-soft); }
 
 /* ==========================================================================
    FILL UTILITIES
