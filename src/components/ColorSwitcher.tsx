@@ -42,7 +42,11 @@ const isDark = (hex: string) => {
   return luma < 128;
 };
 
-const ColorPatternSwitcher: React.FC = () => {
+interface ColorPatternSwitcherProps {
+  disabled?: boolean;
+}
+
+const ColorPatternSwitcher: React.FC<ColorPatternSwitcherProps> = ({ disabled = false }) => {
 const [activeColor, setActiveColor] = useState<string>(
   () => localStorage.getItem("activeColor") || "#8bd9fbff"
 );
@@ -80,7 +84,7 @@ const [activePattern, setActivePattern] = useState<string>(
 
   return (
     <div
-      className="popup-container tb:size selector-container reveal slide-up cc-pattern-selector-container pos-abs bottom-0 p-1 left-0 z-7 m-6 br-24"
+      className={`popup-container tb:size selector-container reveal slide-up cc-pattern-selector-container pos-abs bottom-0 p-1 left-0 z-7 m-6 br-24${disabled ? " switcher-disabled" : ""}`}
       ref={containerRef}
     >
       <div className="bg-blur flex-row cc-pattern-selector pos-abs bottom-0 left-0 z-7 m-2 tb:m-3 gap-2 br-16 p-1">

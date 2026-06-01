@@ -47,7 +47,7 @@ const AvatarSwitcher: React.FC<AvatarSwitcherProps> = ({ onAvatarChange, activeU
   }, [activeUrl]);
 
   return (
-    <div className={`avatar-switcher reveal slide-left bottom-0 m-6 tb:center-horizontal flex-col pos-fixed z-6${disabled ? " avatar-switcher-disabled" : ""}`}>
+    <div className={`avatar-switcher reveal slide-left bottom-0 m-6 tb:center-horizontal flex-col pos-fixed z-6${disabled ? " switcher-disabled" : ""}`}>
       {avatars.map((avatar, index) => {
         const isActive = activeUrl === avatar.url;
         return (

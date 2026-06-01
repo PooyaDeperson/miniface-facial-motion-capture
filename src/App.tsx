@@ -80,7 +80,7 @@ function App() {
       {/* 3D Avatar Canvas */}
       <AvatarCanvas url={url} avatarKey={avatarKey} setAvatarReady={setAvatarReady} />
 
-      <ColorSwitcher />
+      <ColorSwitcher disabled={isSwitcherDisabled} />
       <AvatarSwitcher activeUrl={url} onAvatarChange={handleAvatarChange} disabled={isSwitcherDisabled} />
 
       {/* Motion capture recording controls — visible once avatar + mediapipe are both live */}
