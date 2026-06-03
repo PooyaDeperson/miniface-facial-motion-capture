@@ -37,7 +37,7 @@ interface PermissionPopupProps {
 
 function PermissionPopup({ title, subtitle, buttonText, onClick, showButton, variant }: PermissionPopupProps) {
   return (
-    <div className={`popup-container ${variant}-popup reveal fade scaleIn w-100 tb:w-392 pos-abs z-7 m-5 p-1 br-20 top-0`}>
+    <div className={`popup-container ${variant}-popup reveal fade scaleIn w-100 tb:w-392 pos-abs z-9992 m-5 p-1 br-20 top-0`}>
       <div className="inner-container p-5 flex-col br-16">
         <div className="text-container flex-col gap-2">
           <h1 className={`title ${variant}-title`}>{title}</h1>
@@ -161,7 +161,7 @@ export default function CameraPermissions({ onStreamReady }: CameraPermissionsPr
       )}
 
       {permissionState === "granted" && cameras.length > 1 && (
-        <div className="cp-dropdown pos-abs reveal fade scaleIn top-0 right-0 tb:left-0 tb:display-table z-7 m-6">
+        <div className="cp-dropdown pos-abs reveal fade scaleIn top-0 right-0 tb:left-0 tb:display-table z-9991 m-6">
           <CustomDropdown
             options={dropdownOptions}
             value={selectedCamera}
