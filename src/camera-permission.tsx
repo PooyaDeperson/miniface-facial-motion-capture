@@ -65,8 +65,19 @@ export default function CameraPermissions({ onStreamReady }: CameraPermissionsPr
 
   const requestCamera = async (deviceId?: string) => {
     try {
+      // On mobile, strict resolution constraints (e.g. 1280x720) cause
+      // getUserMedia to fail or return a degraded stream on many Samsung/Xiaomi
+      // front cameras. Use ideal (not exact) constraints so the browser can
+      // negotiate the best available resolution.
+      const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      const videoConstraints: MediaTrackConstraints = deviceId
+        ? { deviceId: { exact: deviceId } }
+        : isMobile
+        ? { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }
+        : { width: { ideal: 1280 }, height: { ideal: 720 } };
+
       const constraints: MediaStreamConstraints = {
-        video: deviceId ? { deviceId: { exact: deviceId } } : { width: 1280, height: 720 },
+        video: videoConstraints,
         audio: false,
       };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);

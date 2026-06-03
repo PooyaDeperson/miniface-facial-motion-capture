@@ -10,7 +10,7 @@
  */
 
 import "./App.css";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useGLTF } from "@react-three/drei";
 import CameraPermissions from "./camera-permission";
 import ColorSwitcher from "./components/ColorSwitcher";
@@ -27,6 +27,9 @@ function App() {
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
   const [mediapipeReady, setMediapipeReady] = useState(false);
   const [recordingPhase, setRecordingPhase] = useState<"idle" | "recording" | "review">("idle");
+  // Timeout fallback: if face detection never fires within 30s on mobile,
+  // dismiss the overlay so the user isn't permanently stuck.
+  const mediapipeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isSwitcherDisabled = recordingPhase !== "idle";
 
@@ -38,9 +41,31 @@ function App() {
     setVideoStream(stream);
   };
 
+  const handleMediapipeReady = useCallback(() => {
+    if (mediapipeTimeoutRef.current) {
+      clearTimeout(mediapipeTimeoutRef.current);
+      mediapipeTimeoutRef.current = null;
+    }
+    setMediapipeReady(true);
+  }, []);
+
+  // Start a 30-second timeout once avatar + stream are both ready.
+  // On mobile the CPU delegate can be slow; this prevents an infinite overlay.
+  useEffect(() => {
+    if (avatarReady && videoStream && !mediapipeReady) {
+      mediapipeTimeoutRef.current = setTimeout(() => {
+        setMediapipeReady(true);
+      }, 30000);
+    }
+    return () => {
+      if (mediapipeTimeoutRef.current) {
+        clearTimeout(mediapipeTimeoutRef.current);
+        mediapipeTimeoutRef.current = null;
+      }
+    };
+  }, [avatarReady, videoStream, mediapipeReady]);
+
   const handleAvatarChange = (newUrl: string) => {
-    // Discard any in-progress or completed recording when the avatar changes
-    // so stale frames from a different avatar never contaminate a new export.
     discardRecording();
 
     useGLTF.clear(newUrl);
@@ -73,7 +98,7 @@ function App() {
       {avatarReady && videoStream && (
         <FaceTracking
           videoStream={videoStream}
-          onMediapipeReady={() => setMediapipeReady(true)}
+          onMediapipeReady={handleMediapipeReady}
         />
       )}
 
