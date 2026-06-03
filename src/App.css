@@ -9,6 +9,7 @@
  */
 
 @import './color.css';
+@import './icon.css';
 
 
 /* foundation.css */
@@ -549,49 +550,7 @@ table {
 /* Import Chicle font from Google
 @import url('https://fonts.googleapis.com/css2?family=Chicle&display=swap'); */
 
-/* vars */
-:root {
-
-  --pattern-none: none;
-
-  --pattern-stripes: repeating-linear-gradient(45deg,
-      rgba(0, 0, 0, 0.05),
-      rgba(0, 0, 0, 0.05) 10px,
-      transparent 10px,
-      transparent 20px);
-
-  --pattern-waves:
-    repeating-linear-gradient(90deg,
-      rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.05) 5px,
-      transparent 5px, transparent 10px);
-
-  --pattern-checker: repeating-linear-gradient(0deg, rgba(0, 0, 0, .05) 0 4px, transparent 1px 10px), repeating-linear-gradient(90deg, rgba(0, 0, 0, .05) 0 4px, transparent 1px 10px);
-
-  --pattern-crosshatch:
-    repeating-linear-gradient(45deg, rgba(0, 0, 0, .05) 0 4px, transparent 1px 10px), repeating-linear-gradient(90deg, rgba(0, 0, 0, .05) 0 4px, transparent 1px 10px);
-
-  --pattern-waves2:
-    repeating-radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.05) 0px, rgba(0, 0, 0, 0.05) 25px, transparent 26px, transparent 90px);
-  /* icons */
-  --selected-icon: url('../public/images/app/icons/icon_selected.svg');
-  --camera-icon: url('../public/images/app/icons/icon_camera.svg');
-  --dropdown-icon: url('../public/images/app/icons/icon_dropdown.svg');
-  --circle-tile: url('../public/images/app/icons/icon_bkg_tile.svg');
-  --color-icon: url('../public/images/app/icons/icon_color.svg');
-  --pattern-icon: url('../public/images/app/icons/icon_pattern.svg');
-  --notallowed-icon: url('../public/images/app/icons/icon_notallowed.svg');
-
-  /* colors */
-  /* --gray-100: #EBF0F5;
-  --border-soft: rgba(20, 24, 28, 0.5);
-  --gray-900: #272939;
-  --purple-900: #4A13C0;
-  --purple-800: #7F5DCA;
-  --white-color: #ffffff;
-  --red-900: #C0137B;
-  --red-800: #EF52B0; */
-
-}
+/* vars defined in color.css */
 
 
 h1.title.denied-title {
@@ -1320,10 +1279,7 @@ svg {
 
 
 
-   .tb\:icon-size-32 {
-    width: 32px!important;
-    height: 32px!important;
-  }
+
 
 
   .popup-container.tb\:size {
@@ -1481,34 +1437,6 @@ button.camera-dropdown {
   text-overflow: ellipsis;
 }
 
-/* icon setup */
-.has-icon,
-.cd-icon {
-  display: inline-block;
-}
-
-.icon-size-16 {
-  width: 16px;
-  height: 16px;
-}
-
-.icon-size-18 {
-  width: 18px;
-  height: 18px;
-}
-
-.icon-size-32 {
-  width: 32px;
-  height: 32px;
-}
-
-.has-icon.dropdown-icon {
-  background: no-repeat center / contain var(--dropdown-icon);
-}
-
-.has-icon.camera-icon {
-  background: no-repeat center / contain var(--camera-icon);
-}
 
 button.cd-selected>.has-icon.selected-icon {
 

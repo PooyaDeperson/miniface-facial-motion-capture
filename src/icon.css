@@ -1,0 +1,64 @@
+
+/* ==========================================================================
+   ICON TOKENS
+   ========================================================================== */
+
+:root {
+
+
+
+  /* =========================
+     ICON UTILITIES
+     ========================= */
+
+  --selected-icon: url('../public/images/app/icons/icon_selected.svg');
+  --camera-icon: url('../public/images/app/icons/icon_camera.svg');
+  --dropdown-icon: url('../public/images/app/icons/icon_dropdown.svg');
+  --circle-tile: url('../public/images/app/icons/icon_bkg_tile.svg');
+  --color-icon: url('../public/images/app/icons/icon_color.svg');
+  --pattern-icon: url('../public/images/app/icons/icon_pattern.svg');
+  --notallowed-icon: url('../public/images/app/icons/icon_notallowed.svg');
+}
+
+
+/* icon setup */
+.has-icon,
+.cd-icon {
+  display: inline-block;
+}
+
+.icon-size-16 {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-size-18 {
+  width: 18px;
+  height: 18px;
+}
+
+.icon-size-32 {
+  width: 32px;
+  height: 32px;
+}
+
+.has-icon.dropdown-icon {
+  background: no-repeat center / contain var(--dropdown-icon);
+}
+
+.has-icon.camera-icon {
+  background: no-repeat center / contain var(--camera-icon);
+}
+
+
+@media (min-width: 769px) {
+
+
+
+   .tb\:icon-size-32 {
+    width: 32px!important;
+    height: 32px!important;
+  }
+
+
+}
