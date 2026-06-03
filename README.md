@@ -82,12 +82,6 @@ It leverages the power of MediaPipe and Three.js to create an immersive experien
 
 ---
 
-
-## Known issues:
-
-⚠️ Currently does not work on Samsung Galaxy S25 Ultra and some other Galaxy devices due to MediaPipe compatibility issues
-
-
 ## 🛠️ Development Guide
 
 ### Environment Setup
