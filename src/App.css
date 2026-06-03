@@ -956,6 +956,15 @@ html {
 .z-10 {
   z-index: 10;
 }
+.z-999 {
+  z-index: 999;
+}
+.z-9991 {
+  z-index: 9991;
+}
+.z-9992 {
+  z-index: 9992;
+}
 
 
 /* Padding helpers (same scale) */
@@ -1564,7 +1573,6 @@ canvas:active {
   height: 100%;
   background: rgba(0, 0, 0, 0.4);
   /* dim background */
-  z-index: 9999;
   /* above everything else */
   flex-direction: column;
   gap: 1rem;
