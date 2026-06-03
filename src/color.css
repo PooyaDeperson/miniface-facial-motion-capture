@@ -101,19 +101,17 @@
   --bg-danger-soft-hover: var(--red-200);
 
   /* =========================
-   OVERLAYS
-   ========================= */
+     OVERLAYS
+     ========================= */
 
---overlay-light: var(--gray-100-op50);
---overlay-subtle: var(--gray-100-op50);
+  --overlay-light: var(--gray-100-op50);
+  --overlay-subtle: var(--gray-100-op50);
 
+  /* =========================
+     BACKDROPS
+     ========================= */
 
-
-/* =========================
-   BACKDROPS
-   ========================= */
-
---backdrop-light: var(--gray-100-op50);
+  --backdrop-light: var(--gray-100-op50);
 
   /* =========================
      SURFACES
@@ -130,8 +128,7 @@
   --surface-danger: var(--red-100);
   --surface-danger-hover: var(--red-200);
 
-
---surface-overlay: var(--gray-100-op50);
+  --surface-overlay: var(--gray-100-op50);
 
   /* =========================
      BORDERS
@@ -162,20 +159,6 @@
 
    --outline-soft: var(--gray-100-op50);
 
-  /* =========================
-     ICONS
-     ========================= */
-
-  --icon-primary: var(--gray-900);
-  --icon-secondary: var(--gray-600);
-  --icon-muted: var(--gray-500);
-  --icon-disabled: var(--gray-300);
-
-  --icon-brand: var(--purple-900);
-  --icon-brand-muted: var(--purple-600);
-
-  --icon-danger: var(--red-900);
-  --icon-danger-muted: var(--red-600);
 
   /* =========================
      FILLS
@@ -223,6 +206,46 @@
 
   --focus-ring: var(--purple-500);
   --focus-ring-danger: var(--red-500);
+
+  /* =========================
+     PATTERNS
+     ========================= */
+
+       /* =========================
+     ICONS
+     ========================= */
+
+  --icon-primary: var(--gray-900);
+  --icon-secondary: var(--gray-600);
+  --icon-muted: var(--gray-500);
+  --icon-disabled: var(--gray-300);
+
+  --icon-brand: var(--purple-900);
+  --icon-brand-muted: var(--purple-600);
+
+  --icon-danger: var(--red-900);
+  --icon-danger-muted: var(--red-600);
+
+  --pattern-none: none;
+
+  --pattern-stripes: repeating-linear-gradient(45deg,
+      rgba(0, 0, 0, 0.05),
+      rgba(0, 0, 0, 0.05) 10px,
+      transparent 10px,
+      transparent 20px);
+
+  --pattern-waves:
+    repeating-linear-gradient(90deg,
+      rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.05) 5px,
+      transparent 5px, transparent 10px);
+
+  --pattern-checker: repeating-linear-gradient(0deg, rgba(0, 0, 0, .05) 0 4px, transparent 1px 10px), repeating-linear-gradient(90deg, rgba(0, 0, 0, .05) 0 4px, transparent 1px 10px);
+
+  --pattern-crosshatch:
+    repeating-linear-gradient(45deg, rgba(0, 0, 0, .05) 0 4px, transparent 1px 10px), repeating-linear-gradient(90deg, rgba(0, 0, 0, .05) 0 4px, transparent 1px 10px);
+
+  --pattern-waves2:
+    repeating-radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.05) 0px, rgba(0, 0, 0, 0.05) 25px, transparent 26px, transparent 90px);
 }
 
 /* ==========================================================================

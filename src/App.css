@@ -9,6 +9,7 @@
  */
 
 @import './color.css';
+@import './icon.css';
 
 
 /* foundation.css */
@@ -546,52 +547,10 @@ table {
 
 /* globals.css */
 
-/* Import Chicle font from Google */
-@import url('https://fonts.googleapis.com/css2?family=Chicle&display=swap');
+/* Import Chicle font from Google
+@import url('https://fonts.googleapis.com/css2?family=Chicle&display=swap'); */
 
-/* vars */
-:root {
-
-  --pattern-none: none;
-
-  --pattern-stripes: repeating-linear-gradient(45deg,
-      rgba(0, 0, 0, 0.05),
-      rgba(0, 0, 0, 0.05) 10px,
-      transparent 10px,
-      transparent 20px);
-
-  --pattern-waves:
-    repeating-linear-gradient(90deg,
-      rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.05) 5px,
-      transparent 5px, transparent 10px);
-
-  --pattern-checker: repeating-linear-gradient(0deg, rgba(0, 0, 0, .05) 0 4px, transparent 1px 10px), repeating-linear-gradient(90deg, rgba(0, 0, 0, .05) 0 4px, transparent 1px 10px);
-
-  --pattern-crosshatch:
-    repeating-linear-gradient(45deg, rgba(0, 0, 0, .05) 0 4px, transparent 1px 10px), repeating-linear-gradient(90deg, rgba(0, 0, 0, .05) 0 4px, transparent 1px 10px);
-
-  --pattern-waves2:
-    repeating-radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.05) 0px, rgba(0, 0, 0, 0.05) 25px, transparent 26px, transparent 90px);
-  /* icons */
-  --selected-icon: url('./icons/icon_selected.svg');
-  --camera-icon: url('./icons/icon_camera.svg');
-  --dropdown-icon: url('./icons/icon_dropdown.svg');
-  --circle-tile: url('./icons/icon_bkg_tile.svg');
-  --color-icon: url('./icons/icon_color.svg');
-  --pattern-icon: url('./icons/icon_pattern.svg');
-  --notallowed-icon: url('./icons/icon_notallowed.svg');
-
-  /* colors */
-  /* --gray-100: #EBF0F5;
-  --border-soft: rgba(20, 24, 28, 0.5);
-  --gray-900: #272939;
-  --purple-900: #4A13C0;
-  --purple-800: #7F5DCA;
-  --white-color: #ffffff;
-  --red-900: #C0137B;
-  --red-800: #EF52B0; */
-
-}
+/* vars defined in color.css */
 
 
 h1.title.denied-title {
@@ -617,24 +576,25 @@ p.subtitle.refresh-subtitle {
 
 /* Individual avatars */
 .avatar-switcher button.avatar1 {
-  background-image: url("./images/avatar/avatar1.webp");
+  background-image: url("../public/images/app/avatar/avatar1.webp");
 }
 
 .avatar-switcher button.avatar2 {
-  background-image: url("./images/avatar/avatar2.webp");
+  background-image: url("../public/images/app/avatar/avatar2.webp");
 }
 
 .avatar-switcher button.avatar3 {
-  background-image: url("./images/avatar/avatar3.webp");
+  background-image: url("../public/images/app/avatar/avatar3.webp");
 }
 
 .avatar-switcher button.avatar4 {
-  background-image: url("./images/avatar/avatar4.webp");
+  background-image: url("../public/images/app/avatar/avatar4.webp");
 }
 
 .avatar-switcher button.avatar5 {
-  background-image: url("./images/avatar/avatar5.webp");
+  background-image: url("../public/images/app/avatar/avatar5.webp");
 }
+
 
 /* avatar selection */
 .avatar-switcher {
@@ -1313,7 +1273,67 @@ svg {
 
 /* ------------------------ ------------------------ end of special breakpoint for very smaller devices but not computer on minized windows */
 
+/* ------------------------ ------------------------ tablet and greater styles */
+/* Tablet */
+@media (min-width: 769px) {
 
+
+
+
+
+
+  .popup-container.tb\:size {
+    min-height: 90px;
+    min-width: 160px;
+  }
+
+  .tb\:m-3 {
+    margin: 12px;
+  }
+
+
+  .tb\:bottom-50 {
+  bottom: 50px;
+  }
+
+      
+  .tab-button.tb\:size-60 {
+    width: 60px;
+    height: 60px;
+  }
+
+
+
+
+  .tb\:center-horizontal {
+    bottom: 50%;
+    transform: translateY(50%);
+
+  }
+
+  .tb\:left-0 {
+    left: 0 !important;
+  }
+
+  .tb\:display-table {
+    display: table;
+  }
+
+  .tb\:w-400 {
+    min-width: 400px;
+    max-width: 400px;
+  }
+
+  .tb\:w-392 {
+    max-width: 392px;
+    min-width: 392px;
+  }
+
+  .tb\:br-24 {
+    border-radius: 24px;
+
+  }
+}
 
 
 .popup-container {
@@ -1417,34 +1437,6 @@ button.camera-dropdown {
   text-overflow: ellipsis;
 }
 
-/* icon setup */
-.has-icon,
-.cd-icon {
-  display: inline-block;
-}
-
-.icon-size-16 {
-  width: 16px;
-  height: 16px;
-}
-
-.icon-size-18 {
-  width: 18px;
-  height: 18px;
-}
-
-.icon-size-32 {
-  width: 32px;
-  height: 32px;
-}
-
-.has-icon.dropdown-icon {
-  background: no-repeat center / contain var(--dropdown-icon);
-}
-
-.has-icon.camera-icon {
-  background: no-repeat center / contain var(--camera-icon);
-}
 
 button.cd-selected>.has-icon.selected-icon {
 
@@ -1507,35 +1499,7 @@ button.cd-selected>.has-icon.selected-icon {
 
 
 
-
-/* .icon-holder.pattern-card.pattern-none::before{
-  content: var(--pattern-none-icon);
-}
-
-.icon-holder.pattern-card.pattern-stripes::before {
-  content: var(--pattern-stripes-icon);
-}
-
-.icon-holder.pattern-card.pattern-waves::before {
-  content: var(--pattern-waves-icon);
-}
-
-.icon-holder.pattern-card.pattern-checker::before {
-  content: var(--pattern-checker-icon);
-}
-
-.icon-holder.pattern-card.pattern-crosshatch::before {
-  content: var(--pattern-crosshatch-icon);
-}
-
-.icon-holder.pattern-card.pattern-waves2::before {
-  content: var(--pattern-waves2-icon);
-} */
-
-/* segmented control buttons icons 
-
-
-first color */
+/* first color */
 button.icon-holder.tab-button:not(.active) {
   filter: grayscale(1) opacity(0.9);
 }
@@ -1568,70 +1532,7 @@ button.icon-holder.tab-button:not(.active) {
 }
 
 
-/* ------------------------ ------------------------ tablet and greater styles */
-/* Tablet */
-@media (min-width: 769px) {
 
-
-
-
-
-  .tb\:icon-size-32 {
-    width: 32px;
-    height: 32px;
-  }
-
-
-  .popup-container.tb\:size {
-    min-height: 90px;
-
-    min-width: 160px;
-    /* max-width: 360px; 
-    max-height: 330px; */
-
-  }
-
-  .tb\:m-3 {
-    margin: 12px;
-  }
-
-  .tab-button.tb\:size-60 {
-    width: 60px;
-    height: 60px;
-  }
-
-
-
-
-  .tb\:center-horizontal {
-    bottom: 50%;
-    transform: translateY(50%);
-
-  }
-
-  .tb\:left-0 {
-    left: 0 !important;
-  }
-
-  .tb\:display-table {
-    display: table;
-  }
-
-  .tb\:w-400 {
-    min-width: 400px;
-    max-width: 400px;
-  }
-
-  .tb\:w-392 {
-    max-width: 392px;
-    min-width: 392px;
-  }
-
-  .tb\:br-24 {
-    border-radius: 24px;
-
-  }
-}
 
 @media (min-width:1025px) and (orientation: landscape),
 (max-height:400px),
@@ -1866,14 +1767,10 @@ canvas:active {
 }
 
 .rec-stat-item {
-  /* font-size: 0.8rem; */
-  color: rgba(14, 13, 13, 0.8);
+
   font-variant-numeric: tabular-nums;
 }
 
-.rec-stat-divider {
-  color: rgba(21, 20, 20, 0.35);
-}
 
 /* ── error message ── */
 .rec-error {
@@ -1956,10 +1853,7 @@ canvas:active {
   }
 }
 
-/* ── tablet: nudge up so it clears AvatarSwitcher on landscape ── */
-@media (min-width: 769px) {
 
-}
 
 /* ── small landscape (phones in landscape): keep it from overlapping controls ── */
 @media (max-height: 400px) {
