@@ -182,7 +182,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   // ── render ───────────────────────────────────────────────────────────────────
   return (
     <div
-      className="recording-controls reveal bottom-36 fade pos-fixed z-rec"
+      className="recording-controls reveal bottom-36 tb:bottom-50 fade pos-fixed z-rec"
       role="region"
       aria-label="Motion capture recording"
     >
@@ -212,7 +212,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
             aria-label="Stop recording"
           >
             <span className="rec-stop-icon" aria-hidden="true" />
-            recording
+            stop
             <span
               className="rec-timer"
               aria-label={`Recording time: ${formatTime(elapsed)}`}
@@ -235,6 +235,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
         <div className="rec-bar p-20 gap-12 rec-bar-review p-20 flex flex-col">
           {/* Stats row */}
           <div className="rec-stats" aria-label="Recording stats">
+            <span className="rec-stat-label">recorded</span>
             <span className="rec-stat-item">{frameCount}&thinsp;frames</span>
             <span className="rec-stat-divider" aria-hidden="true">
               ·
