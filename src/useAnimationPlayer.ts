@@ -84,9 +84,6 @@ export function useAnimationPlayer({ characterScene, getIsMediaPipeActive }: Use
       if (!animBoneNames.has(name)) unmatchedChar.push(name);
     });
 
-    console.log("[v0] Animation bones matched:", matched);
-    console.log("[v0] Animation bones NOT in character (ignored):", unmatchedAnim);
-    console.log("[v0] Character bones NOT in animation (ignored):", unmatchedChar);
     // ---------------------------
 
     const action = mixer.clipAction(clip);

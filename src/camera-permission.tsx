@@ -77,7 +77,6 @@ export default function CameraPermissions({ onStreamReady }: CameraPermissionsPr
 
       onStreamReady(stream);
     } catch (err) {
-      console.error("Camera error:", err);
       setPermissionState("denied");
     }
   };
