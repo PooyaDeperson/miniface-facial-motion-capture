@@ -34,35 +34,46 @@ function isMobileDevice(): boolean {
 
 /**
  * Compute head rotation from raw landmarks when the transformation matrix is
- * unavailable or degenerate. Uses the nose tip, forehead, chin, and ear
- * landmarks to derive yaw/pitch/roll via cross-product math — avoids the
- * procrustes solver that crashes on mobile.
+ * unavailable or degenerate. Uses the forehead, chin, and ear landmarks to
+ * derive yaw/pitch/roll via cross-product math — avoids the procrustes solver
+ * that crashes on mobile.
+ *
+ * Coordinate conventions:
+ *  - MediaPipe landmarks: X right, Y down (image space), Z into screen
+ *  - Three.js world space: X right, Y up, Z out of screen (toward camera)
+ *
+ * We flip Y and Z to convert from image space to Three.js space before
+ * building the basis matrix, so the result matches what the transformation
+ * matrix path produces on desktop.
  */
 function rotationFromLandmarks(landmarks: { x: number; y: number; z: number }[]): Euler {
   // Key landmark indices (MediaPipe 478-point model)
-  const noseTip   = landmarks[4];
   const forehead  = landmarks[10];
   const chin      = landmarks[152];
   const leftEar   = landmarks[234];
   const rightEar  = landmarks[454];
 
-  if (!noseTip || !forehead || !chin || !leftEar || !rightEar) {
+  if (!forehead || !chin || !leftEar || !rightEar) {
     return rotation ?? new Euler();
   }
 
+  // Flip Y (image-down → world-up) and Z (into-screen → out-of-screen)
+  // to convert MediaPipe image-space vectors into Three.js world-space vectors.
   const up = new Vector3(
     forehead.x - chin.x,
-    forehead.y - chin.y,
-    forehead.z - chin.z
+    -(forehead.y - chin.y),   // flip Y
+    -(forehead.z - chin.z)    // flip Z
   ).normalize();
 
   const right = new Vector3(
     rightEar.x - leftEar.x,
-    rightEar.y - leftEar.y,
-    rightEar.z - leftEar.z
+    -(rightEar.y - leftEar.y), // flip Y
+    -(rightEar.z - leftEar.z)  // flip Z
   ).normalize();
 
+  // forward = right × up gives a vector pointing out toward the camera
   const forward = new Vector3().crossVectors(right, up).normalize();
+  // Re-orthogonalize right so the basis is truly orthonormal
   const correctedRight = new Vector3().crossVectors(up, forward).normalize();
 
   const m = new Matrix4().makeBasis(correctedRight, up, forward);
