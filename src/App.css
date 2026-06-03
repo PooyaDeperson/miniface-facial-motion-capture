@@ -1499,8 +1499,7 @@ button.cd-selected>.has-icon.selected-icon {
 
 
 
-
-first color */
+/* first color */
 button.icon-holder.tab-button:not(.active) {
   filter: grayscale(1) opacity(0.9);
 }
