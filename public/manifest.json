@@ -1,0 +1,25 @@
+{
+  "short_name": "Face Mocap",
+  "name": "Facial Motion Capture Realtime",
+  "icons": [
+    {
+      "src": "/images/seo/favicon16.jpg",
+      "sizes": "16x16",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "/images/seo/favicon32.jpg",
+      "sizes": "32x32",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "/images/seo/favicon180.jpg",
+      "sizes": "180x180",
+      "type": "image/jpeg"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#000000"
+}
