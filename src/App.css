@@ -546,8 +546,8 @@ table {
 
 /* globals.css */
 
-/* Import Chicle font from Google */
-@import url('https://fonts.googleapis.com/css2?family=Chicle&display=swap');
+/* Import Chicle font from Google
+@import url('https://fonts.googleapis.com/css2?family=Chicle&display=swap'); */
 
 /* vars */
 :root {
@@ -1320,23 +1320,15 @@ svg {
 
 
 
-
-
-
-
-  .tb\:icon-size-32 {
-    width: 32px;
-    height: 32px;
+   .tb\:icon-size-32 {
+    width: 32px!important;
+    height: 32px!important;
   }
 
 
   .popup-container.tb\:size {
     min-height: 90px;
-
     min-width: 160px;
-    /* max-width: 360px; 
-    max-height: 330px; */
-
   }
 
   .tb\:m-3 {
@@ -1344,10 +1336,9 @@ svg {
   }
 
 
-        .tb\:bottom-50 {
-        bottom: 50px;
-
-      }
+  .tb\:bottom-50 {
+  bottom: 50px;
+  }
 
       
   .tab-button.tb\:size-60 {
