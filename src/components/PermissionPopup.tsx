@@ -25,8 +25,8 @@ export default function PermissionPopup({
 }: PermissionPopupProps) {
   return (
     <div className={`popup-container ${variant}-popup reveal fade scaleIn w-100 tb:w-392 pos-abs z-9992 m-5 p-1 br-20 top-0`}>
-      <div className="inner-container p-5 flex-col br-16 mb-3">
-        <div className={`media-container media ${variant}-media-container br-2 overflow-hidden`}>
+      <div className="inner-container p-5 flex-col br-16">
+        <div className={`media-container media ${variant}-media-container br-2 overflow-hidden mb-3`}>
           {image && (
             <img src={image} alt={imagAlt ?? ""} className={`media ${variant}-media`} />
           )}
