@@ -10,7 +10,7 @@
  */
 
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import CustomDropdown, { Option } from "./components/CustomDropdown";
 
 const CameraIcon = (
@@ -107,7 +107,7 @@ export default function CameraPermissions({ onStreamReady }: CameraPermissionsPr
     }
   };
 
-  const loadCameras = async () => {
+  const loadCameras = useCallback(async () => {
     const devices = await navigator.mediaDevices.enumerateDevices();
     const videoInputs = devices.filter((d) => d.kind === "videoinput");
     setCameras(videoInputs);
@@ -121,7 +121,7 @@ export default function CameraPermissions({ onStreamReady }: CameraPermissionsPr
       setSelectedCamera(firstCam);
       requestCamera(firstCam);
     }
-  };
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCameraChange = (deviceId: string) => {
     setSelectedCamera(deviceId);
@@ -141,7 +141,7 @@ export default function CameraPermissions({ onStreamReady }: CameraPermissionsPr
         };
       });
     }
-  }, []);
+  }, [loadCameras]);
 
   const dropdownOptions: Option[] = cameras.map((cam, idx) => {
     const icon = idx % 2 === 0 ? CameraIcon : VideoIcon;

@@ -37,7 +37,7 @@ const AvatarSwitcher: React.FC<AvatarSwitcherProps> = ({ onAvatarChange, activeU
       onAvatarChange(avatars[0].url);
       localStorage.setItem("activeAvatar", avatars[0].url);
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Save avatar to localStorage whenever it changes
   useEffect(() => {
