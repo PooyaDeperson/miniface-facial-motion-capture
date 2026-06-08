@@ -48,6 +48,11 @@ export interface SpringBoneJointSettings {
   gravityPower?: number;
   gravityDir?: Vector3;
   hitRadius?: number;
+  /**
+   * Optional constant world-space velocity added every frame to this chain.
+   * Useful for wind or procedural animation. Default: (0, 0, 0) = no extra force.
+   */
+  customVelocity?: Vector3;
 }
 
 export interface SpringBoneChainConfig {
