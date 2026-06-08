@@ -52,14 +52,16 @@ const AVATAR_METADATA: AvatarMetadata[] = [
     // Ponytail: hair_head is the driver; chain runs hair_1 → hair_7.
     secondaryMotion: [
       {
-        id: "ponytail",
-        driver: "Head",
-        chainStart: "hair_head",
-        chainEnd: "hair_7",
-        stiffness: 0.01,
-        damping: 0.80,
-        gravity: 0.07,
-        inertiaScale: 0.01,
+{
+    id: "ponytail",
+    driver: "Head",
+    chainStart: "hair_head",
+    chainEnd: "hair_7",
+    stiffness: 0.04,
+    damping: 0.30,
+    gravity: 0.10,
+    inertiaScale: 0.20,
+}
       },
     ],
   },
