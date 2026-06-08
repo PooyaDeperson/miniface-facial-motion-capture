@@ -17,7 +17,7 @@ import { captureFrame, setSceneForExport } from "./useMotionRecorder";
 import { useAnimationPlayer } from "./useAnimationPlayer";
 import { BlendshapeSmoother, QuaternionSmoother } from "./smoothing";
 import { getAvatarMetadata } from "./avatarMetadata";
-import { useSpringBones } from "./useSpringBones";
+import { useSecondaryMotion } from "./useSecondaryMotion";
 
 interface AvatarProps {
   url: string;
@@ -66,17 +66,17 @@ function Avatar({ url, onLoaded }: AvatarProps) {
     if (onLoaded) onLoaded();
   }, [nodes, url, onLoaded, scene]);
 
-  // ── Spring-bone physics ─────────────────────────────────────────────────
-  // Look up the per-avatar metadata and initialise the spring-bone simulation.
-  // For avatars with no registered bones / colliders this is a complete no-op.
-  const { springBones, colliders } = getAvatarMetadata(url);
+  // ── Secondary motion ────────────────────────────────────────────────────
+  // Look up per-avatar metadata and initialise the spring secondary motion.
+  // For avatars with no registered chains this is a complete no-op.
+  const { secondaryMotion } = getAvatarMetadata(url);
 
-  // Build the set of all bone names owned by spring physics so the animation
-  // mixer can strip those tracks out — preventing it from overwriting the
-  // Verlet-integrated transforms every frame.
+  // Build the set of all root bone names owned by secondary motion so the
+  // animation mixer can strip those tracks out — preventing it from
+  // overwriting the spring-integrated transforms every frame.
   const springBoneNameSet = useMemo(
-    () => new Set(springBones.map((c) => c.rootBoneName)),
-    [springBones]
+    () => new Set(secondaryMotion.map((c) => c.root)),
+    [secondaryMotion]
   );
 
   // Wire up the idle animation. Pass a stable getter so the hook always
@@ -88,10 +88,9 @@ function Avatar({ url, onLoaded }: AvatarProps) {
     excludeBoneNames: springBoneNameSet,
   });
 
-  useSpringBones({
+  useSecondaryMotion({
     scene,
-    springBoneConfigs: springBones,
-    colliderConfigs: colliders,
+    chains: secondaryMotion,
   });
 
   useFrame((_, delta) => {

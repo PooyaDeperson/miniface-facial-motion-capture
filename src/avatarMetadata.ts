@@ -11,149 +11,134 @@
 /**
  * avatarMetadata.ts
  *
- * Central registry for per-avatar configuration.
+ * Central registry for per-avatar secondary motion configuration.
  *
- * SpringBoneChainConfig
- * ─────────────────────
- * Each entry describes one spring-bone chain rooted at `rootBoneName`.
- * Bones are discovered by walking children in scene order, so the chain
- * is built automatically from the hierarchy — you only need to name the root.
- *
- * VRMSpringBoneJointSettings (all optional, sensible defaults shown):
- *   stiffness    – how quickly the bone tries to return to its rest pose   (default 1.0)
- *   dragForce    – velocity damping; higher = snappier / less oscillation  (default 0.4)
- *   gravityPower – strength of the gravity pull on the bone                (default 0)
- *   gravityDir   – normalised direction of gravity in world space          (default {x:0, y:-1, z:0})
- *   hitRadius    – collision probe radius in world-space metres            (default 0.02)
- *
- * SpringBoneColliderConfig
- * ─────────────────────────
- * Names a mesh in the scene whose geometry is used to derive a bounding-sphere
- * collider. The mesh is hidden at runtime (visible = false) after the collider
- * is created so it does not affect the render.
+ * SecondaryChainConfig (from SecondaryMotionSystem)
+ * ─────────────────────────────────────────────────
+ *   id        – unique identifier for this chain
+ *   driver    – name of the bone whose movement drives the simulation
+ *               (e.g. "Head" for hair chains, "Hips" for skirt chains)
+ *   root      – name of the root bone of the chain; children are
+ *               discovered automatically by walking the hierarchy
+ *   stiffness – how strongly each bone springs back toward rest pose   (0–1, default 0.25)
+ *   damping   – velocity damping each frame; higher = snappier         (0–1, default 0.88)
+ *   gravity   – constant downward pull on the simulated tail           (default 0.08)
  *
  * AvatarMetadata
  * ───────────────
- * avatarPath    – the URL key used to look up metadata (matches the path
- *                 passed to useGLTF / the Avatar url prop).
- * springBones   – array of chain configs; empty array = no spring physics.
- * colliders     – array of collision mesh configs; empty = no colliders.
+ *   avatarPath       – URL key used to look up metadata
+ *   secondaryMotion  – array of chain configs; empty = no secondary motion
  */
 
-import { Vector3 } from "three";
+import type { SecondaryChainConfig } from "./SecondaryMotionSystem";
 
-export interface SpringBoneJointSettings {
-  stiffness?: number;
-  dragForce?: number;
-  gravityPower?: number;
-  gravityDir?: Vector3;
-  hitRadius?: number;
-  /**
-   * Optional constant world-space velocity added every frame to this chain.
-   * Useful for wind or procedural animation. Default: (0, 0, 0) = no extra force.
-   */
-  customVelocity?: Vector3;
-}
-
-export interface SpringBoneChainConfig {
-  /** Name of the root bone in the scene hierarchy. */
-  rootBoneName: string;
-  /** Physics settings applied to every joint in this chain. */
-  settings?: SpringBoneJointSettings;
-}
-
-export interface SpringBoneColliderConfig {
-  /**
-   * Name of the mesh in the scene used to derive a bounding-sphere collider.
-   * The mesh will be hidden after the collider is built.
-   */
-  meshName: string;
-}
+export type { SecondaryChainConfig };
 
 export interface AvatarMetadata {
   /** The avatar's public URL path, used as the lookup key. */
   avatarPath: string;
-  /** Spring-bone chains to simulate. Empty array = no simulation. */
-  springBones: SpringBoneChainConfig[];
-  /** Collision meshes to register. Empty array = no colliders. */
-  colliders: SpringBoneColliderConfig[];
+  /** Secondary motion chains to simulate. Empty array = no simulation. */
+  secondaryMotion: SecondaryChainConfig[];
 }
 
 // ─── Registry ────────────────────────────────────────────────────────────────
 
 const AVATAR_METADATA: AvatarMetadata[] = [
   // ── Avatar 1 ──────────────────────────────────────────────────────────────
-  // Has hair bones and a collision mesh named "colonly".
-  // hair_head is the root of the overall hair system; hair_1…hair_7 are
-  // individual strands that branch off from it.
+  // Driver: hair_head (the parent bone driven by head movement)
+  // Chain:  hair_1 … hair_7 (individual strands branching from hair_head)
   {
     avatarPath: "/avatar/avatar1.glb",
-    springBones: [
+    secondaryMotion: [
       {
-        rootBoneName: "hair_head",
-        settings: { stiffness: 0.018, dragForce: 0.018, gravityPower: 0.04, gravityDir: new Vector3(0, -1, 0) },
+        id: "hair_head",
+        driver: "hair_head",
+        root: "hair_head",
+        stiffness: 0.20,
+        damping: 0.88,
+        gravity: 0.06,
       },
       {
-        rootBoneName: "hair_1",
-        settings: { stiffness: 0.015, dragForce: 0.016, gravityPower: 0.05, gravityDir: new Vector3(0, -1, 0) },
+        id: "hair_1",
+        driver: "hair_head",
+        root: "hair_1",
+        stiffness: 0.18,
+        damping: 0.87,
+        gravity: 0.07,
       },
       {
-        rootBoneName: "hair_2",
-        settings: { stiffness: 0.015, dragForce: 0.016, gravityPower: 0.05, gravityDir: new Vector3(0, -1, 0) },
+        id: "hair_2",
+        driver: "hair_head",
+        root: "hair_2",
+        stiffness: 0.18,
+        damping: 0.87,
+        gravity: 0.07,
       },
       {
-        rootBoneName: "hair_3",
-        settings: { stiffness: 0.012, dragForce: 0.014, gravityPower: 0.06, gravityDir: new Vector3(0, -1, 0) },
+        id: "hair_3",
+        driver: "hair_head",
+        root: "hair_3",
+        stiffness: 0.15,
+        damping: 0.86,
+        gravity: 0.08,
       },
       {
-        rootBoneName: "hair_4",
-        settings: { stiffness: 0.012, dragForce: 0.014, gravityPower: 0.06, gravityDir: new Vector3(0, -1, 0) },
+        id: "hair_4",
+        driver: "hair_head",
+        root: "hair_4",
+        stiffness: 0.15,
+        damping: 0.86,
+        gravity: 0.08,
       },
       {
-        rootBoneName: "hair_5",
-        settings: { stiffness: 0.010, dragForce: 0.012, gravityPower: 0.07, gravityDir: new Vector3(0, -1, 0) },
+        id: "hair_5",
+        driver: "hair_head",
+        root: "hair_5",
+        stiffness: 0.12,
+        damping: 0.85,
+        gravity: 0.09,
       },
       {
-        rootBoneName: "hair_6",
-        settings: { stiffness: 0.010, dragForce: 0.012, gravityPower: 0.07, gravityDir: new Vector3(0, -1, 0) },
+        id: "hair_6",
+        driver: "hair_head",
+        root: "hair_6",
+        stiffness: 0.12,
+        damping: 0.85,
+        gravity: 0.09,
       },
       {
-        rootBoneName: "hair_7",
-        settings: { stiffness: 0.008, dragForce: 0.010, gravityPower: 0.08, gravityDir: new Vector3(0, -1, 0) },
+        id: "hair_7",
+        driver: "hair_head",
+        root: "hair_7",
+        stiffness: 0.10,
+        damping: 0.84,
+        gravity: 0.10,
       },
     ],
-    // Collision mesh disabled for now — add back once spring motion is tuned.
-    // colliders: [{ meshName: "colonly" }],
-    colliders: [],
   },
 
   // ── Avatar 2 ──────────────────────────────────────────────────────────────
-  // No spring bones or colliders yet.
   {
     avatarPath: "/avatar/avatar2.glb",
-    springBones: [],
-    colliders: [],
+    secondaryMotion: [],
   },
 
   // ── Avatar 3 ──────────────────────────────────────────────────────────────
   {
     avatarPath: "/avatar/avatar3.glb",
-    springBones: [],
-    colliders: [],
+    secondaryMotion: [],
   },
 
   // ── Avatar 4 ──────────────────────────────────────────────────────────────
   {
     avatarPath: "/avatar/avatar4.glb",
-    springBones: [],
-    colliders: [],
+    secondaryMotion: [],
   },
 
   // ── Avatar 5 ──────────────────────────────────────────────────────────────
   {
     avatarPath: "/avatar/avatar5.glb",
-    springBones: [],
-    colliders: [],
+    secondaryMotion: [],
   },
 ];
 
@@ -161,12 +146,12 @@ const AVATAR_METADATA: AvatarMetadata[] = [
 
 /**
  * Returns the metadata for the given avatar URL, or a safe default
- * (no spring bones, no colliders) if the avatar is not registered.
+ * (no secondary motion) if the avatar is not registered.
  */
 export function getAvatarMetadata(avatarPath: string): AvatarMetadata {
   const found = AVATAR_METADATA.find((m) => m.avatarPath === avatarPath);
   if (!found) {
-    return { avatarPath, springBones: [], colliders: [] };
+    return { avatarPath, secondaryMotion: [] };
   }
   return found;
 }
