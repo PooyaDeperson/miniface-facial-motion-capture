@@ -87,15 +87,14 @@ function fixSkinnedBonePositions(root: Object3D): void {
     if (!bone.isBone) return;
     if (!bone.parent) return;
 
-    // Get this bone's world position from its matrixWorld.
-    bone.matrixWorld.decompose(_worldPos, { set: () => {} } as any, { set: () => {} } as any);
+    // Use getWorldPosition — avoids needing a real Quaternion for decompose.
+    bone.getWorldPosition(_worldPos);
 
-    // Convert to parent-local space.
+    // Convert world position to parent-local space.
     _invParent.copy(bone.parent.matrixWorld).invert();
     _localPos.copy(_worldPos).applyMatrix4(_invParent);
 
-    // Only write if the position is meaningfully non-zero (i.e. the bone
-    // actually has an offset). Skip bones that are genuinely at origin.
+    // Only write if the position is meaningfully non-zero.
     if (_localPos.length() > 0.0001) {
       bone.position.copy(_localPos);
     }
