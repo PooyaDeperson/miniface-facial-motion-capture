@@ -1,12 +1,12 @@
 
 /*
- * Copyright (c) 2025 Pooya Moradi M. pooyadeperson@gmail.com https://github.com/PooyaDeperson
+ * Copyright (c) 2025 Pooya Moradi M. poamrd@gmail.com https://github.com/PooyaDeperson
  * Licensed under the MIT License with Attribution.
  * 
  * Permission is hereby granted, free of charge, to use, copy, modify, merge,
  * publish, and distribute this software, provided that the following credit
  * is included in any derivative or distributed version:
- * "Created by Pooya Moradi M. pooyadeperson@gmail.com https://github.com/PooyaDeperson"
+ * "Created by Pooya Moradi M. poamrd@gmail.com https://github.com/PooyaDeperson"
  */
 
 // AvatarCanvas.tsx
@@ -14,7 +14,7 @@ import { Suspense, useState, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import Avatar from "./Avatar";
 import AvatarOrbitControls from "./AvatarOrbitControls";
-import AvatarLoader from "./AvatarLoader"; // <-- your 2D dynamic loader
+import AvatarLoader from "./AvatarLoader";
 
 interface AvatarCanvasProps {
   url: string | null;

@@ -1,14 +1,14 @@
 /*
- * Copyright (c) 2025 Pooya Moradi M. pooyadeperson@gmail.com https://github.com/PooyaDeperson
+ * Copyright (c) 2025 Pooya Moradi M. poamrd@gmail.com https://github.com/PooyaDeperson
  * Licensed under the MIT License with Attribution.
  *
  * Permission is hereby granted, free of charge, to use, copy, modify, merge,
  * publish, and distribute this software, provided that the following credit
  * is included in any derivative or distributed version:
- * "Created by Pooya Moradi M. pooyadeperson@gmail.com https://github.com/PooyaDeperson"
+ * "Created by Pooya Moradi M. poamrd@gmail.com https://github.com/PooyaDeperson"
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useGraph } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import { Euler, Mesh, Object3D, Quaternion } from "three";
@@ -16,6 +16,8 @@ import { blendshapes, rotation, headMesh, headMatrix, isMobileTracking, isMediaP
 import { captureFrame, setSceneForExport } from "./useMotionRecorder";
 import { useAnimationPlayer } from "./useAnimationPlayer";
 import { BlendshapeSmoother, QuaternionSmoother } from "./smoothing";
+import { getAvatarMetadata } from "./avatarMetadata";
+import { useSecondaryMotion } from "./useSecondaryMotion";
 
 interface AvatarProps {
   url: string;
@@ -51,6 +53,8 @@ function Avatar({ url, onLoaded }: AvatarProps) {
     if (nodes.Wolf3D_Beard) headMesh.push(nodes.Wolf3D_Beard);
     if (nodes.Wolf3D_Avatar) headMesh.push(nodes.Wolf3D_Avatar);
     if (nodes.Wolf3D_Head_Custom) headMesh.push(nodes.Wolf3D_Head_Custom);
+    if (nodes.avatar) headMesh.push(nodes.avatar);
+    if (nodes.Avatar) headMesh.push(nodes.Avatar);
 
     setSceneForExport(scene, nodes, headMesh as Mesh[]);
 
@@ -62,11 +66,31 @@ function Avatar({ url, onLoaded }: AvatarProps) {
     if (onLoaded) onLoaded();
   }, [nodes, url, onLoaded, scene]);
 
+  // ── Secondary motion ────────────────────────────────────────────────────
+  // Look up per-avatar metadata and initialise the spring secondary motion.
+  // For avatars with no registered chains this is a complete no-op.
+  const { secondaryMotion } = getAvatarMetadata(url);
+
+  // Build the set of all root bone names owned by secondary motion so the
+  // animation mixer can strip those tracks out — preventing it from
+  // overwriting the spring-integrated transforms every frame.
+  const springBoneNameSet = useMemo(
+    () => new Set(secondaryMotion.map((c) => c.chainStart)),
+    [secondaryMotion]
+  );
+
   // Wire up the idle animation. Pass a stable getter so the hook always
   // reads the latest mutable module variable without needing React state reactivity.
+  // Also pass the excluded bone names so the mixer does not touch hair bones.
   useAnimationPlayer({
     characterScene: scene,
     getIsMediaPipeActive: () => isMediaPipeActive,
+    excludeBoneNames: springBoneNameSet,
+  });
+
+  useSecondaryMotion({
+    scene,
+    chains: secondaryMotion,
   });
 
   useFrame((_, delta) => {

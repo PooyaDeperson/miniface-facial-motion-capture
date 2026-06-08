@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2025 Pooya Moradi M. pooyadeperson@gmail.com https://github.com/PooyaDeperson
+ * Copyright (c) 2025 Pooya Moradi M. poamrd@gmail.com https://github.com/PooyaDeperson
  * Licensed under the MIT License with Attribution.
  *
  * Permission is hereby granted, free of charge, to use, copy, modify, merge,
  * publish, and distribute this software, provided that the following credit
  * is included in any derivative or distributed version:
- * "Created by Pooya Moradi M. pooyadeperson@gmail.com https://github.com/PooyaDeperson"
+ * "Created by Pooya Moradi M. poamrd@gmail.com https://github.com/PooyaDeperson"
  */
 
 /**
@@ -38,6 +38,7 @@ import {
   Mesh,
 } from "three";
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter";
+import type { SecondaryMotionSystem } from "./SecondaryMotionSystem";
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -48,6 +49,12 @@ export interface MotionFrame {
   blendshapes: Record<string, number>;
   /** Raw head Euler (x, y, z) from MediaPipe transformation matrix */
   headEuler: [number, number, number];
+  /**
+   * Secondary motion bone quaternions snapshotted after spring update.
+   * boneName → [x, y, z, w]. Only present when a SecondaryMotionSystem is
+   * registered; omitted entirely when no secondary chains are active.
+   */
+  secondaryBones?: Record<string, [number, number, number, number]>;
 }
 
 export interface RecorderState {
@@ -72,6 +79,12 @@ let _scene: Group | null = null;
 let _nodes: Record<string, any> | null = null;
 /** Meshes that carry morphTargetDictionary (Wolf3D_Head, Wolf3D_Teeth, etc.) */
 let _headMeshes: Mesh[] = [];
+/**
+ * Optional secondary motion system. When set, its bone quaternions are
+ * snapshotted every frame and baked into the exported AnimationClip.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+let _secondarySystem: SecondaryMotionSystem | null = null;
 
 // ─── pub/sub ─────────────────────────────────────────────────────────────────
 
@@ -106,6 +119,17 @@ export function setSceneForExport(
   _scene = scene;
   _nodes = nodes;
   _headMeshes = [...meshes];
+}
+
+/**
+ * Register (or clear) the active SecondaryMotionSystem.
+ * Call with the system instance after useSecondaryMotion creates it, and with
+ * null when the avatar unmounts or chains become empty.
+ */
+export function setSecondaryMotionSystem(
+  system: SecondaryMotionSystem | null
+): void {
+  _secondarySystem = system;
 }
 
 // ─── state read ───────────────────────────────────────────────────────────────
@@ -169,7 +193,13 @@ export function captureFrame(
     bsMap[bs.categoryName] = bs.score;
   }
 
-  _frames.push({ t, blendshapes: bsMap, headEuler });
+  // Snapshot secondary bone quaternions from the spring system this frame.
+  // snapshotBoneQuaternions() is cheap — it just reads .quaternion off each bone.
+  const secondaryBones = _secondarySystem
+    ? _secondarySystem.snapshotBoneQuaternions()
+    : undefined;
+
+  _frames.push({ t, blendshapes: bsMap, headEuler, secondaryBones });
 
   // Notify UI listeners at ~1 Hz (assuming ~30 fps)
   if (_frames.length % 30 === 0) _notify();
@@ -305,6 +335,42 @@ export async function buildAndExportGLB(): Promise<void> {
       )
     );
   });
+
+  // ── secondary motion bone tracks ───────────────────────────────────────────
+  // If secondary bone data was captured, build one QuaternionKeyframeTrack per
+  // unique bone name. Bones are matched by name in the exported GLTF scene so
+  // the playback is identical to what the user saw during recording.
+  if (frames.some((f) => f.secondaryBones && Object.keys(f.secondaryBones).length > 0)) {
+    // Collect all unique bone names across all frames.
+    const boneNames = new Set<string>();
+    for (const f of frames) {
+      if (f.secondaryBones) {
+        for (const name of Object.keys(f.secondaryBones)) {
+          boneNames.add(name);
+        }
+      }
+    }
+
+    for (const boneName of Array.from(boneNames)) {
+      const quatValues = new Float32Array(frames.length * 4);
+      // Use the identity quaternion [0,0,0,1] as fallback for any frame where
+      // the bone data is missing (e.g. the first frame before spring init).
+      for (let i = 0; i < frames.length; i++) {
+        const q = frames[i].secondaryBones?.[boneName];
+        quatValues[i * 4 + 0] = q ? q[0] : 0;
+        quatValues[i * 4 + 1] = q ? q[1] : 0;
+        quatValues[i * 4 + 2] = q ? q[2] : 0;
+        quatValues[i * 4 + 3] = q ? q[3] : 1;
+      }
+      tracks.push(
+        new QuaternionKeyframeTrack(
+          `${boneName}.quaternion`,
+          times,
+          quatValues
+        )
+      );
+    }
+  }
 
   if (tracks.length === 0) {
     throw new Error(
