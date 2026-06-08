@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import CustomDropdown, { Option } from "./components/CustomDropdown";
+import PermissionPopup from "./components/PermissionPopup";
 
 const CameraIcon = (
   <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -26,42 +27,15 @@ const VideoIcon = (
   </svg>
 );
 
-interface PermissionPopupProps {
-  title: string;
-  subtitle: string;
-  buttonText?: string;
-  onClick?: () => void;
-  showButton?: boolean;
-  variant: "prompt" | "denied" | "refresh" | "in-use";
-}
-
-function PermissionPopup({ title, subtitle, buttonText, onClick, showButton, variant }: PermissionPopupProps) {
-  return (
-    <div className={`popup-container ${variant}-popup reveal fade scaleIn w-100 tb:w-392 pos-abs z-9992 m-5 p-1 br-20 top-0`}>
-      <div className="inner-container p-5 flex-col br-16">
-        <div className="text-container flex-col gap-2">
-          <h1 className={`title ${variant}-title`}>{title}</h1>
-          <p className={`subtitle ${variant}-subtitle`}>{subtitle}</p>
-        </div>
-        {showButton && (
-          <button onClick={onClick} className={`button primary ${variant}-button`}>
-            {buttonText}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
 interface CameraPermissionsProps {
   onStreamReady: (stream: MediaStream) => void;
 }
 
 export default function CameraPermissions({ onStreamReady }: CameraPermissionsProps) {
-  const [permissionState, setPermissionState] = useState<"prompt" | "denied" | "granted" | "in-use">("prompt");
+  const [permissionState, setPermissionState] = useState<"prompt" | "denied" | "granted">("prompt");
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string | null>(null);
-  const [showRefreshPopup, setShowRefreshPopup] = useState(false);
+  const [showPromptPopup, setShowPromptPopup] = useState(false);
 
   const requestCamera = async (deviceId?: string) => {
     try {
@@ -73,8 +47,8 @@ export default function CameraPermissions({ onStreamReady }: CameraPermissionsPr
       const videoConstraints: MediaTrackConstraints = deviceId
         ? { deviceId: { exact: deviceId } }
         : isMobile
-        ? { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }
-        : { width: { ideal: 1280 }, height: { ideal: 720 } };
+          ? { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }
+          : { width: { ideal: 1280 }, height: { ideal: 720 } };
 
       const constraints: MediaStreamConstraints = {
         video: videoConstraints,
@@ -88,22 +62,7 @@ export default function CameraPermissions({ onStreamReady }: CameraPermissionsPr
 
       onStreamReady(stream);
     } catch (err: any) {
-      // NotReadableError / TrackStartError / OverconstrainedError mean the
-      // camera hardware is physically locked by another app or tab.
-      const name = err?.name ?? "";
-      const message = (err?.message ?? "").toLowerCase();
-      const isCameraInUse =
-        name === "NotReadableError" ||
-        name === "TrackStartError" ||
-        message.includes("could not start video source") ||
-        message.includes("hardware error") ||
-        message.includes("starting videoinput failed");
-
-      if (isCameraInUse) {
-        setPermissionState("in-use");
-      } else {
-        setPermissionState("denied");
-      }
+      setPermissionState("denied");
     }
   };
 
@@ -126,7 +85,7 @@ export default function CameraPermissions({ onStreamReady }: CameraPermissionsPr
   const handleCameraChange = (deviceId: string) => {
     setSelectedCamera(deviceId);
     localStorage.setItem("selectedCamera", deviceId);
-    setShowRefreshPopup(true);
+    setShowPromptPopup(true);
   };
 
   useEffect(() => {
@@ -165,26 +124,25 @@ export default function CameraPermissions({ onStreamReady }: CameraPermissionsPr
         />
       )}
 
-      {permissionState === "denied" && (
-        <PermissionPopup
-          variant="denied"
-          title="oh... you haven't given camera access yet.
-"
-          subtitle="At the top ⬆️, tap the ℹ️ Site Info icon and turn on camera toggle."
-          showButton={false}
-        />
-      )}
-
-      {permissionState === "in-use" && (
-        <PermissionPopup
-          variant="in-use"
-          title="camera is being used elsewhere."
-          subtitle="your camera is already open in another app, tab, or window. close it there, then come back and try again."
-          buttonText="try again"
-          onClick={() => requestCamera(selectedCamera || undefined)}
-          showButton
-        />
-      )}
+      {permissionState === "denied" && (() => {
+        const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+        return (
+          <PermissionPopup
+            variant="denied"
+            title="oh... you haven't given camera access yet."
+            image={isMobile
+              ? "/images/app/explainers/campermission-denied-mobile.webp"
+              : "/images/app/explainers/campermission-denied-pc.webp"
+            }
+            imagAlt={isMobile
+              ? "How to enable camera permission on mobile"
+              : "How to enable camera permission on desktop"
+            }
+            subtitle="at the top, tap the Site Info icon and enable the camera toggle in the settings."
+            showButton={false}
+          />
+        );
+      })()}
 
       {permissionState === "granted" && cameras.length > 1 && (
         <div className="cp-dropdown pos-abs reveal fade scaleIn top-0 right-0 tb:left-0 tb:display-table z-9991 m-6">
@@ -197,9 +155,9 @@ export default function CameraPermissions({ onStreamReady }: CameraPermissionsPr
         </div>
       )}
 
-      {showRefreshPopup && (
+      {showPromptPopup && (
         <PermissionPopup
-          variant="refresh"
+          variant="prompt"
           title="Refresh to animate your character!"
           subtitle="You changed the camera. Please refresh the page to see the animation in action."
           buttonText="Refresh page"
