@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2025 Pooya Moradi M. pooyadeperson@gmail.com https://github.com/PooyaDeperson
+ * Copyright (c) 2025 Pooya Moradi M. poamrd@gmail.com https://github.com/PooyaDeperson
  * Licensed under the MIT License with Attribution.
  *
  * Permission is hereby granted, free of charge, to use, copy, modify, merge,
  * publish, and distribute this software, provided that the following credit
  * is included in any derivative or distributed version:
- * "Created by Pooya Moradi M. pooyadeperson@gmail.com https://github.com/PooyaDeperson"
+ * "Created by Pooya Moradi M. poamrd@gmail.com https://github.com/PooyaDeperson"
  */
 
 /**
@@ -51,16 +51,17 @@ const AVATAR_METADATA: AvatarMetadata[] = [
     avatarPath: "/avatar/avatar1.glb",
     // Ponytail: hair_head is the driver; chain runs hair_1 → hair_7.
     secondaryMotion: [
-        {
-            id: "ponytail",
-            driver: "Head",
-            chainStart: "hair_head",
-            chainEnd: "hair_7",
-            stiffness: 0.07,
-            damping: 0.20,
-            gravity: 0.08,
-            inertiaScale: 0.35,
-        },
+{
+    id: "ponytail",
+    driver: "hair_head",
+    chainStart: "hair_1",
+    chainEnd: "hair_7",
+    stiffness: 0.05,    // Spring strength: lower = softer return (0.02-0.05 for smooth decay, 0.2+ for snappy)
+    damping: 0.15,      // safe ranges : damping: 0.70 – 0.90 damping too low = unstable energy loss Velocity retention: lower = less jitter (0.2 good for jitter-free, 0.7+ for bouncy)
+    gravity: 0.08,      // Natural droop amount: increase for more sag (0.05-0.15 typical)
+    inertiaScale: 0.5, // Lag intensity: how much tail lags behind driver (0.3-0.5 for natural feel)
+    smoothing: 0.99,    // Velocity filter: higher = smoother movement, less micro-jitter (0.1-0.2 responsive, 0.8+ smooth)
+},
     ],
   },
 

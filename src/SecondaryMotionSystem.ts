@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2025 Pooya Moradi M. pooyadeperson@gmail.com https://github.com/PooyaDeperson
+ * Copyright (c) 2025 Pooya Moradi M. poamrd@gmail.com https://github.com/PooyaDeperson
  * Licensed under the MIT License with Attribution.
  *
  * Permission is hereby granted, free of charge, to use, copy, modify, merge,
  * publish, and distribute this software, provided that the following credit
  * is included in any derivative or distributed version:
- * "Created by Pooya Moradi M. pooyadeperson@gmail.com https://github.com/PooyaDeperson"
+ * "Created by Pooya Moradi M. poamrd@gmail.com https://github.com/PooyaDeperson"
  */
 
 /**
@@ -53,6 +53,8 @@ export interface SecondaryChainConfig {
   gravity?: number;
   /** How much driver velocity lags the chain. Default 0.08. */
   inertiaScale?: number;
+  /** Smoothing factor for driver velocity (exponential smoothing α). Range 0–1, default 0.12. Higher = smoother but more lag, lower = more responsive but jittery. */
+  smoothing?: number;
 }
 
 // ─── Internal types ───────────────────────────────────────────────────────────
@@ -84,29 +86,37 @@ interface ChainState {
 
 // ─── Pre-allocated scratch (reused every frame, never heap-allocated in hot path) ─
 
-const _s_driverPos     = new Vector3();
-const _s_rawVel        = new Vector3();
-const _s_restTailWS    = new Vector3();
-const _s_boneHeadWS    = new Vector3();
-const _s_restDir       = new Vector3();
-const _s_simDir        = new Vector3();
-const _s_springTarget  = new Vector3();
-const _s_vel           = new Vector3();
-const _s_spring        = new Vector3();
-const _s_inertia       = new Vector3();
-const _s_deltaQ        = new Quaternion();
-const _s_invDriver     = new Matrix4();
-const _s_invParent     = new Matrix4();
+const _s_driverPos = new Vector3();
+const _s_rawVel = new Vector3();
+const _s_restTailWS = new Vector3();
+const _s_boneHeadWS = new Vector3();
+const _s_restHeadWS = new Vector3()
+const _s_restDir = new Vector3();
+const _s_simDir = new Vector3();
+const _s_springTarget = new Vector3();
+const _s_vel = new Vector3();
+const _s_spring = new Vector3();
+const _s_inertia = new Vector3();
+const _s_deltaQ = new Quaternion();
+const _s_invDriver = new Matrix4();
+const _s_invParent = new Matrix4();
+const _s_down = new Vector3(0, -1, 0);
+const _s_headLocal = new Vector3();
+const _s_restLocal = new Vector3();
+const _s_simLocal = new Vector3();
+const _s_diff = new Vector3();
+
 
 // ─── SecondaryMotionSystem ────────────────────────────────────────────────────
 
 export class SecondaryMotionSystem {
   private chains: ChainState[] = [];
   private configs: SecondaryChainConfig[];
+  private configMap = new Map<string, SecondaryChainConfig>();
   private scene: Object3D;
 
   constructor(scene: Object3D, configs: SecondaryChainConfig[]) {
-    this.scene   = scene;
+    this.scene = scene;
     this.configs = configs;
     this._init();
   }
@@ -116,16 +126,23 @@ export class SecondaryMotionSystem {
   private _init(): void {
     this.scene.updateWorldMatrix(true, true);
 
-    for (const cfg of this.configs) {
-      const driver = this._find(cfg.driver);
+for (const cfg of this.configs) {
+  
+  this.configMap.set(cfg.id, cfg);
+
+  const driver = this._find(cfg.driver);
       if (!driver) {
-        console.warn(`[SecondaryMotion] driver "${cfg.driver}" not found — skipping "${cfg.id}".`);
+        console.warn(
+          `[SecondaryMotion] driver "${cfg.driver}" not found — skipping "${cfg.id}".`,
+        );
         continue;
       }
 
       const startBone = this._find(cfg.chainStart);
       if (!startBone) {
-        console.warn(`[SecondaryMotion] chainStart "${cfg.chainStart}" not found — skipping "${cfg.id}".`);
+        console.warn(
+          `[SecondaryMotion] chainStart "${cfg.chainStart}" not found — skipping "${cfg.id}".`,
+        );
         continue;
       }
 
@@ -138,7 +155,7 @@ export class SecondaryMotionSystem {
       const bones: BoneState[] = [];
 
       for (let i = 0; i < boneChain.length; i++) {
-        const bone  = boneChain[i];
+        const bone = boneChain[i];
         const child = boneChain[i + 1] ?? null;
 
         // Bind-pose tail world position.
@@ -154,7 +171,7 @@ export class SecondaryMotionSystem {
           bone.getWorldPosition(tailWS);
           tailWS.addScaledVector(
             new Vector3(0, 1, 0).applyQuaternion(boneWQ),
-            0.04
+            0.04,
           );
         }
 
@@ -166,7 +183,7 @@ export class SecondaryMotionSystem {
           bone,
           boneParent: bone.parent ?? bone,
           boneLength: len,
-          simTail:  tailWS.clone(),
+          simTail: tailWS.clone(),
           prevTail: tailWS.clone(),
           restTailDriverLocal: tailWS.clone().applyMatrix4(_s_invDriver),
           // Snapshot the bind-pose local quaternion — this is the zero-rotation reference.
@@ -199,37 +216,58 @@ export class SecondaryMotionSystem {
 
     for (let ci = 0; ci < this.chains.length; ci++) {
       const chain = this.chains[ci];
-      const cfg   = this.configs.find((c) => c.id === chain.id)!;
-
-      const stiffness    = cfg.stiffness    ?? 0.28;
-      const damping      = cfg.damping      ?? 0.80;
-      const gravity      = cfg.gravity      ?? 0.07;
+      const cfg = this.configMap.get(chain.id);
+        if (!cfg) continue;
+      
+      const stiffness = cfg.stiffness ?? 0.28;
+      const damping = cfg.damping ?? 0.8;
+      const gravity = cfg.gravity ?? 0.07;
       const inertiaScale = cfg.inertiaScale ?? 0.08;
+      const smoothing = cfg.smoothing ?? 0.12;
 
       // ── Driver velocity (exponentially smoothed) ──────────────────────
       chain.driver.getWorldPosition(_s_driverPos);
 
-      _s_rawVel.copy(_s_driverPos).sub(chain.prevDriverPos).divideScalar(Math.max(dt, 1e-4));
+      _s_rawVel
+        .copy(_s_driverPos)
+        .sub(chain.prevDriverPos)
+        .divideScalar(Math.max(dt, 1e-4));
 
       // Hard cap before smoothing so sudden jumps stay bounded.
       const rawSpeed = _s_rawVel.length();
       if (rawSpeed > 3.0) _s_rawVel.multiplyScalar(3.0 / rawSpeed);
 
-      // α = 0.12 → slow follower = smooth lag without overshoot.
-      chain.smoothDriverVel.lerp(_s_rawVel, 0.12);
+      // α = smoothing → slow follower = smooth lag without overshoot.
+      const alpha = 1 - smoothing;
+        chain.smoothDriverVel.lerp(_s_rawVel, alpha);
+
+      // Dead zone: eliminate micro-movements that cause jitter on small motions.
+      if (chain.smoothDriverVel.length() < 0.01) {
+        chain.smoothDriverVel.set(0, 0, 0);
+      }
+
       chain.prevDriverPos.copy(_s_driverPos);
 
       // Rebuild driver inverse this frame (driver moves with the skeleton).
       _s_invDriver.copy(chain.driver.matrixWorld).invert();
 
       // ── Per-bone spring ───────────────────────────────────────────────
+      const chainLength = chain.bones.length;
+
       for (let bi = 0; bi < chain.bones.length; bi++) {
         const b = chain.bones[bi];
+        const chainFactor = chainLength <= 1 ? 1 : bi / (chainLength - 1);
+
+        // Root ≈ 0.3
+        // Tip  ≈ 1.0
+        const tipWeight = 0.3 + chainFactor * 0.7;
 
         // 1. Rest-pose tail in world space this frame.
-        _s_restTailWS
-          .copy(b.restTailDriverLocal)
-          .applyMatrix4(chain.driver.matrixWorld);
+_s_restTailWS
+  .copy(b.restTailDriverLocal)
+  .applyMatrix4(chain.driver.matrixWorld);
+
+
 
         // 2. Bone head world position.
         b.bone.getWorldPosition(_s_boneHeadWS);
@@ -239,25 +277,38 @@ export class SecondaryMotionSystem {
         //    This is additive, not a force — it always resolves back to rest.
         _s_springTarget
           .copy(_s_restTailWS)
-          .addScaledVector(new Vector3(0, -1, 0), gravity * b.boneLength);
+          .addScaledVector(_s_down, gravity * b.boneLength);
 
-        // 4. Inertia offset: opposite to driver velocity, bounded tightly.
-        const inertiaLen = Math.min(
-          chain.smoothDriverVel.length() * inertiaScale,
-          b.boneLength * 0.4
-        );
-        if (chain.smoothDriverVel.lengthSq() > 1e-8) {
-          _s_inertia
-            .copy(chain.smoothDriverVel)
-            .normalize()
-            .negate()
-            .multiplyScalar(inertiaLen);
-          _s_springTarget.add(_s_inertia);
-        }
+        const speedSq = chain.smoothDriverVel.lengthSq();
+const speed = Math.sqrt(speedSq);
+const deadZone = 0.08;
+
+if (speed > deadZone) {
+
+  const normalizedSpeed = Math.min((speed - deadZone) / 2.0, 1.0);
+  const motionWeight = Math.pow(normalizedSpeed, 3.0);
+
+
+
+    const baseInertia = speed * inertiaScale;
+    const weightedInertia = baseInertia * tipWeight * motionWeight;
+      const maxInertia = b.boneLength * 0.7;
+
+  _s_inertia
+    .copy(chain.smoothDriverVel)
+    .normalize()
+    .negate()
+    .multiplyScalar(Math.min(weightedInertia, maxInertia));
+
+  _s_springTarget.add(_s_inertia);
+}
 
         // 5. Verlet integrate.
         _s_vel.copy(b.simTail).sub(b.prevTail).multiplyScalar(damping);
-        _s_spring.copy(_s_springTarget).sub(b.simTail).multiplyScalar(stiffness);
+        _s_spring
+          .copy(_s_springTarget)
+          .sub(b.simTail)
+          .multiplyScalar(stiffness);
         _s_vel.add(_s_spring);
 
         b.prevTail.copy(b.simTail);
@@ -266,11 +317,11 @@ export class SecondaryMotionSystem {
         // 6. Re-read head (parent may have been updated earlier this loop)
         //    then constrain tail to bone-length sphere.
         b.bone.getWorldPosition(_s_boneHeadWS);
-        const diff = b.simTail.clone().sub(_s_boneHeadWS);
-        const dist = diff.length();
+      _s_diff.copy(b.simTail).sub(_s_boneHeadWS);
+const dist = _s_diff.length();
         if (dist > 1e-6) {
-          b.simTail
-            .copy(diff)
+       b.simTail
+  .copy(_s_diff)
             .normalize()
             .multiplyScalar(b.boneLength)
             .add(_s_boneHeadWS);
@@ -283,29 +334,35 @@ export class SecondaryMotionSystem {
         b.bone.getWorldPosition(_s_boneHeadWS);
 
         // Transform both tail endpoints into parent-local space.
-        const headLocal    = _s_boneHeadWS.clone().applyMatrix4(_s_invParent);
-        const restLocalDir = _s_restTailWS.clone().applyMatrix4(_s_invParent).sub(headLocal);
-        const simLocalDir  = b.simTail.clone().applyMatrix4(_s_invParent).sub(headLocal);
+_s_headLocal.copy(_s_boneHeadWS).applyMatrix4(_s_invParent);
 
-        _s_restDir.copy(restLocalDir).normalize();
-        _s_simDir.copy(simLocalDir).normalize();
+_s_restLocal
+  .copy(_s_restTailWS)
+  .applyMatrix4(_s_invParent)
+  .sub(_s_headLocal);
 
-        // 8. SET bone quat = restLocalQuat * delta  — never accumulate.
-        //    This prevents any per-frame drift from floating point creep.
-        if (
-          _s_restDir.lengthSq() > 1e-6 &&
-          _s_simDir.lengthSq()  > 1e-6 &&
-          _s_restDir.dot(_s_simDir) < 0.9999
-        ) {
-          _s_deltaQ.setFromUnitVectors(_s_restDir, _s_simDir);
-          b.bone.quaternion
-            .copy(b.restLocalQuat)
-            .premultiply(_s_deltaQ)
-            .normalize();
-        } else {
-          // No meaningful deflection — snap back to exact rest.
-          b.bone.quaternion.copy(b.restLocalQuat);
-        }
+_s_simLocal
+  .copy(b.simTail)
+  .applyMatrix4(_s_invParent)
+  .sub(_s_headLocal);
+
+     _s_restDir.copy(_s_restLocal).normalize();
+_s_simDir.copy(_s_simLocal).normalize();
+
+// 8. SET bone quat = restLocalQuat * delta — stable version
+if (
+  _s_restDir.lengthSq() > 1e-6 &&
+  _s_simDir.lengthSq() > 1e-6
+) {
+  _s_deltaQ.setFromUnitVectors(_s_restDir, _s_simDir);
+
+  b.bone.quaternion
+    .copy(b.restLocalQuat)
+    .multiply(_s_deltaQ)   // FIX: multiply (not premultiply)
+    .normalize();
+} else {
+  b.bone.quaternion.slerp(b.restLocalQuat, 0.08);
+}
       }
     }
   }
