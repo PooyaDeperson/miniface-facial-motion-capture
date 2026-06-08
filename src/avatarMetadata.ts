@@ -59,7 +59,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
         stiffness: 0.01,
         damping: 0.80,
         gravity: 0.07,
-        inertiaScale: 0.02,
+        inertiaScale: 0.01,
       },
     ],
   },
