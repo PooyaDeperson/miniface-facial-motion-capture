@@ -11,32 +11,33 @@
 /**
  * useSpringBones.ts
  *
- * Custom Verlet spring simulation for GLB skeleton bones.
+ * Custom world-space Verlet spring simulation for GLB skeleton bones.
  *
- * The @pixiv/three-vrm-springbone library is designed for VRM files where it
- * owns the entire matrix pipeline. For raw GLB skeleton bones (matrixAutoUpdate=false),
- * bone.localToWorld() returns garbage because matrixWorld is never updated by Three.js.
- * This implementation bypasses the library entirely and works directly in world space
- * using Object3D.getWorldPosition() and quaternion math.
+ * Why custom: @pixiv/three-vrm-springbone is designed for VRM files where it
+ * owns the full matrix pipeline. Raw GLB skeleton bones have matrixAutoUpdate=false,
+ * so bone.localToWorld() silently returns origin. This implementation reads
+ * bone world positions via getWorldPosition() and writes rotation deltas via
+ * quaternion math — fully bypassing the broken matrix path.
  *
- * Algorithm (per joint, per frame):
- *   1. Get the bone's current world position (parent drives this via skeleton).
- *   2. Integrate Verlet: nextTail = currentTail + velocity + gravity + stiffness_force.
- *   3. Normalize to preserve bone length.
- *   4. Collide against registered sphere colliders.
- *   5. Derive the rotation quaternion from (restDir → simulatedDir) and apply
- *      it on top of the bone's existing rotation.
+ * Physics model (per joint, per frame):
+ *   velocity  = (currentTail - prevTail) * (1 - drag)      -- Verlet inertia
+ *   gravity   = gravityDir * gravityPower * dt
+ *   stiffness = (bindRestTail - currentTail) * stiffness * dt  -- pulls back to bind pose
+ *   nextTail  = currentTail + velocity + gravity + stiffness
+ *   nextTail  = boneHead + normalize(nextTail - boneHead) * boneLength  -- length constraint
+ *
+ * Key design choices:
+ *   - restTail is the BIND-POSE tail (frozen at init). Updating it every frame
+ *     would eliminate inertia and make hair snap back instantly with no bounce.
+ *   - stiffness ~0.05–0.15: low values give natural momentum and oscillation.
+ *   - drag ~0.05–0.12: low values preserve velocity so hair swings naturally.
+ *   - gravityPower ~0.1–0.25: enough to give visible droop without dominating.
+ *   - dt is clamped to 1/30 s to prevent explosion on tab focus restore.
  */
 
 import { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import {
-  Object3D,
-  Mesh,
-  Vector3,
-  Quaternion,
-  Matrix4,
-} from "three";
+import { Object3D, Mesh, Vector3, Quaternion, Matrix4 } from "three";
 
 import type { SpringBoneChainConfig, SpringBoneColliderConfig } from "./avatarMetadata";
 
@@ -44,24 +45,21 @@ import type { SpringBoneChainConfig, SpringBoneColliderConfig } from "./avatarMe
 
 interface SpringJoint {
   bone: Object3D;
-  child: Object3D | null;
-  /** Length of this bone segment in world units. */
+  /** Bone-segment length in world units, fixed at init. */
   boneLength: number;
-  /** Current tail position in world space (Verlet particle). */
+  /** Current simulated tail world position. */
   currentTail: Vector3;
-  /** Previous tail position (for velocity). */
+  /** Previous tail world position (Verlet velocity source). */
   prevTail: Vector3;
-  /** Rest-pose tail position in world space (spring target). */
+  /** Bind-pose tail world position — the spring target, never updated. */
   restTail: Vector3;
-  /** Physics settings. */
   stiffness: number;
-  dragForce: number;
+  drag: number;
   gravityPower: number;
   gravityDir: Vector3;
 }
 
 interface SphereCollider {
-  /** The Object3D the collider is attached to — its world position is the center. */
   node: Object3D;
   radius: number;
 }
@@ -71,36 +69,35 @@ interface SpringState {
   colliders: SphereCollider[];
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Shared scratch vectors (avoid per-frame allocations) ────────────────────
+
+const _boneHead   = new Vector3();
+const _parentWPos = new Vector3();
+const _invParent  = new Matrix4();
+const _restDir    = new Vector3();
+const _simDir     = new Vector3();
+const _rotDelta   = new Quaternion();
+const _colCenter  = new Vector3();
+const _push       = new Vector3();
+
+// ─── Scene helpers ────────────────────────────────────────────────────────────
 
 function findByName(root: Object3D, name: string): Object3D | null {
   let found: Object3D | null = null;
-  root.traverse((obj) => { if (!found && obj.name === name) found = obj; });
+  root.traverse((o) => { if (!found && o.name === name) found = o; });
   return found;
 }
 
-/**
- * Walk the bone chain starting at root, following the first child at each level.
- * Returns every bone in order: [root, child, grandchild, ...].
- */
-function collectChain(root: Object3D): Object3D[] {
+/** Walk first-child chain from root, collecting every node. */
+function collectLinearChain(root: Object3D): Object3D[] {
   const chain: Object3D[] = [];
-  let current: Object3D | null = root;
-  while (current) {
-    chain.push(current);
-    current = current.children[0] ?? null;
+  let cur: Object3D | null = root;
+  while (cur) {
+    chain.push(cur);
+    cur = cur.children[0] ?? null;
   }
   return chain;
 }
-
-const _worldPos = new Vector3();
-const _parentWorldPos = new Vector3();
-const _invParentWorld = new Matrix4();
-const _restDir = new Vector3();
-const _simDir = new Vector3();
-const _rotQuat = new Quaternion();
-const _colliderCenter = new Vector3();
-const _toTail = new Vector3();
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -115,213 +112,184 @@ export function useSpringBones({
   springBoneConfigs,
   colliderConfigs,
 }: UseSpringBonesOptions): void {
-  const stateRef = useRef<SpringState | null>(null);
-  const needsInitRef = useRef(false);
+  const stateRef    = useRef<SpringState | null>(null);
+  const needsInit   = useRef(false);
 
   useEffect(() => {
     if (springBoneConfigs.length === 0 && colliderConfigs.length === 0) return;
 
-    // ── 1. Build sphere colliders ──────────────────────────────────────────
+    // ── Colliders ──────────────────────────────────────────────────────────
     const colliders: SphereCollider[] = [];
 
     for (const cfg of colliderConfigs) {
       const meshObj = findByName(scene, cfg.meshName);
       if (!meshObj) {
-        console.warn(`[useSpringBones] Collider mesh "${cfg.meshName}" not found — skipping.`);
+        console.warn(`[useSpringBones] Collider "${cfg.meshName}" not found.`);
         continue;
       }
       const mesh = meshObj as Mesh;
       if (mesh.geometry) mesh.geometry.computeBoundingSphere();
       const radius = mesh.geometry?.boundingSphere?.radius ?? 0.1;
 
-      // Create an invisible anchor Object3D at the mesh's world position
-      // that we can query each frame with getWorldPosition().
+      // Invisible anchor parented to the same node as the mesh so it
+      // inherits the head-bone transform automatically.
       const anchor = new Object3D();
-      anchor.name = `__collider_${cfg.meshName}`;
-      const parent = mesh.parent ?? scene;
+      anchor.name = `__springcol_${cfg.meshName}`;
       anchor.position.copy(mesh.position);
       anchor.quaternion.copy(mesh.quaternion);
-      parent.add(anchor);
-
+      (mesh.parent ?? scene).add(anchor);
       mesh.visible = false;
+
       colliders.push({ node: anchor, radius });
-      console.log(`[v0] collider "${cfg.meshName}" radius=${radius.toFixed(3)}`);
     }
 
-    // ── 2. Build joints — deferred until first frame for world matrices ────
-    const state: SpringState = { joints: [], colliders };
-    stateRef.current = state;
-    needsInitRef.current = true;
-
-    // Store configs so the first-frame init can build joints after renderer runs.
-    (stateRef as any)._pendingConfigs = springBoneConfigs;
+    // Joints are built on the first useFrame tick once world matrices are live.
+    stateRef.current = { joints: [], colliders };
+    (stateRef as any)._cfg = springBoneConfigs;
+    needsInit.current = true;
 
     return () => {
-      // Restore collider meshes.
       for (const cfg of colliderConfigs) {
-        const meshObj = findByName(scene, cfg.meshName);
-        if (meshObj) meshObj.visible = true;
-
-        const anchor = findByName(scene, `__collider_${cfg.meshName}`);
-        if (anchor?.parent) anchor.parent.remove(anchor);
+        const m = findByName(scene, cfg.meshName);
+        if (m) m.visible = true;
+        const a = findByName(scene, `__springcol_${cfg.meshName}`);
+        if (a?.parent) a.parent.remove(a);
       }
       stateRef.current = null;
     };
   }, [scene, springBoneConfigs, colliderConfigs]);
 
-  const frameCountRef = useRef(0);
-
   useFrame((_, delta) => {
     const state = stateRef.current;
     if (!state) return;
 
-    // ── First frame: build joints now that world matrices are valid ────────
-    if (needsInitRef.current) {
-      needsInitRef.current = false;
+    // ── First-frame init — world matrices are valid now ────────────────────
+    if (needsInit.current) {
+      needsInit.current = false;
       scene.updateWorldMatrix(true, true);
 
-      const pendingConfigs: SpringBoneChainConfig[] = (stateRef as any)._pendingConfigs ?? [];
+      const cfgs: SpringBoneChainConfig[] = (stateRef as any)._cfg ?? [];
 
-      for (const cfg of pendingConfigs) {
-        const rootBone = findByName(scene, cfg.rootBoneName);
-        if (!rootBone) {
-          console.warn(`[useSpringBones] Bone "${cfg.rootBoneName}" not found — skipping.`);
-          continue;
-        }
+      for (const cfg of cfgs) {
+        const root = findByName(scene, cfg.rootBoneName);
+        if (!root) continue;
 
-        const chain = collectChain(rootBone);
+        const chain = collectLinearChain(root);
 
         for (let i = 0; i < chain.length; i++) {
-          const bone = chain[i];
-          const child = chain[i + 1] ?? null;
+          const bone  = chain[i];
+          const next  = chain[i + 1] ?? null;
 
-          // Compute tail world position: if there's a child bone, use its
-          // world position. For leaf bones, extrapolate along the parent's
-          // local Y axis by a small offset.
-          let tailWorld: Vector3;
-          if (child) {
-            tailWorld = new Vector3();
-            child.getWorldPosition(tailWorld);
+          // Tail world position: child bone's origin, or a small forward offset
+          // along the bone's up axis for leaf bones.
+          let tailWS: Vector3;
+          if (next) {
+            tailWS = new Vector3();
+            next.getWorldPosition(tailWS);
           } else {
-            // Leaf: extend 0.04 units along the bone's world-space up axis.
-            const up = new Vector3(0, 0.04, 0).applyQuaternion(bone.getWorldQuaternion(new Quaternion()));
-            tailWorld = new Vector3();
-            bone.getWorldPosition(tailWorld);
-            tailWorld.add(up);
+            const up = new Vector3(0, 0.04, 0)
+              .applyQuaternion(bone.getWorldQuaternion(new Quaternion()));
+            tailWS = new Vector3();
+            bone.getWorldPosition(tailWS);
+            tailWS.add(up);
           }
 
-          bone.getWorldPosition(_worldPos);
-          const boneLength = tailWorld.distanceTo(_worldPos);
+          bone.getWorldPosition(_boneHead);
+          const len = tailWS.distanceTo(_boneHead);
 
-          const joint: SpringJoint = {
+          state.joints.push({
             bone,
-            child,
-            boneLength: boneLength > 0.0001 ? boneLength : 0.04,
-            currentTail: tailWorld.clone(),
-            prevTail: tailWorld.clone(),
-            restTail: tailWorld.clone(),
-            stiffness: cfg.settings?.stiffness ?? 1.0,
-            dragForce: cfg.settings?.dragForce ?? 0.4,
-            gravityPower: cfg.settings?.gravityPower ?? 0.3,
-            gravityDir: cfg.settings?.gravityDir?.clone() ?? new Vector3(0, -1, 0),
-          };
-
-          state.joints.push(joint);
+            boneLength:  len > 0.0001 ? len : 0.04,
+            currentTail: tailWS.clone(),
+            prevTail:    tailWS.clone(),
+            // restTail is frozen here — never updated so spring has something
+            // to pull toward, producing oscillation rather than instant snap.
+            restTail:    tailWS.clone(),
+            stiffness:   cfg.settings?.stiffness   ?? 0.08,
+            drag:        cfg.settings?.dragForce   ?? 0.06,
+            gravityPower: cfg.settings?.gravityPower ?? 0.15,
+            gravityDir:  cfg.settings?.gravityDir?.clone() ?? new Vector3(0, -1, 0),
+          });
         }
-      }
-
-      console.log(`[v0] spring joints initialised: ${state.joints.length}, colliders: ${state.colliders.length}`);
-      // Log first joint to confirm non-zero values.
-      if (state.joints[0]) {
-        const j = state.joints[0];
-        console.log(`[v0] first joint "${j.bone.name}" boneLength=${j.boneLength.toFixed(4)} tail=${j.currentTail.x.toFixed(4)},${j.currentTail.y.toFixed(4)},${j.currentTail.z.toFixed(4)}`);
       }
     }
 
     if (state.joints.length === 0) return;
 
-    // ── Per-frame Verlet integration ───────────────────────────────────────
-    const dt = Math.min(delta, 0.033); // clamp to 30 fps minimum
+    // ── Verlet integration ─────────────────────────────────────────────────
+    // Clamp dt: prevents explosion when the tab regains focus after being
+    // hidden (delta can be several seconds).
+    const dt = Math.min(delta, 1 / 30);
 
+    // Refresh world matrices so we read the live animated skeleton pose.
     scene.updateWorldMatrix(true, true);
 
-    for (const joint of state.joints) {
-      const { bone, boneLength, stiffness, dragForce, gravityPower, gravityDir } = joint;
+    for (const j of state.joints) {
+      // 1. Inertia: carry velocity from last frame, damped by drag.
+      //    Low drag (0.05–0.12) = hair swings freely and oscillates.
+      const vel = j.currentTail.clone()
+        .sub(j.prevTail)
+        .multiplyScalar(1 - j.drag);
 
-      // Velocity from previous frame (Verlet).
-      const velocity = joint.currentTail.clone().sub(joint.prevTail).multiplyScalar(1 - dragForce);
+      // 2. Gravity: constant downward pull, moderate to give visible droop.
+      const grav = j.gravityDir.clone().multiplyScalar(j.gravityPower * dt);
 
-      // Gravity contribution.
-      const gravity = gravityDir.clone().multiplyScalar(gravityPower * dt);
+      // 3. Stiffness: weak spring back toward bind-pose rest tail.
+      //    Low stiffness (0.05–0.15) = hair bends far and returns slowly.
+      const stiff = j.restTail.clone()
+        .sub(j.currentTail)
+        .multiplyScalar(j.stiffness * dt);
 
-      // Stiffness: pull toward rest pose.
-      const stiffForce = joint.restTail.clone().sub(joint.currentTail).multiplyScalar(stiffness * dt);
+      // 4. Integrate.
+      let next = j.currentTail.clone().add(vel).add(grav).add(stiff);
 
-      // Integrate.
-      const nextTail = joint.currentTail.clone().add(velocity).add(gravity).add(stiffForce);
+      // 5. Length constraint — keep tail at fixed bone-length from head.
+      j.bone.getWorldPosition(_boneHead);
+      const dir = next.sub(_boneHead);
+      if (dir.lengthSq() < 1e-8) dir.set(0, 1, 0);
+      dir.normalize();
+      const constrained = _boneHead.clone().addScaledVector(dir, j.boneLength);
 
-      // Constrain: keep tail at fixed distance from bone head (preserve bone length).
-      bone.getWorldPosition(_worldPos);
-      const dir = nextTail.sub(_worldPos).normalize();
-      const constrainedTail = _worldPos.clone().addScaledVector(dir, boneLength);
-
-      // ── Sphere collision ─────────────────────────────────────────────────
+      // 6. Sphere collision push-out.
       for (const col of state.colliders) {
-        col.node.getWorldPosition(_colliderCenter);
-        _toTail.copy(constrainedTail).sub(_colliderCenter);
-        const dist = _toTail.length();
-        const minDist = col.radius + 0.01;
-        if (dist < minDist) {
-          // Push tail outside the collider sphere.
-          constrainedTail.copy(_colliderCenter).addScaledVector(_toTail.normalize(), minDist);
-          // Re-constrain to bone length after push.
-          bone.getWorldPosition(_worldPos);
-          constrainedTail.copy(_worldPos).addScaledVector(
-            constrainedTail.clone().sub(_worldPos).normalize(),
-            boneLength
-          );
+        col.node.getWorldPosition(_colCenter);
+        _push.copy(constrained).sub(_colCenter);
+        const d = _push.length();
+        const minD = col.radius + 0.01;
+        if (d < minD) {
+          constrained.copy(_colCenter).addScaledVector(_push.normalize(), minD);
+          // Re-apply length constraint after push.
+          j.bone.getWorldPosition(_boneHead);
+          const pushDir = constrained.clone().sub(_boneHead).normalize();
+          constrained.copy(_boneHead).addScaledVector(pushDir, j.boneLength);
         }
       }
 
-      // ── Apply rotation to bone ─────────────────────────────────────────
-      // restDir: direction from bone head → rest tail, in parent-local space.
-      // simDir:  direction from bone head → simulated tail, in parent-local space.
-      if (bone.parent) {
-        bone.parent.getWorldPosition(_parentWorldPos);
-        _invParentWorld.copy(bone.parent.matrixWorld).invert();
+      // 7. Convert tail delta into bone quaternion rotation.
+      //    We compute the rotation in the bone's parent-local space so the
+      //    result composes naturally on top of the existing skeleton pose.
+      if (j.bone.parent) {
+        j.bone.parent.getWorldPosition(_parentWPos);
+        _invParent.copy(j.bone.parent.matrixWorld).invert();
 
-        // Transform tail positions into parent-local space.
-        const restLocal = joint.restTail.clone().applyMatrix4(_invParentWorld);
-        const headLocal = _worldPos.clone().applyMatrix4(_invParentWorld);
-        const simLocal = constrainedTail.clone().applyMatrix4(_invParentWorld);
+        const restLocal = j.restTail.clone().applyMatrix4(_invParent);
+        const headLocal = _boneHead.clone().applyMatrix4(_invParent);
+        const simLocal  = constrained.clone().applyMatrix4(_invParent);
 
         _restDir.copy(restLocal).sub(headLocal).normalize();
         _simDir.copy(simLocal).sub(headLocal).normalize();
 
-        if (_restDir.lengthSq() > 0.0001 && _simDir.lengthSq() > 0.0001) {
-          _rotQuat.setFromUnitVectors(_restDir, _simDir);
-          bone.quaternion.copy(bone.quaternion).premultiply(_rotQuat);
+        if (_restDir.lengthSq() > 1e-6 && _simDir.lengthSq() > 1e-6) {
+          _rotDelta.setFromUnitVectors(_restDir, _simDir);
+          // Premultiply so the delta is applied in parent-local space,
+          // leaving the bone's existing animator-set quaternion intact.
+          j.bone.quaternion.premultiply(_rotDelta);
         }
       }
 
-      // Store state for next frame.
-      joint.prevTail.copy(joint.currentTail);
-      joint.currentTail.copy(constrainedTail);
-
-      // Update restTail each frame to follow the animated skeleton pose.
-      if (joint.child) {
-        joint.child.getWorldPosition(joint.restTail);
-      }
-    }
-
-    // Debug: log first joint every 5 frames for first second.
-    frameCountRef.current++;
-    if (frameCountRef.current <= 60 && frameCountRef.current % 5 === 0) {
-      const j = state.joints[0];
-      if (j) {
-        const q = j.bone.quaternion;
-        console.log(`[v0] frame ${frameCountRef.current} "${j.bone.name}" quat: ${q.x.toFixed(4)} ${q.y.toFixed(4)} ${q.z.toFixed(4)} ${q.w.toFixed(4)} | tail: ${j.currentTail.x.toFixed(4)},${j.currentTail.y.toFixed(4)},${j.currentTail.z.toFixed(4)}`);
-      }
+      // 8. Advance Verlet state.
+      j.prevTail.copy(j.currentTail);
+      j.currentTail.copy(constrained);
     }
   });
 }

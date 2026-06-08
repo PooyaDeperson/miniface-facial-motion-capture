@@ -86,93 +86,40 @@ const AVATAR_METADATA: AvatarMetadata[] = [
     springBones: [
       {
         rootBoneName: "hair_head",
-        settings: {
-          stiffness: 1.2,
-          dragForce: 0.4,
-          gravityPower: 0.3,
-          gravityDir: new Vector3(0, -1, 0),
-          hitRadius: 0.025,
-        },
+        settings: { stiffness: 0.10, dragForce: 0.06, gravityPower: 0.12, gravityDir: new Vector3(0, -1, 0) },
       },
       {
         rootBoneName: "hair_1",
-        settings: {
-          stiffness: 0.9,
-          dragForce: 0.35,
-          gravityPower: 0.35,
-          gravityDir: new Vector3(0, -1, 0),
-          hitRadius: 0.02,
-        },
+        settings: { stiffness: 0.08, dragForce: 0.06, gravityPower: 0.15, gravityDir: new Vector3(0, -1, 0) },
       },
       {
         rootBoneName: "hair_2",
-        settings: {
-          stiffness: 0.9,
-          dragForce: 0.35,
-          gravityPower: 0.35,
-          gravityDir: new Vector3(0, -1, 0),
-          hitRadius: 0.02,
-        },
+        settings: { stiffness: 0.08, dragForce: 0.06, gravityPower: 0.15, gravityDir: new Vector3(0, -1, 0) },
       },
       {
         rootBoneName: "hair_3",
-        settings: {
-          stiffness: 0.85,
-          dragForce: 0.3,
-          gravityPower: 0.4,
-          gravityDir: new Vector3(0, -1, 0),
-          hitRadius: 0.02,
-        },
+        settings: { stiffness: 0.07, dragForce: 0.05, gravityPower: 0.18, gravityDir: new Vector3(0, -1, 0) },
       },
       {
         rootBoneName: "hair_4",
-        settings: {
-          stiffness: 0.85,
-          dragForce: 0.3,
-          gravityPower: 0.4,
-          gravityDir: new Vector3(0, -1, 0),
-          hitRadius: 0.02,
-        },
+        settings: { stiffness: 0.07, dragForce: 0.05, gravityPower: 0.18, gravityDir: new Vector3(0, -1, 0) },
       },
       {
         rootBoneName: "hair_5",
-        settings: {
-          stiffness: 0.8,
-          dragForce: 0.28,
-          gravityPower: 0.45,
-          gravityDir: new Vector3(0, -1, 0),
-          hitRadius: 0.018,
-        },
+        settings: { stiffness: 0.06, dragForce: 0.05, gravityPower: 0.20, gravityDir: new Vector3(0, -1, 0) },
       },
       {
         rootBoneName: "hair_6",
-        settings: {
-          stiffness: 0.8,
-          dragForce: 0.28,
-          gravityPower: 0.45,
-          gravityDir: new Vector3(0, -1, 0),
-          hitRadius: 0.018,
-        },
+        settings: { stiffness: 0.06, dragForce: 0.05, gravityPower: 0.20, gravityDir: new Vector3(0, -1, 0) },
       },
       {
         rootBoneName: "hair_7",
-        settings: {
-          stiffness: 0.75,
-          dragForce: 0.25,
-          gravityPower: 0.5,
-          gravityDir: new Vector3(0, -1, 0),
-          hitRadius: 0.018,
-        },
+        settings: { stiffness: 0.05, dragForce: 0.04, gravityPower: 0.22, gravityDir: new Vector3(0, -1, 0) },
       },
     ],
-    colliders: [
-      {
-        // Single collision mesh that represents the head/body volume.
-        // Spring bones will deflect off its bounding sphere so hair
-        // does not clip through the head.
-        meshName: "colonly",
-      },
-    ],
+    // Collision mesh disabled for now — add back once spring motion is tuned.
+    // colliders: [{ meshName: "colonly" }],
+    colliders: [],
   },
 
   // ── Avatar 2 ──────────────────────────────────────────────────────────────
