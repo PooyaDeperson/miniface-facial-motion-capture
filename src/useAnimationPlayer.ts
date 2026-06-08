@@ -51,9 +51,15 @@ interface UseAnimationPlayerOptions {
    * the latest mutable module variable without needing React state reactivity.
    */
   getIsMediaPipeActive: () => boolean;
+  /**
+   * Optional set of bone names that should be excluded from the animation
+   * mixer. Used to give spring-bone physics full ownership of hair/cloth
+   * bones so the mixer doesn't overwrite their transforms each frame.
+   */
+  excludeBoneNames?: Set<string>;
 }
 
-export function useAnimationPlayer({ characterScene, getIsMediaPipeActive }: UseAnimationPlayerOptions) {
+export function useAnimationPlayer({ characterScene, getIsMediaPipeActive, excludeBoneNames }: UseAnimationPlayerOptions) {
   const { animations } = useGLTF(ANIMATION_PATH);
 
   const mixerRef = useRef<AnimationMixer | null>(null);
@@ -63,7 +69,20 @@ export function useAnimationPlayer({ characterScene, getIsMediaPipeActive }: Use
   useEffect(() => {
     if (!characterScene || !animations || animations.length === 0) return;
 
-    const clip = animations[0];
+    let clip = animations[0];
+
+    // Strip out tracks that target spring-bone-owned bones so the mixer never
+    // overwrites the transforms that the Verlet integrator computed.
+    if (excludeBoneNames && excludeBoneNames.size > 0) {
+      const filteredTracks = clip.tracks.filter((track) => {
+        const dotIdx = track.name.lastIndexOf(".");
+        const boneName = dotIdx !== -1 ? track.name.slice(0, dotIdx) : track.name;
+        return !excludeBoneNames.has(boneName);
+      });
+      // Clone the clip so we don't mutate the cached asset.
+      clip = new AnimationClip(clip.name, clip.duration, filteredTracks);
+    }
+
     const mixer = new AnimationMixer(characterScene);
     mixerRef.current = mixer;
 

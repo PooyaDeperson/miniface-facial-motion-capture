@@ -70,15 +70,19 @@ const FALLBACK_SPHERE_RADIUS = 0.1;
 /**
  * Collect all Object3D children of `root` in depth-first order.
  * Returns an array of [bone, child | null] pairs for each joint in the chain.
- * The leaf bone of a chain has no relevant children so its child is null.
+ *
+ * NOTE: Only the FIRST child of each bone is followed. Hair chains in this rig
+ * are linear (one parent → one child), so this correctly captures the full
+ * strand without accidentally branching into sibling bones or non-hair nodes.
+ * The leaf bone of a chain has child = null.
  */
 function buildChainPairs(root: Object3D): Array<[Object3D, Object3D | null]> {
   const pairs: Array<[Object3D, Object3D | null]> = [];
 
   function walk(node: Object3D): void {
+    // Only follow the first child — hair chains are linear single-strand.
     const firstChild = node.children[0] ?? null;
     pairs.push([node, firstChild]);
-    // Continue deeper into the first child branch (hair chains are linear)
     if (firstChild) walk(firstChild);
   }
 
@@ -117,23 +121,8 @@ export function useSpringBones({
   const managerRef = useRef<VRMSpringBoneManager | null>(null);
 
   useEffect(() => {
-    // ── [v0 DEBUG] Step 0: hook fired ─────────────────────────────────────
-    console.log("[v0] useSpringBones: effect fired", {
-      springBoneCount: springBoneConfigs.length,
-      colliderCount: colliderConfigs.length,
-      sceneUUID: scene.uuid,
-    });
-
     // Nothing to do if this avatar has no spring-bone configuration.
-    if (springBoneConfigs.length === 0 && colliderConfigs.length === 0) {
-      console.log("[v0] useSpringBones: no configs — bailing out early (expected for avatar2-5)");
-      return;
-    }
-
-    // ── [v0 DEBUG] Step 0b: dump all node names so we can verify bone names ──
-    const allNames: string[] = [];
-    scene.traverse((obj) => { if (obj.name) allNames.push(obj.name); });
-    console.log("[v0] useSpringBones: all scene node names →", allNames);
+    if (springBoneConfigs.length === 0 && colliderConfigs.length === 0) return;
 
     const manager = new VRMSpringBoneManager();
     managerRef.current = manager;
@@ -145,74 +134,57 @@ export function useSpringBones({
       const meshObj = findByName(scene, cfg.meshName);
 
       if (!meshObj) {
-        console.warn(
-          `[v0] useSpringBones: Collider mesh "${cfg.meshName}" NOT FOUND in scene — skipping.`
-        );
+        console.warn(`[useSpringBones] Collider mesh "${cfg.meshName}" not found in scene — skipping.`);
         continue;
       }
 
       const mesh = meshObj as Mesh;
-      console.log("[v0] useSpringBones: collider mesh found →", cfg.meshName, {
-        type: mesh.type,
-        hasGeometry: !!mesh.geometry,
-        position: mesh.position.toArray(),
-        parent: mesh.parent?.name ?? "(no parent)",
-      });
 
-      // Ensure the bounding sphere is computed.
       if (mesh.geometry) {
         mesh.geometry.computeBoundingSphere();
       }
 
       const boundingSphere = mesh.geometry?.boundingSphere;
       const radius = boundingSphere?.radius ?? FALLBACK_SPHERE_RADIUS;
-      const localCenter = boundingSphere?.center ?? new Vector3(0, 0, 0);
-
-      console.log("[v0] useSpringBones: collider sphere →", {
-        radius,
-        center: localCenter.toArray(),
-        usedFallback: !boundingSphere,
-      });
+      // Bounding sphere centre in the mesh's local space — offset from its origin.
+      const localCenter = boundingSphere?.center?.clone() ?? new Vector3(0, 0, 0);
 
       const shape = new VRMSpringBoneColliderShapeSphere({ radius, offset: localCenter });
       const collider = new VRMSpringBoneCollider(shape);
 
+      // Parent the collider to the SAME parent as the collision mesh so it
+      // inherits the same world transform (e.g. a head bone). Copy the mesh's
+      // local position/rotation/scale exactly so the sphere sits on the mesh.
+      const parent = mesh.parent ?? scene;
       collider.position.copy(mesh.position);
       collider.quaternion.copy(mesh.quaternion);
       collider.scale.copy(mesh.scale);
-
-      const parent = mesh.parent ?? scene;
       parent.add(collider);
+
+      // Hide the source mesh — it is only a collision volume.
       mesh.visible = false;
 
       builtColliders.push(collider);
-      console.log("[v0] useSpringBones: collider built and attached to parent →", parent.name ?? "(scene root)");
     }
 
-    // ── 2. Collider group ─────────────────────────────────────────────────
+    // ── 2. Collider group shared by all joints ────────────────────────────
     const colliderGroup: VRMSpringBoneColliderGroup | undefined =
       builtColliders.length > 0
         ? { colliders: builtColliders, name: "avatar_collision" }
         : undefined;
 
     const colliderGroups = colliderGroup ? [colliderGroup] : [];
-    console.log("[v0] useSpringBones: collider groups ready →", colliderGroups.length, "group(s) with", builtColliders.length, "collider(s)");
 
     // ── 3. Build joints per chain ─────────────────────────────────────────
-    let totalJoints = 0;
-
     for (const cfg of springBoneConfigs) {
       const rootBone = findByName(scene, cfg.rootBoneName);
 
       if (!rootBone) {
-        console.warn(
-          `[v0] useSpringBones: Root bone "${cfg.rootBoneName}" NOT FOUND — skipping chain.`
-        );
+        console.warn(`[useSpringBones] Root bone "${cfg.rootBoneName}" not found in scene — skipping chain.`);
         continue;
       }
 
       const pairs = buildChainPairs(rootBone);
-      console.log(`[v0] useSpringBones: chain "${cfg.rootBoneName}" → ${pairs.length} joint(s)`, pairs.map(([b, c]) => `${b.name} → ${c?.name ?? "null"}`));
 
       for (const [bone, child] of pairs) {
         const joint = new VRMSpringBoneJoint(
@@ -229,20 +201,15 @@ export function useSpringBones({
         );
 
         manager.joints.add(joint);
-        totalJoints++;
       }
     }
-
-    console.log("[v0] useSpringBones: total joints registered →", totalJoints);
 
     // ── 4. Snapshot rest-pose matrices ────────────────────────────────────
     scene.updateWorldMatrix(true, true);
     manager.setInitState();
-    console.log("[v0] useSpringBones: setInitState() called — manager ready");
 
     // ── Cleanup ───────────────────────────────────────────────────────────
     return () => {
-      console.log("[v0] useSpringBones: cleanup — resetting manager");
       manager.reset();
       managerRef.current = null;
 
@@ -253,17 +220,8 @@ export function useSpringBones({
     };
   }, [scene, springBoneConfigs, colliderConfigs]);
 
-  // ── Per-frame update — runs AFTER the animation mixer in Avatar.tsx ───────
-  const hasLoggedFirstUpdate = useRef(false);
+  // ── Per-frame update ──────────────────────────────────────────────────────
   useFrame((_, delta) => {
-    const manager = managerRef.current;
-    if (!manager) return;
-    if (!hasLoggedFirstUpdate.current) {
-      console.log("[v0] useSpringBones: first manager.update() call — spring bones are running", {
-        jointCount: manager.joints.size,
-      });
-      hasLoggedFirstUpdate.current = true;
-    }
-    manager.update(delta);
+    managerRef.current?.update(delta);
   });
 }

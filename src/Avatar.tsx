@@ -8,7 +8,7 @@
  * "Created by Pooya Moradi M. pooyadeperson@gmail.com https://github.com/PooyaDeperson"
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useGraph } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import { Euler, Mesh, Object3D, Quaternion } from "three";
@@ -66,22 +66,28 @@ function Avatar({ url, onLoaded }: AvatarProps) {
     if (onLoaded) onLoaded();
   }, [nodes, url, onLoaded, scene]);
 
-  // Wire up the idle animation. Pass a stable getter so the hook always
-  // reads the latest mutable module variable without needing React state reactivity.
-  useAnimationPlayer({
-    characterScene: scene,
-    getIsMediaPipeActive: () => isMediaPipeActive,
-  });
-
   // ── Spring-bone physics ─────────────────────────────────────────────────
   // Look up the per-avatar metadata and initialise the spring-bone simulation.
   // For avatars with no registered bones / colliders this is a complete no-op.
-  // The hook's useFrame callback runs after the animation mixer (registered
-  // above) because React Three Fiber executes useFrame callbacks in
-  // registration order, ensuring the skeleton is in its animated pose before
-  // the Verlet integration step.
   const { springBones, colliders } = getAvatarMetadata(url);
-  console.log("[v0] Avatar: metadata lookup for", url, "→", springBones.length, "spring chains,", colliders.length, "collider(s)");
+
+  // Build the set of all bone names owned by spring physics so the animation
+  // mixer can strip those tracks out — preventing it from overwriting the
+  // Verlet-integrated transforms every frame.
+  const springBoneNameSet = useMemo(
+    () => new Set(springBones.map((c) => c.rootBoneName)),
+    [springBones]
+  );
+
+  // Wire up the idle animation. Pass a stable getter so the hook always
+  // reads the latest mutable module variable without needing React state reactivity.
+  // Also pass the excluded bone names so the mixer does not touch hair bones.
+  useAnimationPlayer({
+    characterScene: scene,
+    getIsMediaPipeActive: () => isMediaPipeActive,
+    excludeBoneNames: springBoneNameSet,
+  });
+
   useSpringBones({
     scene,
     springBoneConfigs: springBones,
