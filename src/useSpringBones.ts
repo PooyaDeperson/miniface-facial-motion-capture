@@ -124,6 +124,11 @@ export function useSpringBones({
     // Nothing to do if this avatar has no spring-bone configuration.
     if (springBoneConfigs.length === 0 && colliderConfigs.length === 0) return;
 
+    // [v0] Dump every node name so we can verify bones + mesh exist
+    const allNames: string[] = [];
+    scene.traverse((o) => { if (o.name) allNames.push(`${o.type}:${o.name}`); });
+    console.log("[v0] scene nodes →", allNames);
+
     const manager = new VRMSpringBoneManager();
     managerRef.current = manager;
 
@@ -139,7 +144,7 @@ export function useSpringBones({
       }
 
       const mesh = meshObj as Mesh;
-
+      console.log("[v0] collider mesh found:", cfg.meshName, "parent:", mesh.parent?.name, "parentType:", mesh.parent?.type);
       if (mesh.geometry) {
         mesh.geometry.computeBoundingSphere();
       }
@@ -185,6 +190,7 @@ export function useSpringBones({
       }
 
       const pairs = buildChainPairs(rootBone);
+      console.log(`[v0] chain "${cfg.rootBoneName}" pairs:`, pairs.map(([b, c]) => `${b.name}->${c?.name ?? "null"}`));
 
       for (const [bone, child] of pairs) {
         const joint = new VRMSpringBoneJoint(
@@ -207,6 +213,7 @@ export function useSpringBones({
     // ── 4. Snapshot rest-pose matrices ────────────────────────────────────
     scene.updateWorldMatrix(true, true);
     manager.setInitState();
+    console.log("[v0] manager ready, joint count:", manager.joints.size);
 
     // ── Cleanup ───────────────────────────────────────────────────────────
     return () => {
@@ -221,7 +228,19 @@ export function useSpringBones({
   }, [scene, springBoneConfigs, colliderConfigs]);
 
   // ── Per-frame update ──────────────────────────────────────────────────────
+  const frameCountRef = useRef(0);
   useFrame((_, delta) => {
-    managerRef.current?.update(delta);
+    const manager = managerRef.current;
+    if (!manager) return;
+    manager.update(delta);
+    frameCountRef.current++;
+    // Log first 3 frames so we can see if manager.update is actually changing anything
+    if (frameCountRef.current <= 3) {
+      const firstJoint = [...manager.joints][0] as any;
+      if (firstJoint?.bone) {
+        const q = firstJoint.bone.quaternion;
+        console.log(`[v0] frame ${frameCountRef.current} first joint bone "${firstJoint.bone.name}" quat:`, q.x.toFixed(4), q.y.toFixed(4), q.z.toFixed(4), q.w.toFixed(4));
+      }
+    }
   });
 }
