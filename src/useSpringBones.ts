@@ -117,8 +117,23 @@ export function useSpringBones({
   const managerRef = useRef<VRMSpringBoneManager | null>(null);
 
   useEffect(() => {
+    // ── [v0 DEBUG] Step 0: hook fired ─────────────────────────────────────
+    console.log("[v0] useSpringBones: effect fired", {
+      springBoneCount: springBoneConfigs.length,
+      colliderCount: colliderConfigs.length,
+      sceneUUID: scene.uuid,
+    });
+
     // Nothing to do if this avatar has no spring-bone configuration.
-    if (springBoneConfigs.length === 0 && colliderConfigs.length === 0) return;
+    if (springBoneConfigs.length === 0 && colliderConfigs.length === 0) {
+      console.log("[v0] useSpringBones: no configs — bailing out early (expected for avatar2-5)");
+      return;
+    }
+
+    // ── [v0 DEBUG] Step 0b: dump all node names so we can verify bone names ──
+    const allNames: string[] = [];
+    scene.traverse((obj) => { if (obj.name) allNames.push(obj.name); });
+    console.log("[v0] useSpringBones: all scene node names →", allNames);
 
     const manager = new VRMSpringBoneManager();
     managerRef.current = manager;
@@ -131,12 +146,18 @@ export function useSpringBones({
 
       if (!meshObj) {
         console.warn(
-          `[useSpringBones] Collider mesh "${cfg.meshName}" not found in scene — skipping.`
+          `[v0] useSpringBones: Collider mesh "${cfg.meshName}" NOT FOUND in scene — skipping.`
         );
         continue;
       }
 
       const mesh = meshObj as Mesh;
+      console.log("[v0] useSpringBones: collider mesh found →", cfg.meshName, {
+        type: mesh.type,
+        hasGeometry: !!mesh.geometry,
+        position: mesh.position.toArray(),
+        parent: mesh.parent?.name ?? "(no parent)",
+      });
 
       // Ensure the bounding sphere is computed.
       if (mesh.geometry) {
@@ -145,49 +166,53 @@ export function useSpringBones({
 
       const boundingSphere = mesh.geometry?.boundingSphere;
       const radius = boundingSphere?.radius ?? FALLBACK_SPHERE_RADIUS;
-
-      // The sphere centre in local space — usually near origin for head meshes.
       const localCenter = boundingSphere?.center ?? new Vector3(0, 0, 0);
 
-      // Create the shape and the collider Object3D.
+      console.log("[v0] useSpringBones: collider sphere →", {
+        radius,
+        center: localCenter.toArray(),
+        usedFallback: !boundingSphere,
+      });
+
       const shape = new VRMSpringBoneColliderShapeSphere({ radius, offset: localCenter });
       const collider = new VRMSpringBoneCollider(shape);
 
-      // Attach the collider Object3D to the mesh so it moves with it in world space.
-      // Copy the mesh's local transform so the collider sphere sits correctly.
       collider.position.copy(mesh.position);
       collider.quaternion.copy(mesh.quaternion);
       collider.scale.copy(mesh.scale);
 
       const parent = mesh.parent ?? scene;
       parent.add(collider);
-
-      // Hide the source mesh — it is only a collision volume.
       mesh.visible = false;
 
       builtColliders.push(collider);
+      console.log("[v0] useSpringBones: collider built and attached to parent →", parent.name ?? "(scene root)");
     }
 
-    // ── 2. Collider group shared by all joints ─────────────────────────────
+    // ── 2. Collider group ─────────────────────────────────────────────────
     const colliderGroup: VRMSpringBoneColliderGroup | undefined =
       builtColliders.length > 0
         ? { colliders: builtColliders, name: "avatar_collision" }
         : undefined;
 
     const colliderGroups = colliderGroup ? [colliderGroup] : [];
+    console.log("[v0] useSpringBones: collider groups ready →", colliderGroups.length, "group(s) with", builtColliders.length, "collider(s)");
 
     // ── 3. Build joints per chain ─────────────────────────────────────────
+    let totalJoints = 0;
+
     for (const cfg of springBoneConfigs) {
       const rootBone = findByName(scene, cfg.rootBoneName);
 
       if (!rootBone) {
         console.warn(
-          `[useSpringBones] Root bone "${cfg.rootBoneName}" not found in scene — skipping chain.`
+          `[v0] useSpringBones: Root bone "${cfg.rootBoneName}" NOT FOUND — skipping chain.`
         );
         continue;
       }
 
       const pairs = buildChainPairs(rootBone);
+      console.log(`[v0] useSpringBones: chain "${cfg.rootBoneName}" → ${pairs.length} joint(s)`, pairs.map(([b, c]) => `${b.name} → ${c?.name ?? "null"}`));
 
       for (const [bone, child] of pairs) {
         const joint = new VRMSpringBoneJoint(
@@ -204,21 +229,23 @@ export function useSpringBones({
         );
 
         manager.joints.add(joint);
+        totalJoints++;
       }
     }
 
+    console.log("[v0] useSpringBones: total joints registered →", totalJoints);
+
     // ── 4. Snapshot rest-pose matrices ────────────────────────────────────
-    // Update world matrices first so setInitState captures correct values.
     scene.updateWorldMatrix(true, true);
     manager.setInitState();
+    console.log("[v0] useSpringBones: setInitState() called — manager ready");
 
     // ── Cleanup ───────────────────────────────────────────────────────────
     return () => {
+      console.log("[v0] useSpringBones: cleanup — resetting manager");
       manager.reset();
       managerRef.current = null;
 
-      // Restore visibility of any hidden collision meshes so they can be
-      // re-processed if the same avatar is reloaded.
       for (const cfg of colliderConfigs) {
         const meshObj = findByName(scene, cfg.meshName);
         if (meshObj) meshObj.visible = true;
@@ -227,9 +254,16 @@ export function useSpringBones({
   }, [scene, springBoneConfigs, colliderConfigs]);
 
   // ── Per-frame update — runs AFTER the animation mixer in Avatar.tsx ───────
+  const hasLoggedFirstUpdate = useRef(false);
   useFrame((_, delta) => {
     const manager = managerRef.current;
     if (!manager) return;
+    if (!hasLoggedFirstUpdate.current) {
+      console.log("[v0] useSpringBones: first manager.update() call — spring bones are running", {
+        jointCount: manager.joints.size,
+      });
+      hasLoggedFirstUpdate.current = true;
+    }
     manager.update(delta);
   });
 }

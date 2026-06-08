@@ -81,6 +81,7 @@ function Avatar({ url, onLoaded }: AvatarProps) {
   // registration order, ensuring the skeleton is in its animated pose before
   // the Verlet integration step.
   const { springBones, colliders } = getAvatarMetadata(url);
+  console.log("[v0] Avatar: metadata lookup for", url, "→", springBones.length, "spring chains,", colliders.length, "collider(s)");
   useSpringBones({
     scene,
     springBoneConfigs: springBones,
