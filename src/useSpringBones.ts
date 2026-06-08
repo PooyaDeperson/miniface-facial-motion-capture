@@ -175,7 +175,7 @@ export function useSpringBones({
 
     const colliderGroups = colliderGroup ? [colliderGroup] : [];
 
-    // ── 3. Build joints per chain ─────────────────────────────────────────
+    // ── 3. Build joints per chain ───────────────────────────────────��─────
     for (const cfg of springBoneConfigs) {
       const rootBone = findByName(scene, cfg.rootBoneName);
 
@@ -235,18 +235,34 @@ export function useSpringBones({
     if (needsInitRef.current) {
       manager.setInitState();
       needsInitRef.current = false;
-      console.log("[v0] setInitState() called on first frame — spring physics active");
+      // Deep diagnostic: inspect the first joint's internal state after init
+      const firstJoint = Array.from(manager.joints)[0] as any;
+      if (firstJoint) {
+        console.log("[v0] setInitState() done. First joint internals:", {
+          boneName: firstJoint.bone?.name,
+          _boneAxis: firstJoint._boneAxis ? `${firstJoint._boneAxis.x.toFixed(4)},${firstJoint._boneAxis.y.toFixed(4)},${firstJoint._boneAxis.z.toFixed(4)}` : "N/A",
+          _initialLocalChildPos: firstJoint._initialLocalChildPosition ? `${firstJoint._initialLocalChildPosition.x.toFixed(4)},${firstJoint._initialLocalChildPosition.y.toFixed(4)},${firstJoint._initialLocalChildPosition.z.toFixed(4)}` : "N/A",
+          _currentTail: firstJoint._currentTail ? `${firstJoint._currentTail.x.toFixed(4)},${firstJoint._currentTail.y.toFixed(4)},${firstJoint._currentTail.z.toFixed(4)}` : "N/A",
+          _prevTail: firstJoint._prevTail ? `${firstJoint._prevTail.x.toFixed(4)},${firstJoint._prevTail.y.toFixed(4)},${firstJoint._prevTail.z.toFixed(4)}` : "N/A",
+          childName: firstJoint.child?.name ?? "null",
+          childPosition: firstJoint.child ? `${firstJoint.child.position.x.toFixed(4)},${firstJoint.child.position.y.toFixed(4)},${firstJoint.child.position.z.toFixed(4)}` : "N/A",
+          gravityPower: firstJoint.settings?.gravityPower,
+          stiffness: firstJoint.settings?.stiffness,
+          boneParentName: firstJoint.bone?.parent?.name,
+          ancestorsCount: (manager as any)._ancestors?.length,
+        });
+      }
     }
 
     manager.update(delta);
 
     frameCountRef.current++;
-    // Log first 3 frames so we can confirm the quat is changing
     if (frameCountRef.current <= 5) {
       const firstJoint = Array.from(manager.joints)[0] as any;
       if (firstJoint?.bone) {
         const q = firstJoint.bone.quaternion;
-        console.log(`[v0] frame ${frameCountRef.current} bone "${firstJoint.bone.name}" quat:`, q.x.toFixed(4), q.y.toFixed(4), q.z.toFixed(4), q.w.toFixed(4));
+        const t = firstJoint._currentTail;
+        console.log(`[v0] frame ${frameCountRef.current} bone "${firstJoint.bone.name}" quat: ${q.x.toFixed(4)} ${q.y.toFixed(4)} ${q.z.toFixed(4)} ${q.w.toFixed(4)} | tail: ${t?.x.toFixed(4)},${t?.y.toFixed(4)},${t?.z.toFixed(4)}`);
       }
     }
   });
