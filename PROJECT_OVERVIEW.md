@@ -1,6 +1,6 @@
 # Facial Motion Capture - Project Overview
 
-**Author:** Pooya Moradi M. (pooyadeperson@gmail.com)  
+**Author:** Pooya Moradi M. (poamrd@gmail.com)  
 **Repository:** https://github.com/PooyaDeperson/facial-motion-capture  
 **License:** MIT with Attribution
 
