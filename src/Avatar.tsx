@@ -82,12 +82,11 @@ function Avatar({ url, onLoaded }: AvatarProps) {
   // Wire up the idle animation. Pass a stable getter so the hook always
   // reads the latest mutable module variable without needing React state reactivity.
   // Also pass the excluded bone names so the mixer does not touch hair bones.
-  // DEBUG: idle animation disabled to isolate spring bones
-  // useAnimationPlayer({
-  //   characterScene: scene,
-  //   getIsMediaPipeActive: () => isMediaPipeActive,
-  //   excludeBoneNames: springBoneNameSet,
-  // });
+  useAnimationPlayer({
+    characterScene: scene,
+    getIsMediaPipeActive: () => isMediaPipeActive,
+    excludeBoneNames: springBoneNameSet,
+  });
 
   useSpringBones({
     scene,
@@ -96,10 +95,8 @@ function Avatar({ url, onLoaded }: AvatarProps) {
   });
 
   useFrame((_, delta) => {
-    // DEBUG: mediapipe / smoothing / recording disabled to isolate spring bones
     // Only drive bones + blendshapes when MediaPipe has live data.
-    // if (!isMediaPipeActive || blendshapes.length === 0) return;
-    return; // <-- temporary: skip all mediapipe/smoothing/recording
+    if (!isMediaPipeActive || blendshapes.length === 0) return;
 
     // ── blendshape smoothing (delta-time EMA) ──────────────────────────────
     // Smooth all scores once using the frame delta so the EMA behaves
@@ -128,7 +125,7 @@ function Avatar({ url, onLoaded }: AvatarProps) {
     let smoothedQuat: Quaternion;
 
     if (headMatrix && !isMobileTracking) {
-      headMatrix!.decompose(
+      headMatrix.decompose(
         { set: () => {} } as any,
         _targetQuat,
         { set: () => {} } as any
