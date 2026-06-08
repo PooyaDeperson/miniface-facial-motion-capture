@@ -58,7 +58,7 @@ interface RecordingControlsProps {
 
 // ─── component ────────────────────────────────────────────────────────────────
 
-type Phase = "idle" | "recording" | "review";
+type Phase = "idle" | "recording" | "review" | "done";
 
 const RecordingControls: React.FC<RecordingControlsProps> = ({
   mediapipeReady,
@@ -102,7 +102,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
     // Run once immediately to pick up any state already set
     syncState();
     return unsubscribe;
-  }, []);
+  }, [setPhaseAndNotify]);
 
   // ── live timer while recording ───────────────────────────────────────────────
   useEffect(() => {
@@ -148,16 +148,21 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
     setExportError(null);
     try {
       await buildAndExportGLB();
-      // After a successful export, go back to idle
-      discardRecording();
-      setPhaseAndNotify("idle");
-      setFrameCount(0);
-      setElapsed(0);
+      // Move to done phase on first save; subsequent calls (re-download) stay in done
+      setPhaseAndNotify("done");
     } catch (err: any) {
       setExportError(err?.message ?? "Export failed. Please try again.");
     } finally {
       setIsExporting(false);
     }
+  }, [setPhaseAndNotify]);
+
+  const handleDoAnother = useCallback(() => {
+    discardRecording();
+    setPhaseAndNotify("idle");
+    setFrameCount(0);
+    setElapsed(0);
+    setExportError(null);
   }, [setPhaseAndNotify]);
 
   const handleDiscard = useCallback(() => {
@@ -175,7 +180,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   const shouldShow =
     avatarReady && mediapipeReady
       ? true
-      : phase === "recording" || phase === "review";
+      : phase === "recording" || phase === "review" || phase === "done";
 
   if (!shouldShow) return null;
 
@@ -279,6 +284,51 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
               aria-label="Discard this recording"
             >
               another take
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── DONE ── */}
+      {phase === "done" && (
+        <div className="rec-bar p-20 gap-12 rec-bar-review p-20 flex flex-col">
+          <div className="rec-stats" aria-label="Recording stats">
+            <span className="rec-stat-label">recorded</span>
+            <span className="rec-stat-item">{frameCount}&thinsp;frames</span>
+            <span className="rec-stat-divider" aria-hidden="true">·</span>
+            <span className="rec-stat-item">{formatTime(elapsed)}</span>
+          </div>
+          {exportError && (
+            <p className="rec-error" role="alert">
+              {exportError}
+            </p>
+          )}
+          <div className="rec-actions flex flex-col">
+            <button
+              className="rec-btn gap-8 justify-center w-full rec-btn-save"
+              onClick={handleSave}
+              disabled={isExporting}
+              aria-label="Download GLB file"
+              aria-busy={isExporting}
+            >
+              {isExporting ? (
+                <>
+                  <span className="rec-spinner" aria-hidden="true" />
+                  Exporting&hellip;
+                </>
+              ) : (
+                    <>
+                  {/* <span className="rec-save-icon" aria-hidden="true" /> */}
+                  save &nbsp;.glb
+                </>
+              )}
+            </button>
+            <button
+              className="rec-btn rec-btn-discard w-full justify-center border-3 border-inverse"
+              onClick={handleDoAnother}
+              aria-label="Start a new recording"
+            >
+              do another
             </button>
           </div>
         </div>

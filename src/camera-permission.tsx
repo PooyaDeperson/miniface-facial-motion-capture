@@ -32,7 +32,7 @@ interface PermissionPopupProps {
   buttonText?: string;
   onClick?: () => void;
   showButton?: boolean;
-  variant: "prompt" | "denied" | "refresh";
+  variant: "prompt" | "denied" | "refresh" | "in-use";
 }
 
 function PermissionPopup({ title, subtitle, buttonText, onClick, showButton, variant }: PermissionPopupProps) {
@@ -58,7 +58,7 @@ interface CameraPermissionsProps {
 }
 
 export default function CameraPermissions({ onStreamReady }: CameraPermissionsProps) {
-  const [permissionState, setPermissionState] = useState<"prompt" | "denied" | "granted">("prompt");
+  const [permissionState, setPermissionState] = useState<"prompt" | "denied" | "granted" | "in-use">("prompt");
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string | null>(null);
   const [showRefreshPopup, setShowRefreshPopup] = useState(false);
@@ -87,8 +87,23 @@ export default function CameraPermissions({ onStreamReady }: CameraPermissionsPr
       if (video) video.srcObject = stream;
 
       onStreamReady(stream);
-    } catch (err) {
-      setPermissionState("denied");
+    } catch (err: any) {
+      // NotReadableError / TrackStartError / OverconstrainedError mean the
+      // camera hardware is physically locked by another app or tab.
+      const name = err?.name ?? "";
+      const message = (err?.message ?? "").toLowerCase();
+      const isCameraInUse =
+        name === "NotReadableError" ||
+        name === "TrackStartError" ||
+        message.includes("could not start video source") ||
+        message.includes("hardware error") ||
+        message.includes("starting videoinput failed");
+
+      if (isCameraInUse) {
+        setPermissionState("in-use");
+      } else {
+        setPermissionState("denied");
+      }
     }
   };
 
@@ -153,10 +168,21 @@ export default function CameraPermissions({ onStreamReady }: CameraPermissionsPr
       {permissionState === "denied" && (
         <PermissionPopup
           variant="denied"
-          title="oh... you haven’t given camera access yet.
+          title="oh... you haven't given camera access yet.
 "
           subtitle="At the top ⬆️, tap the ℹ️ Site Info icon and turn on camera toggle."
           showButton={false}
+        />
+      )}
+
+      {permissionState === "in-use" && (
+        <PermissionPopup
+          variant="in-use"
+          title="camera is being used elsewhere."
+          subtitle="your camera is already open in another app, tab, or window. close it there, then come back and try again."
+          buttonText="try again"
+          onClick={() => requestCamera(selectedCamera || undefined)}
+          showButton
         />
       )}
 

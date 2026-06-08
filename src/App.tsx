@@ -26,14 +26,14 @@ function App() {
   const [avatarReady, setAvatarReady] = useState(false);
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
   const [mediapipeReady, setMediapipeReady] = useState(false);
-  const [recordingPhase, setRecordingPhase] = useState<"idle" | "recording" | "review">("idle");
+  const [recordingPhase, setRecordingPhase] = useState<"idle" | "recording" | "review" | "done">("idle");
   // Timeout fallback: if face detection never fires within 30s on mobile,
   // dismiss the overlay so the user isn't permanently stuck.
   const mediapipeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isSwitcherDisabled = recordingPhase !== "idle";
 
-  const handlePhaseChange = useCallback((phase: "idle" | "recording" | "review") => {
+  const handlePhaseChange = useCallback((phase: "idle" | "recording" | "review" | "done") => {
     setRecordingPhase(phase);
   }, []);
 
