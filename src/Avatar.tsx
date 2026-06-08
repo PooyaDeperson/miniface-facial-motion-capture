@@ -16,6 +16,8 @@ import { blendshapes, rotation, headMesh, headMatrix, isMobileTracking, isMediaP
 import { captureFrame, setSceneForExport } from "./useMotionRecorder";
 import { useAnimationPlayer } from "./useAnimationPlayer";
 import { BlendshapeSmoother, QuaternionSmoother } from "./smoothing";
+import { getAvatarMetadata } from "./avatarMetadata";
+import { useSpringBones } from "./useSpringBones";
 
 interface AvatarProps {
   url: string;
@@ -69,6 +71,20 @@ function Avatar({ url, onLoaded }: AvatarProps) {
   useAnimationPlayer({
     characterScene: scene,
     getIsMediaPipeActive: () => isMediaPipeActive,
+  });
+
+  // ── Spring-bone physics ─────────────────────────────────────────────────
+  // Look up the per-avatar metadata and initialise the spring-bone simulation.
+  // For avatars with no registered bones / colliders this is a complete no-op.
+  // The hook's useFrame callback runs after the animation mixer (registered
+  // above) because React Three Fiber executes useFrame callbacks in
+  // registration order, ensuring the skeleton is in its animated pose before
+  // the Verlet integration step.
+  const { springBones, colliders } = getAvatarMetadata(url);
+  useSpringBones({
+    scene,
+    springBoneConfigs: springBones,
+    colliderConfigs: colliders,
   });
 
   useFrame((_, delta) => {
