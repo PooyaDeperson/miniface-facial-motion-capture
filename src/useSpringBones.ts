@@ -48,6 +48,8 @@ import {
   Object3D,
   Mesh,
   Vector3,
+  Matrix4,
+  Bone,
 } from "three";
 import {
   VRMSpringBoneManager,
@@ -68,19 +70,48 @@ const FALLBACK_SPHERE_RADIUS = 0.1;
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
+ * SkinnedMesh skeleton bones have `.position = (0,0,0)` in the scene graph —
+ * their real offsets live only in `bone.matrix` / `bone.matrixWorld`.
+ * VRMSpringBoneJoint uses `child.position` to compute the bone axis, so we
+ * must copy the world-space offset back into `.position` before registering
+ * any joint.  This function walks the chain and writes each bone's
+ * world-to-local offset into `.position` so the spring library can read it.
+ */
+function fixSkinnedBonePositions(root: Object3D): void {
+  const _invParent = new Matrix4();
+  const _worldPos = new Vector3();
+  const _localPos = new Vector3();
+
+  root.traverse((obj) => {
+    const bone = obj as Bone;
+    if (!bone.isBone) return;
+    if (!bone.parent) return;
+
+    // Get this bone's world position from its matrixWorld.
+    bone.matrixWorld.decompose(_worldPos, { set: () => {} } as any, { set: () => {} } as any);
+
+    // Convert to parent-local space.
+    _invParent.copy(bone.parent.matrixWorld).invert();
+    _localPos.copy(_worldPos).applyMatrix4(_invParent);
+
+    // Only write if the position is meaningfully non-zero (i.e. the bone
+    // actually has an offset). Skip bones that are genuinely at origin.
+    if (_localPos.length() > 0.0001) {
+      bone.position.copy(_localPos);
+    }
+  });
+}
+
+/**
  * Collect all Object3D children of `root` in depth-first order.
  * Returns an array of [bone, child | null] pairs for each joint in the chain.
- *
- * NOTE: Only the FIRST child of each bone is followed. Hair chains in this rig
- * are linear (one parent → one child), so this correctly captures the full
- * strand without accidentally branching into sibling bones or non-hair nodes.
- * The leaf bone of a chain has child = null.
+ * Only the first child of each bone is followed (hair chains are linear).
+ * The leaf bone has child = null.
  */
 function buildChainPairs(root: Object3D): Array<[Object3D, Object3D | null]> {
   const pairs: Array<[Object3D, Object3D | null]> = [];
 
   function walk(node: Object3D): void {
-    // Only follow the first child — hair chains are linear single-strand.
     const firstChild = node.children[0] ?? null;
     pairs.push([node, firstChild]);
     if (firstChild) walk(firstChild);
@@ -175,7 +206,10 @@ export function useSpringBones({
 
     const colliderGroups = colliderGroup ? [colliderGroup] : [];
 
-    // ── 3. Build joints per chain ───────────────────────────────────��─────
+    // ── 3. Build joints per chain ─────────────────────────────────────────
+    // Force world matrix update so fixSkinnedBonePositions reads correct values.
+    scene.updateWorldMatrix(true, true);
+
     for (const cfg of springBoneConfigs) {
       const rootBone = findByName(scene, cfg.rootBoneName);
 
@@ -184,7 +218,12 @@ export function useSpringBones({
         continue;
       }
 
+      // Fix skeleton bone .position fields from matrixWorld before the joint
+      // reads child.position to compute its bone axis.
+      fixSkinnedBonePositions(rootBone);
+
       const pairs = buildChainPairs(rootBone);
+      console.log(`[v0] chain "${cfg.rootBoneName}":`, pairs.map(([b, c]) => `${b.name}(pos:${b.position.x.toFixed(3)},${b.position.y.toFixed(3)},${b.position.z.toFixed(3)})->${c?.name ?? "null"}`));
 
       for (const [bone, child] of pairs) {
         const joint = new VRMSpringBoneJoint(
