@@ -1,46 +1,19 @@
 /*
- * Copyright (c) 2025 Pooya Moradi M. pooyadeperson@gmail.com https://github.com/PooyaDeperson
+ * Copyright (c) 2025 Pooya Moradi M. poamrd@gmail.com https://github.com/PooyaDeperson
  * Licensed under the MIT License with Attribution.
  *
  * Permission is hereby granted, free of charge, to use, copy, modify, merge,
  * publish, and distribute this software, provided that the following credit
  * is included in any derivative or distributed version:
- * "Created by Pooya Moradi M. pooyadeperson@gmail.com https://github.com/PooyaDeperson"
+ * "Created by Pooya Moradi M. poamrd@gmail.com https://github.com/PooyaDeperson"
  */
 
 import { useEffect, useRef } from "react";
 import { useGLTF } from "@react-three/drei";
-import { AnimationMixer, AnimationClip, Object3D, Bone } from "three";
+import { AnimationMixer, AnimationClip, Object3D } from "three";
 import { useFrame } from "@react-three/fiber";
 
 const ANIMATION_PATH = "/animation/idle.glb";
-
-/**
- * Collects all Bone objects from a scene by walking the hierarchy.
- */
-function collectBones(root: Object3D): Map<string, Bone> {
-  const map = new Map<string, Bone>();
-  root.traverse((obj) => {
-    if ((obj as Bone).isBone) {
-      map.set(obj.name, obj as Bone);
-    }
-  });
-  return map;
-}
-
-/**
- * Collects all bone names referenced in an AnimationClip's tracks.
- */
-function collectAnimationBoneNames(clip: AnimationClip): Set<string> {
-  const names = new Set<string>();
-  for (const track of clip.tracks) {
-    // Track names are like "BoneName.position" or "BoneName.quaternion"
-    const dotIdx = track.name.lastIndexOf(".");
-    const boneName = dotIdx !== -1 ? track.name.slice(0, dotIdx) : track.name;
-    names.add(boneName);
-  }
-  return names;
-}
 
 interface UseAnimationPlayerOptions {
   /** The character scene (from useGLTF) whose bones will be driven. */
@@ -51,9 +24,15 @@ interface UseAnimationPlayerOptions {
    * the latest mutable module variable without needing React state reactivity.
    */
   getIsMediaPipeActive: () => boolean;
+  /**
+   * Optional set of bone names that should be excluded from the animation
+   * mixer. Used to give spring-bone physics full ownership of hair/cloth
+   * bones so the mixer doesn't overwrite their transforms each frame.
+   */
+  excludeBoneNames?: Set<string>;
 }
 
-export function useAnimationPlayer({ characterScene, getIsMediaPipeActive }: UseAnimationPlayerOptions) {
+export function useAnimationPlayer({ characterScene, getIsMediaPipeActive, excludeBoneNames }: UseAnimationPlayerOptions) {
   const { animations } = useGLTF(ANIMATION_PATH);
 
   const mixerRef = useRef<AnimationMixer | null>(null);
@@ -63,28 +42,30 @@ export function useAnimationPlayer({ characterScene, getIsMediaPipeActive }: Use
   useEffect(() => {
     if (!characterScene || !animations || animations.length === 0) return;
 
-    const clip = animations[0];
+    let clip = animations[0];
+
+    // Strip out tracks targeting spring-bone-owned bones so the mixer never
+    // overwrites Verlet-integrated transforms. Track names can be plain
+    // "BoneName.quaternion", "Armature|BoneName.quaternion", or
+    // ".bones[BoneName].quaternion" — handle all three formats.
+    if (excludeBoneNames && excludeBoneNames.size > 0) {
+      const before = clip.tracks.length;
+      const filteredTracks = clip.tracks.filter((track) => {
+        const dotIdx = track.name.lastIndexOf(".");
+        const withoutProp = dotIdx !== -1 ? track.name.slice(0, dotIdx) : track.name;
+        const pipeIdx = withoutProp.lastIndexOf("|");
+        const afterPipe = pipeIdx !== -1 ? withoutProp.slice(pipeIdx + 1) : withoutProp;
+        const bracketMatch = afterPipe.match(/\.bones\[(.+)\]/);
+        const finalName = bracketMatch ? bracketMatch[1] : afterPipe;
+        return !excludeBoneNames.has(finalName);
+      });
+      if (before !== filteredTracks.length) {
+        clip = new AnimationClip(clip.name, clip.duration, filteredTracks);
+      }
+    }
+
     const mixer = new AnimationMixer(characterScene);
     mixerRef.current = mixer;
-
-    // ---- Bone-matching log ----
-    const characterBones = collectBones(characterScene);
-    const animBoneNames = collectAnimationBoneNames(clip);
-
-    const matched: string[] = [];
-    const unmatchedAnim: string[] = [];
-    const unmatchedChar: string[] = [];
-
-    animBoneNames.forEach((name) => {
-      if (characterBones.has(name)) matched.push(name);
-      else unmatchedAnim.push(name);
-    });
-
-    characterBones.forEach((_, name) => {
-      if (!animBoneNames.has(name)) unmatchedChar.push(name);
-    });
-
-    // ---------------------------
 
     const action = mixer.clipAction(clip);
     action.play();
@@ -94,7 +75,7 @@ export function useAnimationPlayer({ characterScene, getIsMediaPipeActive }: Use
       mixer.stopAllAction();
       mixerRef.current = null;
     };
-  }, [characterScene, animations]);
+  }, [characterScene, animations, excludeBoneNames]);
 
   // Each frame: read the live MediaPipe flag and pause/advance the mixer accordingly.
   useFrame((_, delta) => {
@@ -104,15 +85,12 @@ export function useAnimationPlayer({ characterScene, getIsMediaPipeActive }: Use
     const active = getIsMediaPipeActive();
 
     if (active) {
-      // Pause at current frame — do not advance time.
       if (!actionPausedRef.current) {
-        // Freeze all actions managed by this mixer.
         (mixer as any)._actions?.forEach((a: any) => { a.paused = true; });
         actionPausedRef.current = true;
       }
     } else {
       if (actionPausedRef.current) {
-        // Resume all actions.
         (mixer as any)._actions?.forEach((a: any) => { a.paused = false; });
         actionPausedRef.current = false;
       }
