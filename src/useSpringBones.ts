@@ -101,7 +101,7 @@ export function useSpringBones({
   springBoneConfigs,
   colliderConfigs,
 }: UseSpringBonesOptions): void {
-  const { world } = useRapier();
+  const { world, rapier } = useRapier();
   const stateRef   = useRef<SpringState | null>(null);
   const needsInit  = useRef(false);
 
@@ -127,7 +127,7 @@ export function useSpringBones({
   }, [scene, springBoneConfigs, world]);
 
   useFrame(() => {
-    if (!world) return;
+    if (!world || !rapier) return;
     const state = stateRef.current;
     if (!state) return;
 
@@ -155,7 +155,7 @@ export function useSpringBones({
         velocityMaster.getWorldQuaternion(_masterQuat);
 
         const kinDesc = world.createRigidBody(
-          (window as any).RAPIER.RigidBodyDesc.kinematicPositionBased()
+          rapier.RigidBodyDesc.kinematicPositionBased()
             .setTranslation(_masterPos.x, _masterPos.y, _masterPos.z)
         );
         const kinHandle = kinDesc.handle;
@@ -189,7 +189,7 @@ export function useSpringBones({
           const len = Math.max(tailWS.distanceTo(_boneHeadWS), 0.01);
 
           // Dynamic body at the tail position.
-          const dynDesc = (window as any).RAPIER.RigidBodyDesc.dynamic()
+          const dynDesc = rapier.RigidBodyDesc.dynamic()
             .setTranslation(tailWS.x, tailWS.y, tailWS.z)
             .setLinearDamping(drag * 60)
             .setAngularDamping(drag * 60)
@@ -202,7 +202,7 @@ export function useSpringBones({
           const anchorA = tailWS.clone().sub(_boneHeadWS); // local offset in prev body
           const anchorB = new Vector3(0, 0, 0);             // center of new body
 
-          const jointParams = (window as any).RAPIER.JointData.spherical(
+          const jointParams = rapier.JointData.spherical(
             { x: anchorA.x, y: anchorA.y, z: anchorA.z },
             { x: anchorB.x, y: anchorB.y, z: anchorB.z }
           );
