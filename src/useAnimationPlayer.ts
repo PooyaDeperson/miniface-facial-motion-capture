@@ -71,15 +71,30 @@ export function useAnimationPlayer({ characterScene, getIsMediaPipeActive, exclu
 
     let clip = animations[0];
 
+    // [v0] log all track names to see the exact format
+    console.log("[v0] all track names:", clip.tracks.map(t => t.name));
+    console.log("[v0] excludeBoneNames:", Array.from(excludeBoneNames ?? []));
+
     // Strip out tracks that target spring-bone-owned bones so the mixer never
     // overwrites the transforms that the Verlet integrator computed.
     if (excludeBoneNames && excludeBoneNames.size > 0) {
       const filteredTracks = clip.tracks.filter((track) => {
+        // Track names can be:
+        //   "BoneName.quaternion"                (plain)
+        //   "Armature|BoneName.quaternion"       (object path | bone.property)
+        //   ".bones[BoneName].quaternion"        (dot notation)
         const dotIdx = track.name.lastIndexOf(".");
-        const boneName = dotIdx !== -1 ? track.name.slice(0, dotIdx) : track.name;
-        return !excludeBoneNames.has(boneName);
+        const withoutProp = dotIdx !== -1 ? track.name.slice(0, dotIdx) : track.name;
+        // Strip object path prefix (e.g. "Armature|")
+        const pipeIdx = withoutProp.lastIndexOf("|");
+        const boneName = pipeIdx !== -1 ? withoutProp.slice(pipeIdx + 1) : withoutProp;
+        // Strip .bones[...] notation
+        const bracketMatch = boneName.match(/\.bones\[(.+)\]/);
+        const finalName = bracketMatch ? bracketMatch[1] : boneName;
+        const excluded = excludeBoneNames.has(finalName);
+        return !excluded;
       });
-      console.log(`[v0] mixer: excluded ${clip.tracks.length - filteredTracks.length} tracks for spring bones out of ${clip.tracks.length} total. Excluded bone names:`, Array.from(excludeBoneNames));
+      console.log(`[v0] mixer: excluded ${clip.tracks.length - filteredTracks.length} of ${clip.tracks.length} tracks. ExcludedNames:`, Array.from(excludeBoneNames));
       // Clone the clip so we don't mutate the cached asset.
       clip = new AnimationClip(clip.name, clip.duration, filteredTracks);
     }
@@ -117,6 +132,7 @@ export function useAnimationPlayer({ characterScene, getIsMediaPipeActive, exclu
   }, [characterScene, animations, excludeBoneNames]);
 
   // Each frame: read the live MediaPipe flag and pause/advance the mixer accordingly.
+  const frameLogRef = useRef(0);
   useFrame((_, delta) => {
     const mixer = mixerRef.current;
     if (!mixer) return;
@@ -124,19 +140,28 @@ export function useAnimationPlayer({ characterScene, getIsMediaPipeActive, exclu
     const active = getIsMediaPipeActive();
 
     if (active) {
-      // Pause at current frame — do not advance time.
       if (!actionPausedRef.current) {
-        // Freeze all actions managed by this mixer.
         (mixer as any)._actions?.forEach((a: any) => { a.paused = true; });
         actionPausedRef.current = true;
       }
     } else {
       if (actionPausedRef.current) {
-        // Resume all actions.
         (mixer as any)._actions?.forEach((a: any) => { a.paused = false; });
         actionPausedRef.current = false;
       }
       mixer.update(delta);
+    }
+
+    // [v0] log hair_head bone quat after mixer runs, first 3 frames
+    frameLogRef.current++;
+    if (frameLogRef.current <= 3 && mixerRef.current) {
+      const root = (mixer as any)._root as Object3D | undefined;
+      let hairBone: Object3D | null = null;
+      root?.traverse?.((o: Object3D) => { if (o.name === "hair_head" && !hairBone) hairBone = o; });
+      if (hairBone) {
+        const q = (hairBone as any).quaternion;
+        console.log(`[v0] mixer frame ${frameLogRef.current} hair_head quat after mixer:`, q.x.toFixed(4), q.y.toFixed(4), q.z.toFixed(4), q.w.toFixed(4), "mediaPipeActive:", active);
+      }
     }
   });
 }
