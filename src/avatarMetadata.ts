@@ -89,7 +89,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
         settings: {
           stiffness: 1.2,
           dragForce: 0.4,
-          gravityPower: 0.03,
+          gravityPower: 0.3,
           gravityDir: new Vector3(0, -1, 0),
           hitRadius: 0.025,
         },
@@ -99,7 +99,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
         settings: {
           stiffness: 0.9,
           dragForce: 0.35,
-          gravityPower: 0.05,
+          gravityPower: 0.35,
           gravityDir: new Vector3(0, -1, 0),
           hitRadius: 0.02,
         },
@@ -109,7 +109,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
         settings: {
           stiffness: 0.9,
           dragForce: 0.35,
-          gravityPower: 0.05,
+          gravityPower: 0.35,
           gravityDir: new Vector3(0, -1, 0),
           hitRadius: 0.02,
         },
@@ -119,7 +119,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
         settings: {
           stiffness: 0.85,
           dragForce: 0.3,
-          gravityPower: 0.06,
+          gravityPower: 0.4,
           gravityDir: new Vector3(0, -1, 0),
           hitRadius: 0.02,
         },
@@ -129,7 +129,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
         settings: {
           stiffness: 0.85,
           dragForce: 0.3,
-          gravityPower: 0.06,
+          gravityPower: 0.4,
           gravityDir: new Vector3(0, -1, 0),
           hitRadius: 0.02,
         },
@@ -139,7 +139,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
         settings: {
           stiffness: 0.8,
           dragForce: 0.28,
-          gravityPower: 0.07,
+          gravityPower: 0.45,
           gravityDir: new Vector3(0, -1, 0),
           hitRadius: 0.018,
         },
@@ -149,7 +149,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
         settings: {
           stiffness: 0.8,
           dragForce: 0.28,
-          gravityPower: 0.07,
+          gravityPower: 0.45,
           gravityDir: new Vector3(0, -1, 0),
           hitRadius: 0.018,
         },
@@ -159,7 +159,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
         settings: {
           stiffness: 0.75,
           dragForce: 0.25,
-          gravityPower: 0.08,
+          gravityPower: 0.5,
           gravityDir: new Vector3(0, -1, 0),
           hitRadius: 0.018,
         },

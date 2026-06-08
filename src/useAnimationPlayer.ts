@@ -114,7 +114,7 @@ export function useAnimationPlayer({ characterScene, getIsMediaPipeActive, exclu
       mixer.stopAllAction();
       mixerRef.current = null;
     };
-  }, [characterScene, animations]);
+  }, [characterScene, animations, excludeBoneNames]);
 
   // Each frame: read the live MediaPipe flag and pause/advance the mixer accordingly.
   useFrame((_, delta) => {

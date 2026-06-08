@@ -232,6 +232,9 @@ export function useSpringBones({
   useFrame((_, delta) => {
     const manager = managerRef.current;
     if (!manager) return;
+    // Refresh world matrices so the spring integrator sees the skeleton's
+    // current animated pose (after the mixer has already run this frame).
+    scene.updateWorldMatrix(true, true);
     manager.update(delta);
     frameCountRef.current++;
     // Log first 3 frames so we can see if manager.update is actually changing anything
