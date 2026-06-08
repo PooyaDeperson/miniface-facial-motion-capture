@@ -18,6 +18,22 @@ export let blendshapes: any[] = [];
 export let rotation: Euler;
 export let headMesh: any[] = [];
 
+/**
+ * The raw Matrix4 from MediaPipe's facial transformation matrix (desktop only).
+ * Avatar.tsx uses this to extract a Quaternion for slerp smoothing, which is
+ * more numerically stable than the Euler extracted from it.
+ * Null on mobile (where outputFacialTransformationMatrixes is disabled).
+ */
+export let headMatrix: Matrix4 | null = null;
+
+/**
+ * True when the landmark-based rotation fallback is active.
+ * Set to true on mobile (where outputFacialTransformationMatrixes is disabled)
+ * so Avatar.tsx knows to use the Euler → Quaternion conversion path instead
+ * of decomposing a Matrix4.
+ */
+export let isMobileTracking = false;
+
 /** True while MediaPipe face detection is running. Avatar reads this to switch modes. */
 export let isMediaPipeActive = false;
 
@@ -101,6 +117,7 @@ function FaceTracking({
 
   const setupFaceLandmarker = async () => {
     const mobile = isMobileDevice();
+    isMobileTracking = mobile;
 
     const options: FaceLandmarkerOptions = {
       baseOptions: {
@@ -158,9 +175,11 @@ function FaceTracking({
           const matrixData = result.facialTransformationMatrixes?.[0]?.data;
           if (matrixData && isValidMatrix(Array.from(matrixData))) {
             const matrix = new Matrix4().fromArray(Array.from(matrixData));
+            headMatrix = matrix;
             rotation = new Euler().setFromRotationMatrix(matrix);
           } else if (result.faceLandmarks?.[0]) {
             // Fallback: derive rotation from raw landmarks (avoids procrustes crash)
+            headMatrix = null;
             rotation = rotationFromLandmarks(result.faceLandmarks[0]);
           }
 
@@ -206,6 +225,7 @@ function FaceTracking({
         predictLoopRef.current = null;
       }
       isMediaPipeActive = false;
+      headMatrix = null;
       blendshapes = [];
       onMediapipeReadyFiredRef.current = false;
     };

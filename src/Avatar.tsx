@@ -11,15 +11,29 @@
 import { useEffect, useRef } from "react";
 import { useFrame, useGraph } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
-import { Mesh, Object3D } from "three";
-import { blendshapes, rotation, headMesh, isMediaPipeActive } from "./FaceTracking";
+import { Euler, Mesh, Object3D, Quaternion } from "three";
+import { blendshapes, rotation, headMesh, headMatrix, isMobileTracking, isMediaPipeActive } from "./FaceTracking";
 import { captureFrame, setSceneForExport } from "./useMotionRecorder";
 import { useAnimationPlayer } from "./useAnimationPlayer";
+import { BlendshapeSmoother, QuaternionSmoother } from "./smoothing";
 
 interface AvatarProps {
   url: string;
   onLoaded?: () => void;
 }
+
+// ─── module-level smoother singletons ────────────────────────────────────────
+// Created once outside the component so they accumulate state across renders
+// without being recreated. Same pattern as FaceTracking's blendshapes / rotation
+// module globals — zero React overhead on the useFrame hot path.
+
+const blendshapeSmoother = new BlendshapeSmoother();
+const quaternionSmoother = new QuaternionSmoother();
+
+// Reusable Quaternion and Euler instances — allocated once, mutated each frame
+// to avoid per-frame garbage collection pressure.
+const _targetQuat = new Quaternion();
+const _smoothedEuler = new Euler();
 
 function Avatar({ url, onLoaded }: AvatarProps) {
   const { scene } = useGLTF(url);
@@ -40,6 +54,11 @@ function Avatar({ url, onLoaded }: AvatarProps) {
 
     setSceneForExport(scene, nodes, headMesh as Mesh[]);
 
+    // Reset smoothers whenever the avatar reloads so we don't carry stale
+    // state from a previous session into the new pose.
+    blendshapeSmoother.reset();
+    quaternionSmoother.reset();
+
     if (onLoaded) onLoaded();
   }, [nodes, url, onLoaded, scene]);
 
@@ -50,27 +69,72 @@ function Avatar({ url, onLoaded }: AvatarProps) {
     getIsMediaPipeActive: () => isMediaPipeActive,
   });
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     // Only drive bones + blendshapes when MediaPipe has live data.
     if (!isMediaPipeActive || blendshapes.length === 0) return;
 
-    // Apply face blendshapes.
-    blendshapes.forEach((element) => {
+    // ── blendshape smoothing (delta-time EMA) ──────────────────────────────
+    // Smooth all scores once using the frame delta so the EMA behaves
+    // identically at any frame rate. Results are stored in smoothedBlendshapes
+    // and reused for both the mesh update and captureFrame — the EMA state
+    // only advances once per frame and the recording matches the live preview.
+    const smoothedBlendshapes = blendshapes.map((element) => ({
+      categoryName: element.categoryName,
+      score: blendshapeSmoother.smooth(element.categoryName, element.score, delta),
+    }));
+
+    smoothedBlendshapes.forEach(({ categoryName, score }) => {
       headMesh.forEach((mesh) => {
-        const index = mesh.morphTargetDictionary?.[element.categoryName];
+        const index = mesh.morphTargetDictionary?.[categoryName];
         if (index >= 0) {
-          mesh.morphTargetInfluences[index] = element.score;
+          mesh.morphTargetInfluences[index] = score;
         }
       });
     });
 
-    // Apply head/neck/spine rotation from MediaPipe.
-    if (nodes.Head) nodes.Head.rotation.set(rotation.x, rotation.y, rotation.z);
-    if (nodes.Neck) nodes.Neck.rotation.set(rotation.x / 5 + 0.3, rotation.y / 5, rotation.z / 5);
-    if (nodes.Spine2) nodes.Spine2.rotation.set(rotation.x / 10, rotation.y / 10, rotation.z / 10);
+    // ── head rotation quaternion smoothing (delta-time SLERP) ──────────────
+    // Desktop: decompose Matrix4 → Quaternion → slerp with delta.
+    // Mobile:  Euler → Quaternion → slerp with delta.
+    // Both paths use the same smoother instance so behaviour is identical
+    // on all platforms at any frame rate.
+    let smoothedQuat: Quaternion;
 
-    // Capture frame for the motion recorder (no-op when not recording).
-    captureFrame(blendshapes, [rotation.x, rotation.y, rotation.z]);
+    if (headMatrix && !isMobileTracking) {
+      headMatrix.decompose(
+        { set: () => {} } as any,
+        _targetQuat,
+        { set: () => {} } as any
+      );
+      smoothedQuat = quaternionSmoother.smooth(_targetQuat, delta);
+    } else {
+      smoothedQuat = quaternionSmoother.smoothEuler(rotation, delta);
+    }
+
+    // Convert the smoothed quaternion back to an Euler so we can apply the
+    // fractional neck/spine scaling that the rig requires.
+    _smoothedEuler.setFromQuaternion(smoothedQuat, "XYZ");
+
+    // Apply to bones
+    if (nodes.Head) nodes.Head.quaternion.copy(smoothedQuat);
+    if (nodes.Neck) nodes.Neck.rotation.set(
+      _smoothedEuler.x / 5 + 0.3,
+      _smoothedEuler.y / 5,
+      _smoothedEuler.z / 5
+    );
+    if (nodes.Spine2) nodes.Spine2.rotation.set(
+      _smoothedEuler.x / 10,
+      _smoothedEuler.y / 10,
+      _smoothedEuler.z / 10
+    );
+
+    // ── capture frame (WYSIWYG) ────────────────────────────────────────────
+    // Pass the already-smoothed blendshapes and smoothed Euler so the recorded
+    // GLB matches exactly what is visible in the live preview — on both desktop
+    // and mobile. No second smoothing pass — smoothedBlendshapes is reused.
+    captureFrame(
+      smoothedBlendshapes,
+      [_smoothedEuler.x, _smoothedEuler.y, _smoothedEuler.z]
+    );
   });
 
   return <primitive object={scene} position={[0, 0, 0]} />;
