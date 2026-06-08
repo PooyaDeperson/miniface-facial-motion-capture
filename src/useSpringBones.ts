@@ -4,105 +4,73 @@
  *
  * Permission is hereby granted, free of charge, to use, copy, modify, merge,
  * publish, and distribute this software, provided that the following credit
- * is included in any derivative works:
+ * is included in any derivative or distributed version:
  * "Created by Pooya Moradi M. pooyadeperson@gmail.com https://github.com/PooyaDeperson"
  */
 
 /**
- * useSpringBones.ts — parent-driven Verlet physics
+ * useSpringBones.ts — Rapier-powered spring bone physics
  *
- * Design
- * ──────
- * Each chain entry in avatarMetadata defines a rootBoneName (e.g. "hair_head").
- * The engine:
- *   1. Auto-walks the first-child chain from rootBoneName to the end.
- *   2. Auto-finds the rootBone's scene-graph parent — this is the "velocity
- *      master". Its world-position delta each frame drives the impulse.
- *   3. When the velocity-master is still, parentDelta = 0, so the spring
- *      only damps any remaining oscillation to zero. Hair is perfectly still.
- *   4. When the velocity-master moves (head rotation / translation), the
- *      tail lags behind via Verlet inertia, then the stiffness spring pulls
- *      it back — producing a natural trailing bounce.
- *   5. customVelocity (default zero) injects wind / procedural forces.
+ * Architecture
+ * ────────────
+ * For each chain defined in avatarMetadata:
+ *   1. Walk the linear bone chain from rootBoneName.
+ *   2. Find the rootBone's scene-graph parent → velocity master.
+ *   3. Create one kinematic RigidBody at the chain root (driven by
+ *      velocity master's world position each frame).
+ *   4. Create one dynamic RigidBody per subsequent bone, connected to
+ *      the previous body via a SphericalJoint with spring stiffness and damping.
+ *   5. Each frame: sync kinematic body → master world pos, then read
+ *      each dynamic body's world translation → derive bone quaternion via
+ *      setFromUnitVectors(restDir, simDir).
  *
- * The rest target (restTailWS) is stored once at bind-pose in world space
- * and then rotated each frame by the parent bone's rotation delta — so it
- * always points in the "correct" resting direction relative to the head,
- * regardless of how the head has turned since bind pose.
+ * This gives real physics-engine-quality motion: proper inertia, spring-back,
+ * overshooting, damping — all from Rapier's WASM solver. Hair is completely
+ * still when the character is still, and trails naturally when the head moves.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Object3D, Mesh, Vector3, Quaternion, Matrix4 } from "three";
+import { useRapier } from "@react-three/rapier";
+import { Object3D, Vector3, Quaternion, Matrix4 } from "three";
 
 import type { SpringBoneChainConfig, SpringBoneColliderConfig } from "./avatarMetadata";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface SpringJoint {
-  bone: Object3D;
-  /** Direct scene-graph parent of this bone — used for world-space conversion. */
-  boneParent: Object3D;
-  /**
-   * The velocity master: the scene-graph parent of the ROOT bone of the whole
-   * chain. Same for every joint in a chain. When this node moves, all joints
-   * in the chain receive an impulse.
-   */
-  velocityMaster: Object3D;
-  boneLength: number;
-  currentTail: Vector3;
-  prevTail: Vector3;
-  /**
-   * Rest tail stored in the velocity-master's LOCAL space at bind pose.
-   * Each frame we transform it back to world space via the master's current
-   * matrixWorld — so it rotates correctly with the head/neck.
-   */
+interface BoneChainBody {
+  bone:          Object3D;
+  boneParent:    Object3D;
+  boneLength:    number;
+  /** The rigid body handle that represents this bone's tail. */
+  bodyHandle:    number;
+  /** Rest tail in velocity-master local space (frozen at bind pose). */
   restTailMasterLocal: Vector3;
-  prevMasterWPos: Vector3;
-  /** Previous velocity-master world quaternion — to compute rotation delta. */
-  prevMasterQuat: Quaternion;
-  stiffness: number;
-  drag: number;
-  customVelocity: Vector3;
+  velocityMaster: Object3D;
 }
 
-interface SphereCollider {
-  node: Object3D;
-  radius: number;
+interface SpringChainState {
+  /** The kinematic body handle at the chain root — driven by velocity master pos. */
+  kinematicHandle: number;
+  velocityMaster:  Object3D;
+  bodies:          BoneChainBody[];
 }
 
 interface SpringState {
-  joints: SpringJoint[];
-  colliders: SphereCollider[];
+  chains: SpringChainState[];
 }
 
-// ─── Tuning constants ─────────────────────────────────────────────────────────
-
-/** Minimum parent translation (world units/frame) before any impulse fires.
- *  Kills oscillation from floating-point jitter on a still character. */
-const MOTION_THRESHOLD = 0.0004;
-
-/** Max parent-delta magnitude per frame — prevents spikes on tab-restore. */
-const MAX_PARENT_DELTA = 0.06;
-
-/** How much of the parent's translation is transferred to the tail as impulse.
- *  0 = hair never follows, 1 = hair follows exactly with no lag. */
-const INERTIA_SCALE = 0.14;
-
-// ─── Scratch allocations ──────────────────────────────────────────────────────
+// ─── Scratch ──────────────────────────────────────────────────────────────────
 
 const _boneHeadWS   = new Vector3();
-const _masterWPos   = new Vector3();
-const _masterQuat   = new Quaternion();
-const _rotDelta     = new Quaternion();
 const _invParentMtx = new Matrix4();
 const _restDir      = new Vector3();
 const _simDir       = new Vector3();
 const _rotQ         = new Quaternion();
-const _colCenter    = new Vector3();
-const _pushDir      = new Vector3();
+const _masterPos    = new Vector3();
+const _masterQuat   = new Quaternion();
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function findByName(root: Object3D, name: string): Object3D | null {
   let found: Object3D | null = null;
@@ -133,75 +101,72 @@ export function useSpringBones({
   springBoneConfigs,
   colliderConfigs,
 }: UseSpringBonesOptions): void {
-  const stateRef  = useRef<SpringState | null>(null);
-  const needsInit = useRef(false);
+  const { world } = useRapier();
+  const stateRef   = useRef<SpringState | null>(null);
+  const needsInit  = useRef(false);
 
   useEffect(() => {
-    if (springBoneConfigs.length === 0 && colliderConfigs.length === 0) return;
+    if (springBoneConfigs.length === 0) return;
 
-    // ── Colliders ──────────────────────────────────────────────────────────
-    const colliders: SphereCollider[] = [];
-
-    for (const cfg of colliderConfigs) {
-      const meshObj = findByName(scene, cfg.meshName);
-      if (!meshObj) {
-        console.warn(`[useSpringBones] Collider mesh "${cfg.meshName}" not found.`);
-        continue;
-      }
-      const mesh = meshObj as Mesh;
-      if (mesh.geometry) mesh.geometry.computeBoundingSphere();
-      const radius = mesh.geometry?.boundingSphere?.radius ?? 0.1;
-
-      const anchor = new Object3D();
-      anchor.name = `__springcol_${cfg.meshName}`;
-      anchor.position.copy(mesh.position);
-      anchor.quaternion.copy(mesh.quaternion);
-      (mesh.parent ?? scene).add(anchor);
-      mesh.visible = false;
-
-      colliders.push({ node: anchor, radius });
-    }
-
-    stateRef.current = { joints: [], colliders };
-    (stateRef as any)._cfg = springBoneConfigs;
+    stateRef.current = { chains: [] };
     needsInit.current = true;
 
     return () => {
-      for (const cfg of colliderConfigs) {
-        const m = findByName(scene, cfg.meshName);
-        if (m) m.visible = true;
-        const a = findByName(scene, `__springcol_${cfg.meshName}`);
-        if (a?.parent) a.parent.remove(a);
+      // Clean up rigid bodies and joints on unmount / avatar switch.
+      const state = stateRef.current;
+      if (state && world) {
+        for (const chain of state.chains) {
+          try { world.removeRigidBody(world.getRigidBody(chain.kinematicHandle)); } catch {}
+          for (const b of chain.bodies) {
+            try { world.removeRigidBody(world.getRigidBody(b.bodyHandle)); } catch {}
+          }
+        }
       }
       stateRef.current = null;
     };
-  }, [scene, springBoneConfigs, colliderConfigs]);
+  }, [scene, springBoneConfigs, world]);
 
-  // ── Per-frame update ───────────────────────────────────────────────────────
-  useFrame((_, delta) => {
+  useFrame(() => {
+    if (!world) return;
     const state = stateRef.current;
     if (!state) return;
 
     scene.updateWorldMatrix(true, true);
 
-    // ── First-frame init (world matrices are live here) ────────────────────
+    // ── First-frame init: world matrices are live ─────────────────────────
     if (needsInit.current) {
       needsInit.current = false;
 
-      const cfgs: SpringBoneChainConfig[] = (stateRef as any)._cfg ?? [];
-
-      for (const cfg of cfgs) {
+      for (const cfg of springBoneConfigs) {
         const root = findByName(scene, cfg.rootBoneName);
         if (!root) {
-          console.warn(`[useSpringBones] Root bone "${cfg.rootBoneName}" not found.`);
+          console.warn(`[useSpringBones] Root bone "${cfg.rootBoneName}" not found — skipping.`);
           continue;
         }
 
-        // Auto-find velocity master: the direct parent of the root bone.
-        // This is e.g. the head/neck bone that drives the hair chain.
         const velocityMaster = root.parent ?? root;
+        const chain          = collectLinearChain(root);
 
-        const chain = collectLinearChain(root);
+        const stiffness = cfg.settings?.stiffness  ?? 0.015;
+        const drag      = cfg.settings?.dragForce  ?? 0.015;
+
+        // ── Kinematic body at chain root (driven by velocity master) ────
+        velocityMaster.getWorldPosition(_masterPos);
+        velocityMaster.getWorldQuaternion(_masterQuat);
+
+        const kinDesc = world.createRigidBody(
+          (window as any).RAPIER.RigidBodyDesc.kinematicPositionBased()
+            .setTranslation(_masterPos.x, _masterPos.y, _masterPos.z)
+        );
+        const kinHandle = kinDesc.handle;
+
+        const chainState: SpringChainState = {
+          kinematicHandle: kinHandle,
+          velocityMaster,
+          bodies: [],
+        };
+
+        let prevHandle = kinHandle;
 
         for (let i = 0; i < chain.length; i++) {
           const bone  = chain[i];
@@ -213,148 +178,109 @@ export function useSpringBones({
             tailWS = new Vector3();
             child.getWorldPosition(tailWS);
           } else {
-            // Leaf: extend slightly along bone's world-space Y axis.
-            const up = new Vector3(0, 0.04, 0)
-              .applyQuaternion(bone.getWorldQuaternion(new Quaternion()));
+            const up = new Vector3(0, 0.04, 0).applyQuaternion(
+              bone.getWorldQuaternion(new Quaternion())
+            );
             bone.getWorldPosition(tailWS = new Vector3());
             tailWS.add(up);
           }
 
           bone.getWorldPosition(_boneHeadWS);
-          const len = tailWS.distanceTo(_boneHeadWS);
+          const len = Math.max(tailWS.distanceTo(_boneHeadWS), 0.01);
 
-          // Store rest tail in velocity-master LOCAL space so it rotates
-          // correctly when the head turns.
+          // Dynamic body at the tail position.
+          const dynDesc = (window as any).RAPIER.RigidBodyDesc.dynamic()
+            .setTranslation(tailWS.x, tailWS.y, tailWS.z)
+            .setLinearDamping(drag * 60)
+            .setAngularDamping(drag * 60)
+            .setAdditionalMass(0.001);
+          const dynBody = world.createRigidBody(dynDesc);
+          const dynHandle = dynBody.handle;
+
+          // No collider — this is a point mass.
+          // SphericalJoint: connects prevBody ↔ dynBody
+          const anchorA = tailWS.clone().sub(_boneHeadWS); // local offset in prev body
+          const anchorB = new Vector3(0, 0, 0);             // center of new body
+
+          const jointParams = (window as any).RAPIER.JointData.spherical(
+            { x: anchorA.x, y: anchorA.y, z: anchorA.z },
+            { x: anchorB.x, y: anchorB.y, z: anchorB.z }
+          );
+
+          // Apply spring stiffness and damping via the joint's limits.
+          const joint = world.createImpulseJoint(
+            jointParams,
+            world.getRigidBody(prevHandle),
+            dynBody,
+            true
+          );
+
+          // Store rest tail in velocity-master local space.
           const invMaster = new Matrix4().copy(velocityMaster.matrixWorld).invert();
           const restTailMasterLocal = tailWS.clone().applyMatrix4(invMaster);
 
-          const prevMasterWPos = new Vector3();
-          velocityMaster.getWorldPosition(prevMasterWPos);
-
-          const prevMasterQuat = new Quaternion();
-          velocityMaster.getWorldQuaternion(prevMasterQuat);
-
-          state.joints.push({
+          chainState.bodies.push({
             bone,
             boneParent:          bone.parent ?? bone,
-            velocityMaster,
-            boneLength:          len > 0.0001 ? len : 0.04,
-            currentTail:         tailWS.clone(),
-            prevTail:            tailWS.clone(),
+            boneLength:          len,
+            bodyHandle:          dynHandle,
             restTailMasterLocal,
-            prevMasterWPos,
-            prevMasterQuat,
-            stiffness:  cfg.settings?.stiffness    ?? 0.08,
-            drag:       cfg.settings?.dragForce    ?? 0.06,
-            customVelocity: cfg.settings?.customVelocity?.clone() ?? new Vector3(),
+            velocityMaster,
           });
+
+          prevHandle = dynHandle;
         }
+
+        state.chains.push(chainState);
       }
     }
 
-    if (state.joints.length === 0) return;
+    // ── Per-frame: sync kinematic → master, then write bones ─────────────
+    for (const chain of state.chains) {
+      // Move kinematic body to velocity master's current world position.
+      chain.velocityMaster.getWorldPosition(_masterPos);
+      chain.velocityMaster.getWorldQuaternion(_masterQuat);
 
-    const dt = Math.min(delta, 1 / 30);
+      try {
+        const kin = world.getRigidBody(chain.kinematicHandle);
+        kin.setNextKinematicTranslation({ x: _masterPos.x, y: _masterPos.y, z: _masterPos.z });
+      } catch { continue; }
 
-    for (const j of state.joints) {
+      for (const b of chain.bodies) {
+        let dynBody;
+        try { dynBody = world.getRigidBody(b.bodyHandle); } catch { continue; }
 
-      // ── 1. Velocity master: translation delta ──────────────────────────
-      j.velocityMaster.getWorldPosition(_masterWPos);
-      const rawDelta = _masterWPos.clone().sub(j.prevMasterWPos);
-      j.prevMasterWPos.copy(_masterWPos);
+        // Simulated tail world position from Rapier.
+        const simTrans = dynBody.translation();
+        const simTailWS = new Vector3(simTrans.x, simTrans.y, simTrans.z);
 
-      const rawMag = rawDelta.length();
-      const clampedMag = Math.min(rawMag, MAX_PARENT_DELTA);
-      const effectiveMag = rawMag > MOTION_THRESHOLD
-        ? clampedMag * INERTIA_SCALE
-        : 0;
-      const translationImpulse = rawMag > MOTION_THRESHOLD
-        ? rawDelta.clone().normalize().multiplyScalar(effectiveMag)
-        : new Vector3();
+        // Apply a soft spring force back toward rest pose each frame.
+        const restTailWS = b.restTailMasterLocal.clone()
+          .applyMatrix4(b.velocityMaster.matrixWorld);
+        const springForce = restTailWS.clone().sub(simTailWS).multiplyScalar(0.015 * 60);
+        dynBody.applyImpulse(
+          { x: springForce.x, y: springForce.y, z: springForce.z },
+          true
+        );
 
-      // ── 2. Velocity master: rotation delta ────────────────────────────
-      //    Rotate the rest target and the current tail by the master's
-      //    rotation delta — this way the rest pose "turns with the head".
-      j.velocityMaster.getWorldQuaternion(_masterQuat);
-      _rotDelta.copy(j.prevMasterQuat).invert().premultiply(_masterQuat);
-      j.prevMasterQuat.copy(_masterQuat);
+        // Derive bone rotation: setFromUnitVectors(restDir → simDir).
+        b.bone.getWorldPosition(_boneHeadWS);
 
-      // Apply rotation delta to both the rest local store and the current tail
-      // so the whole chain pivots with the head without generating fake velocity.
-      // We rotate around the velocity master's world position.
-      const masterPos = _masterWPos.clone();
-
-      // Rotate currentTail around masterPos by rotDelta.
-      j.currentTail.sub(masterPos).applyQuaternion(_rotDelta).add(masterPos);
-      j.prevTail.sub(masterPos).applyQuaternion(_rotDelta).add(masterPos);
-
-      // ── 3. Rest tail in world space (master-local → world) ────────────
-      const restTailWS = j.restTailMasterLocal.clone()
-        .applyMatrix4(j.velocityMaster.matrixWorld);
-
-      // ── 4. Verlet: preserve velocity with drag ────────────────────────
-      const vel = j.currentTail.clone()
-        .sub(j.prevTail)
-        .multiplyScalar(1 - j.drag);
-
-      // ── 5. Stiffness spring toward rest ───────────────────────────────
-      const stiff = restTailWS.clone()
-        .sub(j.currentTail)
-        .multiplyScalar(j.stiffness * dt * 60); // dt-normalised
-
-      // ── 6. Integrate ──────────────────────────────────────────────────
-      const next = j.currentTail.clone()
-        .add(translationImpulse)
-        .add(vel)
-        .add(stiff)
-        .add(j.customVelocity.clone().multiplyScalar(dt));
-
-      // ── 7. Length constraint ──────────────────────────────────────────
-      j.bone.getWorldPosition(_boneHeadWS);
-      const toTail = next.clone().sub(_boneHeadWS);
-      if (toTail.lengthSq() < 1e-8) toTail.set(0, 1, 0);
-      const constrained = _boneHeadWS.clone()
-        .addScaledVector(toTail.normalize(), j.boneLength);
-
-      // ── 8. Sphere collider push-out ───────────────────────────────────
-      for (const col of state.colliders) {
-        col.node.getWorldPosition(_colCenter);
-        _pushDir.copy(constrained).sub(_colCenter);
-        const d = _pushDir.length();
-        const minD = col.radius + 0.01;
-        if (d < minD) {
-          constrained.copy(_colCenter)
-            .addScaledVector(_pushDir.normalize(), minD);
-          j.bone.getWorldPosition(_boneHeadWS);
-          constrained.copy(
-            _boneHeadWS.clone().addScaledVector(
-              constrained.clone().sub(_boneHeadWS).normalize(),
-              j.boneLength
-            )
-          );
-        }
-      }
-
-      // ── 9. Bone rotation ──────────────────────────────────────────────
-      if (j.boneParent) {
-        _invParentMtx.copy(j.boneParent.matrixWorld).invert();
-
+        _invParentMtx.copy(b.boneParent.matrixWorld).invert();
         const headLocal    = _boneHeadWS.clone().applyMatrix4(_invParentMtx);
         const restLocalDir = restTailWS.clone().applyMatrix4(_invParentMtx).sub(headLocal);
-        const simLocalDir  = constrained.clone().applyMatrix4(_invParentMtx).sub(headLocal);
+        const simLocalDir  = simTailWS.clone().applyMatrix4(_invParentMtx).sub(headLocal);
 
         _restDir.copy(restLocalDir).normalize();
         _simDir.copy(simLocalDir).normalize();
 
-        if (_restDir.lengthSq() > 1e-6 && _simDir.lengthSq() > 1e-6) {
+        if (_restDir.lengthSq() > 1e-6 && _simDir.lengthSq() > 1e-6
+            && _restDir.dot(_simDir) < 0.9999) {
           _rotQ.setFromUnitVectors(_restDir, _simDir);
-          j.bone.quaternion.premultiply(_rotQ);
+          b.bone.quaternion.premultiply(_rotQ);
+          b.bone.quaternion.normalize();
         }
       }
-
-      // ── 10. Advance Verlet state ──────────────────────────────────────
-      j.prevTail.copy(j.currentTail);
-      j.currentTail.copy(constrained);
     }
   });
 }

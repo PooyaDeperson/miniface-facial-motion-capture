@@ -12,9 +12,10 @@
 // AvatarCanvas.tsx
 import { Suspense, useState, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
+import { Physics } from "@react-three/rapier";
 import Avatar from "./Avatar";
 import AvatarOrbitControls from "./AvatarOrbitControls";
-import AvatarLoader from "./AvatarLoader"; // <-- your 2D dynamic loader
+import AvatarLoader from "./AvatarLoader";
 
 interface AvatarCanvasProps {
   url: string | null;
@@ -65,18 +66,20 @@ const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarRe
 
         <AvatarOrbitControls target={avatarCenter} enableZoom={true} />
 
-        {url && (
-          <Suspense fallback={null}>
-            <Avatar
-              key={`${url}-${avatarKey}`}
-              url={url}
-              onLoaded={() => {
-                setAvatarReady(true);
-                setLoading(false);
-              }}
-            />
-          </Suspense>
-        )}
+        <Physics gravity={[0, -9.81, 0]} timeStep="vary">
+          {url && (
+            <Suspense fallback={null}>
+              <Avatar
+                key={`${url}-${avatarKey}`}
+                url={url}
+                onLoaded={() => {
+                  setAvatarReady(true);
+                  setLoading(false);
+                }}
+              />
+            </Suspense>
+          )}
+        </Physics>
       </Canvas>
     </>
   );
