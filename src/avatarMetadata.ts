@@ -15,14 +15,14 @@
  *
  * SecondaryChainConfig (from SecondaryMotionSystem)
  * ─────────────────────────────────────────────────
- *   id        – unique identifier for this chain
- *   driver    – name of the bone whose movement drives the simulation
- *               (e.g. "Head" for hair chains, "Hips" for skirt chains)
- *   root      – name of the root bone of the chain; children are
- *               discovered automatically by walking the hierarchy
- *   stiffness – how strongly each bone springs back toward rest pose   (0–1, default 0.25)
- *   damping   – velocity damping each frame; higher = snappier         (0–1, default 0.88)
- *   gravity   – constant downward pull on the simulated tail           (default 0.08)
+ *   id           – unique identifier for this chain
+ *   driver       – bone whose world movement drives the simulation
+ *   chainStart   – first bone in the spring chain (inclusive)
+ *   chainEnd     – last bone in the spring chain (inclusive)
+ *   stiffness    – how strongly each bone springs back toward rest     (0–1, default 0.3)
+ *   damping      – velocity damping each frame; higher = less wobble   (0–1, default 0.85)
+ *   gravity      – constant downward sag on the rest target            (default 0.08)
+ *   inertiaScale – how much driver velocity lags the chain             (default 0.08)
  *
  * AvatarMetadata
  * ───────────────
@@ -49,81 +49,17 @@ const AVATAR_METADATA: AvatarMetadata[] = [
   // Chain:  hair_1 … hair_7 (individual strands branching from hair_head)
   {
     avatarPath: "/avatar/avatar1.glb",
-    // Ponytail secondary motion driven by hair_head.
-    // All chains use high stiffness so they always return to rest pose.
-    // Outer strands (hair_5–7) have slightly more gravity droop and inertia.
+    // Ponytail: hair_head is the driver; chain runs hair_1 → hair_7.
     secondaryMotion: [
       {
-        id: "hair_head",
+        id: "ponytail",
         driver: "hair_head",
-        root: "hair_head",
-        stiffness: 0.35,
-        damping: 0.82,
-        gravity: 0.05,
-        inertiaScale: 0.06,
-      },
-      {
-        id: "hair_1",
-        driver: "hair_head",
-        root: "hair_1",
-        stiffness: 0.32,
-        damping: 0.82,
-        gravity: 0.06,
-        inertiaScale: 0.07,
-      },
-      {
-        id: "hair_2",
-        driver: "hair_head",
-        root: "hair_2",
-        stiffness: 0.32,
-        damping: 0.82,
-        gravity: 0.06,
-        inertiaScale: 0.07,
-      },
-      {
-        id: "hair_3",
-        driver: "hair_head",
-        root: "hair_3",
+        chainStart: "hair_1",
+        chainEnd: "hair_7",
         stiffness: 0.28,
         damping: 0.80,
         gravity: 0.07,
         inertiaScale: 0.08,
-      },
-      {
-        id: "hair_4",
-        driver: "hair_head",
-        root: "hair_4",
-        stiffness: 0.28,
-        damping: 0.80,
-        gravity: 0.07,
-        inertiaScale: 0.08,
-      },
-      {
-        id: "hair_5",
-        driver: "hair_head",
-        root: "hair_5",
-        stiffness: 0.24,
-        damping: 0.78,
-        gravity: 0.08,
-        inertiaScale: 0.09,
-      },
-      {
-        id: "hair_6",
-        driver: "hair_head",
-        root: "hair_6",
-        stiffness: 0.24,
-        damping: 0.78,
-        gravity: 0.08,
-        inertiaScale: 0.09,
-      },
-      {
-        id: "hair_7",
-        driver: "hair_head",
-        root: "hair_7",
-        stiffness: 0.20,
-        damping: 0.76,
-        gravity: 0.09,
-        inertiaScale: 0.10,
       },
     ],
   },

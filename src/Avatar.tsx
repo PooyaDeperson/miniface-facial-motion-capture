@@ -75,7 +75,7 @@ function Avatar({ url, onLoaded }: AvatarProps) {
   // animation mixer can strip those tracks out — preventing it from
   // overwriting the spring-integrated transforms every frame.
   const springBoneNameSet = useMemo(
-    () => new Set(secondaryMotion.map((c) => c.root)),
+    () => new Set(secondaryMotion.map((c) => c.chainStart)),
     [secondaryMotion]
   );
 

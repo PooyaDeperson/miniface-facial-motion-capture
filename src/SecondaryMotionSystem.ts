@@ -42,7 +42,7 @@ import { Object3D, Vector3, Quaternion, Matrix4 } from "three";
 // ─── Public config ─────────────────────────────────────────────────────────
 
 export interface SecondaryChainConfig {
-  /** Unique identifier for this chain (e.g. "hair_head", "skirtLeft"). */
+  /** Unique identifier for this chain (e.g. "ponytail", "skirtLeft"). */
   id: string;
   /**
    * Name of the bone whose world-position drives inertia.
@@ -50,10 +50,14 @@ export interface SecondaryChainConfig {
    */
   driver: string;
   /**
-   * Name of the root bone of the spring chain.
-   * Child bones are auto-discovered by walking the hierarchy.
+   * First bone in the spring chain. The system walks children from here
+   * until it reaches chainEnd (inclusive).
    */
-  root: string;
+  chainStart: string;
+  /**
+   * Last bone in the spring chain (inclusive). The walk stops here.
+   */
+  chainEnd: string;
   /**
    * How strongly each bone springs back toward rest pose.
    * Higher = snappier return. Range 0–1, default 0.3.
@@ -141,13 +145,13 @@ export class SecondaryMotionSystem {
         console.warn(`[SecondaryMotion] Driver "${cfg.driver}" not found — skipping "${cfg.id}".`);
         continue;
       }
-      const rootBone = this._find(cfg.root);
-      if (!rootBone) {
-        console.warn(`[SecondaryMotion] Root bone "${cfg.root}" not found — skipping "${cfg.id}".`);
+      const startBone = this._find(cfg.chainStart);
+      if (!startBone) {
+        console.warn(`[SecondaryMotion] chainStart "${cfg.chainStart}" not found — skipping "${cfg.id}".`);
         continue;
       }
 
-      const boneChain = this._collectChain(rootBone);
+      const boneChain = this._collectChain(startBone, cfg.chainEnd);
 
       // Freeze driver inverse matrix at bind pose.
       _invDriverMtx.copy(driver.matrixWorld).invert();
@@ -315,11 +319,12 @@ export class SecondaryMotionSystem {
     return found;
   }
 
-  private _collectChain(root: Object3D): Object3D[] {
+  private _collectChain(start: Object3D, endName: string): Object3D[] {
     const chain: Object3D[] = [];
-    let cur: Object3D | null = root;
+    let cur: Object3D | null = start;
     while (cur) {
       chain.push(cur);
+      if (cur.name === endName) break;
       cur = cur.children[0] ?? null;
     }
     return chain;
