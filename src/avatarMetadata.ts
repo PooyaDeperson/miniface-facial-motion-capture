@@ -86,35 +86,35 @@ const AVATAR_METADATA: AvatarMetadata[] = [
     springBones: [
       {
         rootBoneName: "hair_head",
-        settings: { stiffness: 0.10, dragForce: 0.06, gravityPower: 0.12, gravityDir: new Vector3(0, -1, 0) },
+        settings: { stiffness: 0.018, dragForce: 0.018, gravityPower: 0.04, gravityDir: new Vector3(0, -1, 0) },
       },
       {
         rootBoneName: "hair_1",
-        settings: { stiffness: 0.08, dragForce: 0.06, gravityPower: 0.15, gravityDir: new Vector3(0, -1, 0) },
+        settings: { stiffness: 0.015, dragForce: 0.016, gravityPower: 0.05, gravityDir: new Vector3(0, -1, 0) },
       },
       {
         rootBoneName: "hair_2",
-        settings: { stiffness: 0.08, dragForce: 0.06, gravityPower: 0.15, gravityDir: new Vector3(0, -1, 0) },
+        settings: { stiffness: 0.015, dragForce: 0.016, gravityPower: 0.05, gravityDir: new Vector3(0, -1, 0) },
       },
       {
         rootBoneName: "hair_3",
-        settings: { stiffness: 0.07, dragForce: 0.05, gravityPower: 0.18, gravityDir: new Vector3(0, -1, 0) },
+        settings: { stiffness: 0.012, dragForce: 0.014, gravityPower: 0.06, gravityDir: new Vector3(0, -1, 0) },
       },
       {
         rootBoneName: "hair_4",
-        settings: { stiffness: 0.07, dragForce: 0.05, gravityPower: 0.18, gravityDir: new Vector3(0, -1, 0) },
+        settings: { stiffness: 0.012, dragForce: 0.014, gravityPower: 0.06, gravityDir: new Vector3(0, -1, 0) },
       },
       {
         rootBoneName: "hair_5",
-        settings: { stiffness: 0.06, dragForce: 0.05, gravityPower: 0.20, gravityDir: new Vector3(0, -1, 0) },
+        settings: { stiffness: 0.010, dragForce: 0.012, gravityPower: 0.07, gravityDir: new Vector3(0, -1, 0) },
       },
       {
         rootBoneName: "hair_6",
-        settings: { stiffness: 0.06, dragForce: 0.05, gravityPower: 0.20, gravityDir: new Vector3(0, -1, 0) },
+        settings: { stiffness: 0.010, dragForce: 0.012, gravityPower: 0.07, gravityDir: new Vector3(0, -1, 0) },
       },
       {
         rootBoneName: "hair_7",
-        settings: { stiffness: 0.05, dragForce: 0.04, gravityPower: 0.22, gravityDir: new Vector3(0, -1, 0) },
+        settings: { stiffness: 0.008, dragForce: 0.010, gravityPower: 0.08, gravityDir: new Vector3(0, -1, 0) },
       },
     ],
     // Collision mesh disabled for now — add back once spring motion is tuned.
