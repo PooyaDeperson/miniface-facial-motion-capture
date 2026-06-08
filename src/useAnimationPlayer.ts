@@ -10,37 +10,10 @@
 
 import { useEffect, useRef } from "react";
 import { useGLTF } from "@react-three/drei";
-import { AnimationMixer, AnimationClip, Object3D, Bone } from "three";
+import { AnimationMixer, AnimationClip, Object3D } from "three";
 import { useFrame } from "@react-three/fiber";
 
 const ANIMATION_PATH = "/animation/idle.glb";
-
-/**
- * Collects all Bone objects from a scene by walking the hierarchy.
- */
-function collectBones(root: Object3D): Map<string, Bone> {
-  const map = new Map<string, Bone>();
-  root.traverse((obj) => {
-    if ((obj as Bone).isBone) {
-      map.set(obj.name, obj as Bone);
-    }
-  });
-  return map;
-}
-
-/**
- * Collects all bone names referenced in an AnimationClip's tracks.
- */
-function collectAnimationBoneNames(clip: AnimationClip): Set<string> {
-  const names = new Set<string>();
-  for (const track of clip.tracks) {
-    // Track names are like "BoneName.position" or "BoneName.quaternion"
-    const dotIdx = track.name.lastIndexOf(".");
-    const boneName = dotIdx !== -1 ? track.name.slice(0, dotIdx) : track.name;
-    names.add(boneName);
-  }
-  return names;
-}
 
 interface UseAnimationPlayerOptions {
   /** The character scene (from useGLTF) whose bones will be driven. */
@@ -71,55 +44,28 @@ export function useAnimationPlayer({ characterScene, getIsMediaPipeActive, exclu
 
     let clip = animations[0];
 
-    // [v0] log all track names to see the exact format
-    console.log("[v0] all track names:", clip.tracks.map(t => t.name));
-    console.log("[v0] excludeBoneNames:", Array.from(excludeBoneNames ?? []));
-
-    // Strip out tracks that target spring-bone-owned bones so the mixer never
-    // overwrites the transforms that the Verlet integrator computed.
+    // Strip out tracks targeting spring-bone-owned bones so the mixer never
+    // overwrites Verlet-integrated transforms. Track names can be plain
+    // "BoneName.quaternion", "Armature|BoneName.quaternion", or
+    // ".bones[BoneName].quaternion" — handle all three formats.
     if (excludeBoneNames && excludeBoneNames.size > 0) {
+      const before = clip.tracks.length;
       const filteredTracks = clip.tracks.filter((track) => {
-        // Track names can be:
-        //   "BoneName.quaternion"                (plain)
-        //   "Armature|BoneName.quaternion"       (object path | bone.property)
-        //   ".bones[BoneName].quaternion"        (dot notation)
         const dotIdx = track.name.lastIndexOf(".");
         const withoutProp = dotIdx !== -1 ? track.name.slice(0, dotIdx) : track.name;
-        // Strip object path prefix (e.g. "Armature|")
         const pipeIdx = withoutProp.lastIndexOf("|");
-        const boneName = pipeIdx !== -1 ? withoutProp.slice(pipeIdx + 1) : withoutProp;
-        // Strip .bones[...] notation
-        const bracketMatch = boneName.match(/\.bones\[(.+)\]/);
-        const finalName = bracketMatch ? bracketMatch[1] : boneName;
-        const excluded = excludeBoneNames.has(finalName);
-        return !excluded;
+        const afterPipe = pipeIdx !== -1 ? withoutProp.slice(pipeIdx + 1) : withoutProp;
+        const bracketMatch = afterPipe.match(/\.bones\[(.+)\]/);
+        const finalName = bracketMatch ? bracketMatch[1] : afterPipe;
+        return !excludeBoneNames.has(finalName);
       });
-      console.log(`[v0] mixer: excluded ${clip.tracks.length - filteredTracks.length} of ${clip.tracks.length} tracks. ExcludedNames:`, Array.from(excludeBoneNames));
-      // Clone the clip so we don't mutate the cached asset.
-      clip = new AnimationClip(clip.name, clip.duration, filteredTracks);
+      if (before !== filteredTracks.length) {
+        clip = new AnimationClip(clip.name, clip.duration, filteredTracks);
+      }
     }
 
     const mixer = new AnimationMixer(characterScene);
     mixerRef.current = mixer;
-
-    // ---- Bone-matching log ----
-    const characterBones = collectBones(characterScene);
-    const animBoneNames = collectAnimationBoneNames(clip);
-
-    const matched: string[] = [];
-    const unmatchedAnim: string[] = [];
-    const unmatchedChar: string[] = [];
-
-    animBoneNames.forEach((name) => {
-      if (characterBones.has(name)) matched.push(name);
-      else unmatchedAnim.push(name);
-    });
-
-    characterBones.forEach((_, name) => {
-      if (!animBoneNames.has(name)) unmatchedChar.push(name);
-    });
-
-    // ---------------------------
 
     const action = mixer.clipAction(clip);
     action.play();
@@ -132,7 +78,6 @@ export function useAnimationPlayer({ characterScene, getIsMediaPipeActive, exclu
   }, [characterScene, animations, excludeBoneNames]);
 
   // Each frame: read the live MediaPipe flag and pause/advance the mixer accordingly.
-  const frameLogRef = useRef(0);
   useFrame((_, delta) => {
     const mixer = mixerRef.current;
     if (!mixer) return;
@@ -150,18 +95,6 @@ export function useAnimationPlayer({ characterScene, getIsMediaPipeActive, exclu
         actionPausedRef.current = false;
       }
       mixer.update(delta);
-    }
-
-    // [v0] log hair_head bone quat after mixer runs, first 3 frames
-    frameLogRef.current++;
-    if (frameLogRef.current <= 3 && mixerRef.current) {
-      const root = (mixer as any)._root as Object3D | undefined;
-      let hairBone: Object3D | null = null;
-      root?.traverse?.((o: Object3D) => { if (o.name === "hair_head" && !hairBone) hairBone = o; });
-      if (hairBone) {
-        const q = (hairBone as any).quaternion;
-        console.log(`[v0] mixer frame ${frameLogRef.current} hair_head quat after mixer:`, q.x.toFixed(4), q.y.toFixed(4), q.z.toFixed(4), q.w.toFixed(4), "mediaPipeActive:", active);
-      }
     }
   });
 }

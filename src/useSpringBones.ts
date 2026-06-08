@@ -119,15 +119,11 @@ export function useSpringBones({
   colliderConfigs,
 }: UseSpringBonesOptions): void {
   const managerRef = useRef<VRMSpringBoneManager | null>(null);
+  const needsInitRef = useRef(false);
 
   useEffect(() => {
     // Nothing to do if this avatar has no spring-bone configuration.
     if (springBoneConfigs.length === 0 && colliderConfigs.length === 0) return;
-
-    // [v0] Dump every node name so we can verify bones + mesh exist
-    const allNames: string[] = [];
-    scene.traverse((o) => { if (o.name) allNames.push(`${o.type}:${o.name}`); });
-    console.log("[v0] scene nodes →", allNames);
 
     const manager = new VRMSpringBoneManager();
     managerRef.current = manager;
@@ -144,7 +140,6 @@ export function useSpringBones({
       }
 
       const mesh = meshObj as Mesh;
-      console.log("[v0] collider mesh found:", cfg.meshName, "parent:", mesh.parent?.name, "parentType:", mesh.parent?.type);
       if (mesh.geometry) {
         mesh.geometry.computeBoundingSphere();
       }
@@ -190,7 +185,6 @@ export function useSpringBones({
       }
 
       const pairs = buildChainPairs(rootBone);
-      console.log(`[v0] chain "${cfg.rootBoneName}" pairs:`, pairs.map(([b, c]) => `${b.name}->${c?.name ?? "null"}`));
 
       for (const [bone, child] of pairs) {
         const joint = new VRMSpringBoneJoint(
@@ -210,10 +204,10 @@ export function useSpringBones({
       }
     }
 
-    // ── 4. Snapshot rest-pose matrices ────────────────────────────────────
-    scene.updateWorldMatrix(true, true);
-    manager.setInitState();
-    console.log("[v0] manager ready, joint count:", manager.joints.size);
+    // ── 4. Stage init — defer to first useFrame so the renderer has already
+    //        posed the skeleton and world matrices are correct.
+    needsInitRef.current = true;
+    console.log("[v0] manager ready, joint count:", manager.joints.size, "— waiting for first frame to call setInitState()");
 
     // ── Cleanup ───────────────────────────────────────────────────────────
     return () => {
@@ -232,17 +226,27 @@ export function useSpringBones({
   useFrame((_, delta) => {
     const manager = managerRef.current;
     if (!manager) return;
-    // Refresh world matrices so the spring integrator sees the skeleton's
-    // current animated pose (after the mixer has already run this frame).
+
+    // Update world matrices so the integrator sees the current animated pose.
     scene.updateWorldMatrix(true, true);
+
+    // Defer setInitState() to the first frame so the renderer has fully posed
+    // the skeleton before we snapshot the rest-pose bone axes.
+    if (needsInitRef.current) {
+      manager.setInitState();
+      needsInitRef.current = false;
+      console.log("[v0] setInitState() called on first frame — spring physics active");
+    }
+
     manager.update(delta);
+
     frameCountRef.current++;
-    // Log first 3 frames so we can see if manager.update is actually changing anything
-    if (frameCountRef.current <= 3) {
+    // Log first 3 frames so we can confirm the quat is changing
+    if (frameCountRef.current <= 5) {
       const firstJoint = Array.from(manager.joints)[0] as any;
       if (firstJoint?.bone) {
         const q = firstJoint.bone.quaternion;
-        console.log(`[v0] frame ${frameCountRef.current} first joint bone "${firstJoint.bone.name}" quat:`, q.x.toFixed(4), q.y.toFixed(4), q.z.toFixed(4), q.w.toFixed(4));
+        console.log(`[v0] frame ${frameCountRef.current} bone "${firstJoint.bone.name}" quat:`, q.x.toFixed(4), q.y.toFixed(4), q.z.toFixed(4), q.w.toFixed(4));
       }
     }
   });
