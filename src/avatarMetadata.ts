@@ -53,10 +53,10 @@ const AVATAR_METADATA: AvatarMetadata[] = [
     secondaryMotion: [
       {
         id: "ponytail",
-        driver: "hair_head",
-        chainStart: "hair_1",
+        driver: "Head",
+        chainStart: "hair_head",
         chainEnd: "hair_7",
-        stiffness: 0.28,
+        stiffness: 0.01,
         damping: 0.80,
         gravity: 0.07,
         inertiaScale: 0.08,
