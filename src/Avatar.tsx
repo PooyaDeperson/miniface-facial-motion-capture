@@ -128,7 +128,7 @@ function Avatar({ url, onLoaded }: AvatarProps) {
     let smoothedQuat: Quaternion;
 
     if (headMatrix && !isMobileTracking) {
-      headMatrix.decompose(
+      headMatrix!.decompose(
         { set: () => {} } as any,
         _targetQuat,
         { set: () => {} } as any
