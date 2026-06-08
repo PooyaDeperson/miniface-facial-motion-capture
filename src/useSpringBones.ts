@@ -236,7 +236,7 @@ export function useSpringBones({
     frameCountRef.current++;
     // Log first 3 frames so we can see if manager.update is actually changing anything
     if (frameCountRef.current <= 3) {
-      const firstJoint = [...manager.joints][0] as any;
+      const firstJoint = Array.from(manager.joints)[0] as any;
       if (firstJoint?.bone) {
         const q = firstJoint.bone.quaternion;
         console.log(`[v0] frame ${frameCountRef.current} first joint bone "${firstJoint.bone.name}" quat:`, q.x.toFixed(4), q.y.toFixed(4), q.z.toFixed(4), q.w.toFixed(4));

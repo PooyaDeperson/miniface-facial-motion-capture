@@ -79,7 +79,7 @@ export function useAnimationPlayer({ characterScene, getIsMediaPipeActive, exclu
         const boneName = dotIdx !== -1 ? track.name.slice(0, dotIdx) : track.name;
         return !excludeBoneNames.has(boneName);
       });
-      console.log(`[v0] mixer: excluded ${clip.tracks.length - filteredTracks.length} tracks for spring bones out of ${clip.tracks.length} total. Excluded bone names:`, [...excludeBoneNames]);
+      console.log(`[v0] mixer: excluded ${clip.tracks.length - filteredTracks.length} tracks for spring bones out of ${clip.tracks.length} total. Excluded bone names:`, Array.from(excludeBoneNames));
       // Clone the clip so we don't mutate the cached asset.
       clip = new AnimationClip(clip.name, clip.duration, filteredTracks);
     }
