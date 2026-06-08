@@ -15,113 +15,90 @@
  *
  * Design goals
  * ────────────
- *  • Bones always spring BACK to their rest pose — they never drift away permanently.
- *  • Driver movement (head nodding, turning) causes a smooth inertia lag on the chain.
- *  • Gravity applies a gentle constant downward bias on the rest target — not an
- *    accumulating force — so gravity also resolves back toward rest.
- *  • All scratch objects are pre-allocated; zero heap allocations in the hot path.
+ *  • Bones always spring BACK to their rest pose — they never drift permanently.
+ *  • Driver movement causes a smooth inertia lag on the chain.
+ *  • Gravity applies a gentle constant downward bias, also springs back to rest.
+ *  • The bone quaternion is SET (not accumulated) each frame to prevent drift.
  *
  * Per-bone algorithm each frame
  * ─────────────────────────────
- *  1. Compute rest-pose tail in world space (moves rigidly with the driver bone).
- *  2. Apply a gravity sag: bend the rest direction slightly downward proportional
- *     to `gravity`, giving the natural droop of hair/clothing.
- *  3. Track driver velocity with exponential smoothing.
- *  4. Inertia offset = smoothed driver velocity × inertiaScale, reversed and capped.
- *     This makes the tip lag behind when the head moves, then snaps back.
- *  5. Spring target = gravityRest + inertiaOffset.
- *  6. Verlet integrate: vel = (simTail - prevTail) × damping
- *                           + (springTarget - simTail) × stiffness
- *     No extra forces; stiffness guarantees return-to-rest.
- *  7. Constrain particle to bone length sphere.
- *  8. Derive new bone quaternion via setFromUnitVectors(restDir → simDir).
+ *  1. Compute rest-pose tail in world space (follows driver rigidly each frame).
+ *  2. Apply gravity sag: shift rest target slightly downward by `gravity` amount.
+ *  3. Apply inertia offset: opposite to smoothed driver velocity, capped tightly.
+ *  4. Spring target = sagged rest + inertia offset.
+ *  5. Verlet: vel = (simTail - prevTail) * damping + (target - simTail) * stiffness
+ *  6. Constrain particle to bone length sphere around bone world head.
+ *  7. Compute delta rotation in parent-local space: restDir → simDir.
+ *  8. SET bone quaternion = restLocalQuat * delta  (never premultiply/accumulate).
  */
 
 import { Object3D, Vector3, Quaternion, Matrix4 } from "three";
 
-// ─── Public config ─────────────────────────────────────────────────────────
+// ─── Public config ────────────────────────────────────────────────────────────
 
 export interface SecondaryChainConfig {
   /** Unique identifier for this chain (e.g. "ponytail", "skirtLeft"). */
   id: string;
-  /**
-   * Name of the bone whose world-position drives inertia.
-   * Typically "hair_head" for hair, "Hips" for skirts.
-   */
+  /** Bone whose world-position drives inertia (e.g. "hair_head"). */
   driver: string;
-  /**
-   * First bone in the spring chain. The system walks children from here
-   * until it reaches chainEnd (inclusive).
-   */
+  /** First bone in the spring chain (inclusive). */
   chainStart: string;
-  /**
-   * Last bone in the spring chain (inclusive). The walk stops here.
-   */
+  /** Last bone in the spring chain (inclusive). */
   chainEnd: string;
-  /**
-   * How strongly each bone springs back toward rest pose.
-   * Higher = snappier return. Range 0–1, default 0.3.
-   */
+  /** How strongly bones spring back toward rest. Range 0–1, default 0.28. */
   stiffness?: number;
-  /**
-   * Velocity damping applied each frame.
-   * Higher = less oscillation. Range 0–1, default 0.85.
-   */
+  /** Velocity damping per frame. Range 0–1, default 0.80. */
   damping?: number;
-  /**
-   * Constant downward sag applied to the rest-pose target.
-   * 0 = no droop, 0.1 = subtle ponytail/hair droop. Default 0.08.
-   */
+  /** Constant downward sag bias. 0 = no droop, default 0.07. */
   gravity?: number;
-  /**
-   * How strongly driver velocity pushes the particle away from rest.
-   * Lower = more subtle lag. Default 0.08.
-   */
+  /** How much driver velocity lags the chain. Default 0.08. */
   inertiaScale?: number;
 }
 
-// ─── Internal types ────────────────────────────────────────────────────────
+// ─── Internal types ───────────────────────────────────────────────────────────
 
 interface BoneState {
   bone: Object3D;
   boneParent: Object3D;
   boneLength: number;
-  /** Simulated world-space tail (Verlet particle). */
+  /** Simulated world-space tail particle. */
   simTail: Vector3;
   /** Previous simTail for Verlet velocity. */
   prevTail: Vector3;
-  /** Rest-pose tail in driver-local space — never changes after init. */
+  /**
+   * Rest-pose tail stored in driver-local space so it follows the driver
+   * rigidly every frame without any extra matrix baking.
+   */
   restTailDriverLocal: Vector3;
+  /** Rest-pose local quaternion — the bone's unmodified bind-pose rotation. */
+  restLocalQuat: Quaternion;
 }
 
 interface ChainState {
   id: string;
   driver: Object3D;
   bones: BoneState[];
-  /** Smoothed driver velocity (exponential moving average). */
   smoothDriverVel: Vector3;
-  /** Driver world position last frame. */
   prevDriverPos: Vector3;
 }
 
-// ─── Pre-allocated scratch ─────────────────────────────────────────────────
+// ─── Pre-allocated scratch (reused every frame, never heap-allocated in hot path) ─
 
-const _driverPos      = new Vector3();
-const _rawVel         = new Vector3();
-const _restTailWS     = new Vector3();
-const _boneHeadWS     = new Vector3();
-const _restDir        = new Vector3();
-const _gravRestDir    = new Vector3();
-const _springTarget   = new Vector3();
-const _simDir         = new Vector3();
-const _rotQ           = new Quaternion();
-const _invDriverMtx   = new Matrix4();
-const _invParentMtx   = new Matrix4();
-const _vel            = new Vector3();
-const _spring         = new Vector3();
-const _inertiaOffset  = new Vector3();
+const _s_driverPos     = new Vector3();
+const _s_rawVel        = new Vector3();
+const _s_restTailWS    = new Vector3();
+const _s_boneHeadWS    = new Vector3();
+const _s_restDir       = new Vector3();
+const _s_simDir        = new Vector3();
+const _s_springTarget  = new Vector3();
+const _s_vel           = new Vector3();
+const _s_spring        = new Vector3();
+const _s_inertia       = new Vector3();
+const _s_deltaQ        = new Quaternion();
+const _s_invDriver     = new Matrix4();
+const _s_invParent     = new Matrix4();
 
-// ─── SecondaryMotionSystem ──────────────────────────────────────────────────
+// ─── SecondaryMotionSystem ────────────────────────────────────────────────────
 
 export class SecondaryMotionSystem {
   private chains: ChainState[] = [];
@@ -134,7 +111,7 @@ export class SecondaryMotionSystem {
     this._init();
   }
 
-  // ── Init ───────────────────────────────────────────────────────────────────
+  // ── Init ──────────────────────────────────────────────────────────────────
 
   private _init(): void {
     this.scene.updateWorldMatrix(true, true);
@@ -142,9 +119,10 @@ export class SecondaryMotionSystem {
     for (const cfg of this.configs) {
       const driver = this._find(cfg.driver);
       if (!driver) {
-        console.warn(`[SecondaryMotion] Driver "${cfg.driver}" not found — skipping "${cfg.id}".`);
+        console.warn(`[SecondaryMotion] driver "${cfg.driver}" not found — skipping "${cfg.id}".`);
         continue;
       }
+
       const startBone = this._find(cfg.chainStart);
       if (!startBone) {
         console.warn(`[SecondaryMotion] chainStart "${cfg.chainStart}" not found — skipping "${cfg.id}".`);
@@ -152,9 +130,10 @@ export class SecondaryMotionSystem {
       }
 
       const boneChain = this._collectChain(startBone, cfg.chainEnd);
+      if (boneChain.length === 0) continue;
 
-      // Freeze driver inverse matrix at bind pose.
-      _invDriverMtx.copy(driver.matrixWorld).invert();
+      // Capture driver-inverse at bind pose for rest-tail storage.
+      _s_invDriver.copy(driver.matrixWorld).invert();
 
       const bones: BoneState[] = [];
 
@@ -162,20 +141,26 @@ export class SecondaryMotionSystem {
         const bone  = boneChain[i];
         const child = boneChain[i + 1] ?? null;
 
-        // Bind-pose tail in world space.
+        // Bind-pose tail world position.
         let tailWS: Vector3;
         if (child) {
           tailWS = new Vector3();
           child.getWorldPosition(tailWS);
         } else {
-          // Leaf: extend along bone's local +Y axis.
-          const boneWQ = bone.getWorldQuaternion(new Quaternion());
-          bone.getWorldPosition(tailWS = new Vector3());
-          tailWS.addScaledVector(new Vector3(0, 1, 0).applyQuaternion(boneWQ), 0.04);
+          // Leaf: extend 4 cm along bind-pose bone Y axis in world space.
+          const boneWQ = new Quaternion();
+          bone.getWorldQuaternion(boneWQ);
+          tailWS = new Vector3();
+          bone.getWorldPosition(tailWS);
+          tailWS.addScaledVector(
+            new Vector3(0, 1, 0).applyQuaternion(boneWQ),
+            0.04
+          );
         }
 
-        bone.getWorldPosition(_boneHeadWS);
-        const len = Math.max(tailWS.distanceTo(_boneHeadWS), 0.005);
+        const headWS = new Vector3();
+        bone.getWorldPosition(headWS);
+        const len = Math.max(tailWS.distanceTo(headWS), 0.005);
 
         bones.push({
           bone,
@@ -183,8 +168,9 @@ export class SecondaryMotionSystem {
           boneLength: len,
           simTail:  tailWS.clone(),
           prevTail: tailWS.clone(),
-          // Store rest tail in driver-local space so it follows the driver rigidly.
-          restTailDriverLocal: tailWS.clone().applyMatrix4(_invDriverMtx),
+          restTailDriverLocal: tailWS.clone().applyMatrix4(_s_invDriver),
+          // Snapshot the bind-pose local quaternion — this is the zero-rotation reference.
+          restLocalQuat: bone.quaternion.clone(),
         });
       }
 
@@ -201,12 +187,12 @@ export class SecondaryMotionSystem {
     }
   }
 
-  // ── Update ──────────────────────────────────────────────────────────────────
+  // ── Update ─────────────────────────────────────────────────────────────────
 
   public update(deltaTime: number): void {
     if (this.chains.length === 0) return;
 
-    // Clamp dt so a tab-switch doesn't cause an explosion.
+    // Clamp dt so a tab-switch / pause doesn't explode velocities.
     const dt = Math.min(deltaTime, 0.05);
 
     this.scene.updateWorldMatrix(true, true);
@@ -215,95 +201,110 @@ export class SecondaryMotionSystem {
       const chain = this.chains[ci];
       const cfg   = this.configs.find((c) => c.id === chain.id)!;
 
-      const stiffness    = cfg.stiffness    ?? 0.3;
-      const damping      = cfg.damping      ?? 0.85;
-      const gravity      = cfg.gravity      ?? 0.08;
+      const stiffness    = cfg.stiffness    ?? 0.28;
+      const damping      = cfg.damping      ?? 0.80;
+      const gravity      = cfg.gravity      ?? 0.07;
       const inertiaScale = cfg.inertiaScale ?? 0.08;
 
-      // ── Driver velocity (exponentially smoothed) ────────────────────────
-      chain.driver.getWorldPosition(_driverPos);
+      // ── Driver velocity (exponentially smoothed) ──────────────────────
+      chain.driver.getWorldPosition(_s_driverPos);
 
-      // Raw per-frame displacement → velocity.
-      _rawVel.copy(_driverPos).sub(chain.prevDriverPos).divideScalar(dt);
+      _s_rawVel.copy(_s_driverPos).sub(chain.prevDriverPos).divideScalar(Math.max(dt, 1e-4));
 
-      // Soft cap: clamp to 3 m/s before smoothing so large jumps don't explode.
-      const rawSpeed = _rawVel.length();
-      if (rawSpeed > 3) _rawVel.multiplyScalar(3 / rawSpeed);
+      // Hard cap before smoothing so sudden jumps stay bounded.
+      const rawSpeed = _s_rawVel.length();
+      if (rawSpeed > 3.0) _s_rawVel.multiplyScalar(3.0 / rawSpeed);
 
-      // Exponential moving average  (α ≈ 0.15: slow follower = smoother lag).
-      chain.smoothDriverVel.lerp(_rawVel, 0.15);
+      // α = 0.12 → slow follower = smooth lag without overshoot.
+      chain.smoothDriverVel.lerp(_s_rawVel, 0.12);
+      chain.prevDriverPos.copy(_s_driverPos);
 
-      chain.prevDriverPos.copy(_driverPos);
+      // Rebuild driver inverse this frame (driver moves with the skeleton).
+      _s_invDriver.copy(chain.driver.matrixWorld).invert();
 
-      // ── Per-bone spring ─────────────────────────────────────────────────
-      _invDriverMtx.copy(chain.driver.matrixWorld).invert();
-
+      // ── Per-bone spring ───────────────────────────────────────────────
       for (let bi = 0; bi < chain.bones.length; bi++) {
         const b = chain.bones[bi];
 
-        // 1. Rest-pose tail in world space (follows driver rigidly).
-        _restTailWS.copy(b.restTailDriverLocal).applyMatrix4(chain.driver.matrixWorld);
+        // 1. Rest-pose tail in world space this frame.
+        _s_restTailWS
+          .copy(b.restTailDriverLocal)
+          .applyMatrix4(chain.driver.matrixWorld);
 
-        // 2. Gravity sag: bend the rest direction downward.
-        //    We compute the unit vector from bone head → restTail, tilt it
-        //    by gravity amount downward, then scale back to bone length.
-        b.bone.getWorldPosition(_boneHeadWS);
-        _restDir.copy(_restTailWS).sub(_boneHeadWS);          // rest direction (world)
-        _gravRestDir.set(0, -gravity, 0);                      // downward bias
-        _gravRestDir.addScaledVector(_restDir.clone().normalize(), 1.0);
-        _gravRestDir.normalize().multiplyScalar(b.boneLength).add(_boneHeadWS);
-        // _gravRestDir is now the gravity-sagged rest target in world space.
+        // 2. Bone head world position.
+        b.bone.getWorldPosition(_s_boneHeadWS);
 
-        // 3. Inertia offset: opposite to driver motion, capped to bone length × 0.5.
+        // 3. Gravity sag: nudge the spring target downward.
+        //    target = restTailWS + down * gravity * boneLength
+        //    This is additive, not a force — it always resolves back to rest.
+        _s_springTarget
+          .copy(_s_restTailWS)
+          .addScaledVector(new Vector3(0, -1, 0), gravity * b.boneLength);
+
+        // 4. Inertia offset: opposite to driver velocity, bounded tightly.
         const inertiaLen = Math.min(
-          chain.smoothDriverVel.length() * inertiaScale * dt,
-          b.boneLength * 0.5
+          chain.smoothDriverVel.length() * inertiaScale,
+          b.boneLength * 0.4
         );
-        _inertiaOffset.copy(chain.smoothDriverVel).normalize().negate().multiplyScalar(inertiaLen);
-
-        // 4. Spring target = gravity-sagged rest + inertia offset.
-        _springTarget.copy(_gravRestDir).add(_inertiaOffset);
-
-        // 5. Verlet integrate.
-        //    vel = (simTail - prevTail) × damping  +  (target - simTail) × stiffness
-        _vel.copy(b.simTail).sub(b.prevTail).multiplyScalar(damping);
-        _spring.copy(_springTarget).sub(b.simTail).multiplyScalar(stiffness);
-        _vel.add(_spring);
-
-        b.prevTail.copy(b.simTail);
-        b.simTail.add(_vel);
-
-        // 6. Constrain particle to bone length sphere around bone head.
-        b.bone.getWorldPosition(_boneHeadWS);
-        const toTail = b.simTail.clone().sub(_boneHeadWS);
-        const dist   = toTail.length();
-        if (dist > 1e-6) {
-          b.simTail
-            .copy(toTail)
+        if (chain.smoothDriverVel.lengthSq() > 1e-8) {
+          _s_inertia
+            .copy(chain.smoothDriverVel)
             .normalize()
-            .multiplyScalar(b.boneLength)
-            .add(_boneHeadWS);
+            .negate()
+            .multiplyScalar(inertiaLen);
+          _s_springTarget.add(_s_inertia);
         }
 
-        // 7. Derive bone rotation: setFromUnitVectors(restDir → simDir) in parent-local space.
-        _invParentMtx.copy(b.boneParent.matrixWorld).invert();
+        // 5. Verlet integrate.
+        _s_vel.copy(b.simTail).sub(b.prevTail).multiplyScalar(damping);
+        _s_spring.copy(_s_springTarget).sub(b.simTail).multiplyScalar(stiffness);
+        _s_vel.add(_s_spring);
 
-        b.bone.getWorldPosition(_boneHeadWS); // re-read after constraint
-        const headLocal    = _boneHeadWS.clone().applyMatrix4(_invParentMtx);
-        const restLocalDir = _restTailWS.clone().applyMatrix4(_invParentMtx).sub(headLocal);
-        const simLocalDir  = b.simTail.clone().applyMatrix4(_invParentMtx).sub(headLocal);
+        b.prevTail.copy(b.simTail);
+        b.simTail.add(_s_vel);
 
-        _restDir.copy(restLocalDir).normalize();
-        _simDir.copy(simLocalDir).normalize();
+        // 6. Re-read head (parent may have been updated earlier this loop)
+        //    then constrain tail to bone-length sphere.
+        b.bone.getWorldPosition(_s_boneHeadWS);
+        const diff = b.simTail.clone().sub(_s_boneHeadWS);
+        const dist = diff.length();
+        if (dist > 1e-6) {
+          b.simTail
+            .copy(diff)
+            .normalize()
+            .multiplyScalar(b.boneLength)
+            .add(_s_boneHeadWS);
+        }
 
+        // 7. Compute delta rotation in parent-local space: restDir → simDir.
+        _s_invParent.copy(b.boneParent.matrixWorld).invert();
+
+        // Re-read head world pos after constraint (simTail may have changed).
+        b.bone.getWorldPosition(_s_boneHeadWS);
+
+        // Transform both tail endpoints into parent-local space.
+        const headLocal    = _s_boneHeadWS.clone().applyMatrix4(_s_invParent);
+        const restLocalDir = _s_restTailWS.clone().applyMatrix4(_s_invParent).sub(headLocal);
+        const simLocalDir  = b.simTail.clone().applyMatrix4(_s_invParent).sub(headLocal);
+
+        _s_restDir.copy(restLocalDir).normalize();
+        _s_simDir.copy(simLocalDir).normalize();
+
+        // 8. SET bone quat = restLocalQuat * delta  — never accumulate.
+        //    This prevents any per-frame drift from floating point creep.
         if (
-          _restDir.lengthSq()  > 1e-6 &&
-          _simDir.lengthSq()   > 1e-6 &&
-          _restDir.dot(_simDir) < 0.9999
+          _s_restDir.lengthSq() > 1e-6 &&
+          _s_simDir.lengthSq()  > 1e-6 &&
+          _s_restDir.dot(_s_simDir) < 0.9999
         ) {
-          _rotQ.setFromUnitVectors(_restDir, _simDir);
-          b.bone.quaternion.premultiply(_rotQ);
-          b.bone.quaternion.normalize();
+          _s_deltaQ.setFromUnitVectors(_s_restDir, _s_simDir);
+          b.bone.quaternion
+            .copy(b.restLocalQuat)
+            .premultiply(_s_deltaQ)
+            .normalize();
+        } else {
+          // No meaningful deflection — snap back to exact rest.
+          b.bone.quaternion.copy(b.restLocalQuat);
         }
       }
     }
