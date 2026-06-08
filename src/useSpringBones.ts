@@ -76,7 +76,18 @@ interface SpringState {
   colliders: SphereCollider[];
 }
 
-// ─── Scratch allocations (avoid per-frame GC) ─────────────────────────────────
+// ─── Physics constants ────────────────────────────────────────────────────────
+
+/** Minimum parent movement (world units) before any impulse is applied.
+ *  Filters out floating-point noise on a still character. */
+const MOTION_THRESHOLD = 0.0005;
+
+/** Maximum parent delta magnitude per frame — prevents spike on tab restore. */
+const MAX_PARENT_DELTA = 0.08;
+
+/** Scales the parent delta before adding to the tail.
+ *  < 1 = tail lags more (subtler), 1 = tail follows exactly. */
+const INERTIA_SCALE = 0.18;
 
 const _boneHeadWS    = new Vector3();
 const _parentWPos    = new Vector3();
@@ -166,6 +177,7 @@ export function useSpringBones({
   }, [scene, springBoneConfigs, colliderConfigs]);
 
   // ── Per-frame Verlet update ──────────────────────────────────────────────
+  const debugTimer = useRef(0);
   useFrame((_, delta) => {
     const state = stateRef.current;
     if (!state) return;
@@ -246,11 +258,29 @@ export function useSpringBones({
     // Clamp dt to prevent explosion on tab-focus restore.
     const dt = Math.min(delta, 1 / 30);
 
+    // Debug: log first joint's parentDelta once per second.
+    debugTimer.current += dt;
+    const shouldLog = debugTimer.current >= 1.0;
+    if (shouldLog) debugTimer.current = 0;
+
     for (const j of state.joints) {
       // ── 1. Parent delta — how far did the parent bone move this frame? ──
       j.parentBone.getWorldPosition(_parentWPos);
-      const parentDelta = _parentWPos.clone().sub(j.prevParentWPos);
+      const rawDelta = _parentWPos.clone().sub(j.prevParentWPos);
       j.prevParentWPos.copy(_parentWPos);
+
+      // Filter floating-point noise: ignore sub-threshold movement.
+      const rawMag = rawDelta.length();
+      if (shouldLog && j === state.joints[0]) {
+        console.log(`[v0] parentDelta raw=${rawMag.toFixed(6)} | vel=${j.currentTail.clone().sub(j.prevTail).length().toFixed(6)} | stiffness=${j.stiffness} | drag=${j.drag}`);
+      }
+
+      // Clamp and scale the delta so even large head moves produce subtle hair motion.
+      const clampedMag = Math.min(rawMag, MAX_PARENT_DELTA);
+      const effectiveMag = rawMag > MOTION_THRESHOLD ? clampedMag * INERTIA_SCALE : 0;
+      const parentDelta = rawMag > MOTION_THRESHOLD
+        ? rawDelta.clone().normalize().multiplyScalar(effectiveMag)
+        : new Vector3(0, 0, 0);
 
       // ── 2. Verlet inertia — tail velocity from last frame, damped ────────
       //    The tail carries its previous velocity minus drag. When the parent
