@@ -49,7 +49,6 @@ import {
   Mesh,
   Vector3,
   Matrix4,
-  Bone,
 } from "three";
 import {
   VRMSpringBoneManager,
@@ -82,21 +81,20 @@ function fixSkinnedBonePositions(root: Object3D): void {
   const _worldPos = new Vector3();
   const _localPos = new Vector3();
 
+  // Apply to ALL nodes — GLB hair bones are often plain Object3D, not Bone.
   root.traverse((obj) => {
-    const bone = obj as Bone;
-    if (!bone.isBone) return;
-    if (!bone.parent) return;
+    if (!obj.parent) return;
 
-    // Use getWorldPosition — avoids needing a real Quaternion for decompose.
-    bone.getWorldPosition(_worldPos);
+    obj.getWorldPosition(_worldPos);
 
     // Convert world position to parent-local space.
-    _invParent.copy(bone.parent.matrixWorld).invert();
+    _invParent.copy(obj.parent.matrixWorld).invert();
     _localPos.copy(_worldPos).applyMatrix4(_invParent);
 
-    // Only write if the position is meaningfully non-zero.
+    console.log(`[v0] fixBonePos "${obj.name}": world=(${_worldPos.x.toFixed(4)},${_worldPos.y.toFixed(4)},${_worldPos.z.toFixed(4)}) local=(${_localPos.x.toFixed(4)},${_localPos.y.toFixed(4)},${_localPos.z.toFixed(4)})`);
+
     if (_localPos.length() > 0.0001) {
-      bone.position.copy(_localPos);
+      obj.position.copy(_localPos);
     }
   });
 }
