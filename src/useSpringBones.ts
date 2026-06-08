@@ -9,30 +9,26 @@
  */
 
 /**
- * useSpringBones.ts — parent-driven Verlet hair physics
+ * useSpringBones.ts — parent-driven Verlet physics
  *
- * Core idea
- * ─────────
- * Hair should only move when its parent bone moves. Instead of applying
- * gravity or external forces every frame (which causes constant oscillation
- * even on a still character), we:
+ * Design
+ * ──────
+ * Each chain entry in avatarMetadata defines a rootBoneName (e.g. "hair_head").
+ * The engine:
+ *   1. Auto-walks the first-child chain from rootBoneName to the end.
+ *   2. Auto-finds the rootBone's scene-graph parent — this is the "velocity
+ *      master". Its world-position delta each frame drives the impulse.
+ *   3. When the velocity-master is still, parentDelta = 0, so the spring
+ *      only damps any remaining oscillation to zero. Hair is perfectly still.
+ *   4. When the velocity-master moves (head rotation / translation), the
+ *      tail lags behind via Verlet inertia, then the stiffness spring pulls
+ *      it back — producing a natural trailing bounce.
+ *   5. customVelocity (default zero) injects wind / procedural forces.
  *
- *   1. Track the parent bone's world position each frame.
- *   2. Compute `parentDelta` = how far the parent moved since last frame.
- *   3. Inertia keeps the tail lagging behind: nextTail advances by the full
- *      parentDelta but the tail carries only `(1 - drag)` of its own velocity.
- *      This makes the hair "trail" behind fast head motion.
- *   4. A weak stiffness spring pulls the tail back toward the rest pose
- *      relative to the current parent position. When the parent is still,
- *      this spring slowly damps any remaining oscillation to zero.
- *   5. An optional `customVelocity` per-chain can inject wind / procedural
- *      forces; set to (0,0,0) to disable (the default).
- *
- * No gravity by default — gravity-like droop comes naturally from the
- * rest pose which was captured in bind pose (already includes bone offsets).
- *
- * Result: hair is perfectly still when the character is still, and reacts
- * with trailing inertia only when the head/parent bone actually moves.
+ * The rest target (restTailWS) is stored once at bind-pose in world space
+ * and then rotated each frame by the parent bone's rotation delta — so it
+ * always points in the "correct" resting direction relative to the head,
+ * regardless of how the head has turned since bind pose.
  */
 
 import { useEffect, useRef } from "react";
@@ -45,22 +41,26 @@ import type { SpringBoneChainConfig, SpringBoneColliderConfig } from "./avatarMe
 
 interface SpringJoint {
   bone: Object3D;
-  /** Immediate parent bone — the node whose movement drives this joint. */
-  parentBone: Object3D;
-  /** Bone-segment length in world units, fixed at init. */
+  /** Direct scene-graph parent of this bone — used for world-space conversion. */
+  boneParent: Object3D;
+  /**
+   * The velocity master: the scene-graph parent of the ROOT bone of the whole
+   * chain. Same for every joint in a chain. When this node moves, all joints
+   * in the chain receive an impulse.
+   */
+  velocityMaster: Object3D;
   boneLength: number;
-  /** Current simulated tail world position. */
   currentTail: Vector3;
-  /** Previous tail world position (Verlet velocity source). */
   prevTail: Vector3;
   /**
-   * Rest tail offset in parent-LOCAL space, captured at bind pose.
-   * Stored as a local offset so it correctly follows the parent bone as
-   * it rotates — the stiffness spring pulls toward this point in world space.
+   * Rest tail stored in the velocity-master's LOCAL space at bind pose.
+   * Each frame we transform it back to world space via the master's current
+   * matrixWorld — so it rotates correctly with the head/neck.
    */
-  restTailLocal: Vector3;
-  /** Previous parent world position — used to compute parentDelta each frame. */
-  prevParentWPos: Vector3;
+  restTailMasterLocal: Vector3;
+  prevMasterWPos: Vector3;
+  /** Previous velocity-master world quaternion — to compute rotation delta. */
+  prevMasterQuat: Quaternion;
   stiffness: number;
   drag: number;
   customVelocity: Vector3;
@@ -76,29 +76,33 @@ interface SpringState {
   colliders: SphereCollider[];
 }
 
-// ─── Physics constants ────────────────────────────────────────────────────────
+// ─── Tuning constants ─────────────────────────────────────────────────────────
 
-/** Minimum parent movement (world units) before any impulse is applied.
- *  Filters out floating-point noise on a still character. */
-const MOTION_THRESHOLD = 0.0005;
+/** Minimum parent translation (world units/frame) before any impulse fires.
+ *  Kills oscillation from floating-point jitter on a still character. */
+const MOTION_THRESHOLD = 0.0004;
 
-/** Maximum parent delta magnitude per frame — prevents spike on tab restore. */
-const MAX_PARENT_DELTA = 0.08;
+/** Max parent-delta magnitude per frame — prevents spikes on tab-restore. */
+const MAX_PARENT_DELTA = 0.06;
 
-/** Scales the parent delta before adding to the tail.
- *  < 1 = tail lags more (subtler), 1 = tail follows exactly. */
-const INERTIA_SCALE = 0.18;
+/** How much of the parent's translation is transferred to the tail as impulse.
+ *  0 = hair never follows, 1 = hair follows exactly with no lag. */
+const INERTIA_SCALE = 0.14;
 
-const _boneHeadWS    = new Vector3();
-const _parentWPos    = new Vector3();
-const _invParentMtx  = new Matrix4();
-const _restDir       = new Vector3();
-const _simDir        = new Vector3();
-const _rotDelta      = new Quaternion();
-const _colCenter     = new Vector3();
-const _pushDir       = new Vector3();
+// ─── Scratch allocations ──────────────────────────────────────────────────────
 
-// ─── Scene helpers ────────────────────────────────────────────────────────────
+const _boneHeadWS   = new Vector3();
+const _masterWPos   = new Vector3();
+const _masterQuat   = new Quaternion();
+const _rotDelta     = new Quaternion();
+const _invParentMtx = new Matrix4();
+const _restDir      = new Vector3();
+const _simDir       = new Vector3();
+const _rotQ         = new Quaternion();
+const _colCenter    = new Vector3();
+const _pushDir      = new Vector3();
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function findByName(root: Object3D, name: string): Object3D | null {
   let found: Object3D | null = null;
@@ -106,7 +110,6 @@ function findByName(root: Object3D, name: string): Object3D | null {
   return found;
 }
 
-/** Walk the first-child chain from root, collecting every node. */
 function collectLinearChain(root: Object3D): Object3D[] {
   const chain: Object3D[] = [];
   let cur: Object3D | null = root;
@@ -149,7 +152,6 @@ export function useSpringBones({
       if (mesh.geometry) mesh.geometry.computeBoundingSphere();
       const radius = mesh.geometry?.boundingSphere?.radius ?? 0.1;
 
-      // Anchor parented to the same node as the mesh so it moves with the head.
       const anchor = new Object3D();
       anchor.name = `__springcol_${cfg.meshName}`;
       anchor.position.copy(mesh.position);
@@ -160,7 +162,6 @@ export function useSpringBones({
       colliders.push({ node: anchor, radius });
     }
 
-    // Joints are built on the first useFrame tick when world matrices are live.
     stateRef.current = { joints: [], colliders };
     (stateRef as any)._cfg = springBoneConfigs;
     needsInit.current = true;
@@ -176,16 +177,14 @@ export function useSpringBones({
     };
   }, [scene, springBoneConfigs, colliderConfigs]);
 
-  // ── Per-frame Verlet update ──────────────────────────────────────────────
-  const debugTimer = useRef(0);
+  // ── Per-frame update ───────────────────────────────────────────────────────
   useFrame((_, delta) => {
     const state = stateRef.current;
     if (!state) return;
 
-    // Refresh world matrices so getWorldPosition reads the live skeleton pose.
     scene.updateWorldMatrix(true, true);
 
-    // ── First-frame init: world matrices are valid now ─────────────────────
+    // ── First-frame init (world matrices are live here) ────────────────────
     if (needsInit.current) {
       needsInit.current = false;
 
@@ -198,56 +197,56 @@ export function useSpringBones({
           continue;
         }
 
+        // Auto-find velocity master: the direct parent of the root bone.
+        // This is e.g. the head/neck bone that drives the hair chain.
+        const velocityMaster = root.parent ?? root;
+
         const chain = collectLinearChain(root);
 
         for (let i = 0; i < chain.length; i++) {
-          const bone   = chain[i];
-          const child  = chain[i + 1] ?? null;
+          const bone  = chain[i];
+          const child = chain[i + 1] ?? null;
 
-          // The parent bone is the direct scene-graph parent of this bone.
-          // For the root bone of the chain this is the head/neck bone.
-          const parentBone = bone.parent ?? bone;
-
-          // Compute the tail world position in bind pose.
+          // Tail world position at bind pose.
           let tailWS: Vector3;
           if (child) {
             tailWS = new Vector3();
             child.getWorldPosition(tailWS);
           } else {
-            // Leaf bone: extend slightly along the bone's local Y axis.
-            tailWS = new Vector3();
-            bone.getWorldPosition(tailWS);
+            // Leaf: extend slightly along bone's world-space Y axis.
             const up = new Vector3(0, 0.04, 0)
               .applyQuaternion(bone.getWorldQuaternion(new Quaternion()));
+            bone.getWorldPosition(tailWS = new Vector3());
             tailWS.add(up);
           }
 
-          // Bone head world position.
           bone.getWorldPosition(_boneHeadWS);
           const len = tailWS.distanceTo(_boneHeadWS);
 
-          // Store rest tail in parent-LOCAL space so that when the parent
-          // rotates, restTailLocal rotates with it and always points "correctly"
-          // relative to the bone head — giving the hair a natural resting
-          // direction instead of always pulling toward a fixed world point.
-          _invParentMtx.copy(parentBone.matrixWorld).invert();
-          const restTailLocal = tailWS.clone().applyMatrix4(_invParentMtx);
+          // Store rest tail in velocity-master LOCAL space so it rotates
+          // correctly when the head turns.
+          const invMaster = new Matrix4().copy(velocityMaster.matrixWorld).invert();
+          const restTailMasterLocal = tailWS.clone().applyMatrix4(invMaster);
 
-          // Parent world position at init.
-          const prevParentWPos = new Vector3();
-          parentBone.getWorldPosition(prevParentWPos);
+          const prevMasterWPos = new Vector3();
+          velocityMaster.getWorldPosition(prevMasterWPos);
+
+          const prevMasterQuat = new Quaternion();
+          velocityMaster.getWorldQuaternion(prevMasterQuat);
 
           state.joints.push({
             bone,
-            parentBone,
-            boneLength:    len > 0.0001 ? len : 0.04,
-            currentTail:   tailWS.clone(),
-            prevTail:      tailWS.clone(),
-            restTailLocal,
-            prevParentWPos,
-            stiffness:     cfg.settings?.stiffness    ?? 0.08,
-            drag:          cfg.settings?.dragForce    ?? 0.06,
-            customVelocity: cfg.settings?.customVelocity?.clone() ?? new Vector3(0, 0, 0),
+            boneParent:          bone.parent ?? bone,
+            velocityMaster,
+            boneLength:          len > 0.0001 ? len : 0.04,
+            currentTail:         tailWS.clone(),
+            prevTail:            tailWS.clone(),
+            restTailMasterLocal,
+            prevMasterWPos,
+            prevMasterQuat,
+            stiffness:  cfg.settings?.stiffness    ?? 0.08,
+            drag:       cfg.settings?.dragForce    ?? 0.06,
+            customVelocity: cfg.settings?.customVelocity?.clone() ?? new Vector3(),
           });
         }
       }
@@ -255,76 +254,77 @@ export function useSpringBones({
 
     if (state.joints.length === 0) return;
 
-    // Clamp dt to prevent explosion on tab-focus restore.
     const dt = Math.min(delta, 1 / 30);
 
-    // Debug: log first joint's parentDelta once per second.
-    debugTimer.current += dt;
-    const shouldLog = debugTimer.current >= 1.0;
-    if (shouldLog) debugTimer.current = 0;
-
     for (const j of state.joints) {
-      // ── 1. Parent delta — how far did the parent bone move this frame? ──
-      j.parentBone.getWorldPosition(_parentWPos);
-      const rawDelta = _parentWPos.clone().sub(j.prevParentWPos);
-      j.prevParentWPos.copy(_parentWPos);
 
-      // Filter floating-point noise: ignore sub-threshold movement.
+      // ── 1. Velocity master: translation delta ──────────────────────────
+      j.velocityMaster.getWorldPosition(_masterWPos);
+      const rawDelta = _masterWPos.clone().sub(j.prevMasterWPos);
+      j.prevMasterWPos.copy(_masterWPos);
+
       const rawMag = rawDelta.length();
-      if (shouldLog && j === state.joints[0]) {
-        console.log(`[v0] parentDelta raw=${rawMag.toFixed(6)} | vel=${j.currentTail.clone().sub(j.prevTail).length().toFixed(6)} | stiffness=${j.stiffness} | drag=${j.drag}`);
-      }
-
-      // Clamp and scale the delta so even large head moves produce subtle hair motion.
       const clampedMag = Math.min(rawMag, MAX_PARENT_DELTA);
-      const effectiveMag = rawMag > MOTION_THRESHOLD ? clampedMag * INERTIA_SCALE : 0;
-      const parentDelta = rawMag > MOTION_THRESHOLD
+      const effectiveMag = rawMag > MOTION_THRESHOLD
+        ? clampedMag * INERTIA_SCALE
+        : 0;
+      const translationImpulse = rawMag > MOTION_THRESHOLD
         ? rawDelta.clone().normalize().multiplyScalar(effectiveMag)
-        : new Vector3(0, 0, 0);
+        : new Vector3();
 
-      // ── 2. Verlet inertia — tail velocity from last frame, damped ────────
-      //    The tail carries its previous velocity minus drag. When the parent
-      //    moves, the tail "lags" behind because it only sees the parent delta
-      //    applied later (step 4), not the velocity from stiffness alone.
+      // ── 2. Velocity master: rotation delta ────────────────────────────
+      //    Rotate the rest target and the current tail by the master's
+      //    rotation delta — this way the rest pose "turns with the head".
+      j.velocityMaster.getWorldQuaternion(_masterQuat);
+      _rotDelta.copy(j.prevMasterQuat).invert().premultiply(_masterQuat);
+      j.prevMasterQuat.copy(_masterQuat);
+
+      // Apply rotation delta to both the rest local store and the current tail
+      // so the whole chain pivots with the head without generating fake velocity.
+      // We rotate around the velocity master's world position.
+      const masterPos = _masterWPos.clone();
+
+      // Rotate currentTail around masterPos by rotDelta.
+      j.currentTail.sub(masterPos).applyQuaternion(_rotDelta).add(masterPos);
+      j.prevTail.sub(masterPos).applyQuaternion(_rotDelta).add(masterPos);
+
+      // ── 3. Rest tail in world space (master-local → world) ────────────
+      const restTailWS = j.restTailMasterLocal.clone()
+        .applyMatrix4(j.velocityMaster.matrixWorld);
+
+      // ── 4. Verlet: preserve velocity with drag ────────────────────────
       const vel = j.currentTail.clone()
         .sub(j.prevTail)
         .multiplyScalar(1 - j.drag);
 
-      // ── 3. Stiffness: pull toward rest pose in world space ────────────────
-      //    restTailLocal is in parent-local space — convert back to world so
-      //    it correctly follows the parent bone's current orientation.
-      const restTailWS = j.restTailLocal.clone().applyMatrix4(j.parentBone.matrixWorld);
+      // ── 5. Stiffness spring toward rest ───────────────────────────────
       const stiff = restTailWS.clone()
         .sub(j.currentTail)
-        .multiplyScalar(j.stiffness * dt);
+        .multiplyScalar(j.stiffness * dt * 60); // dt-normalised
 
-      // ── 4. Integrate: tail moves with parent + carries its own velocity ───
-      //    parentDelta brings the tail along with the head movement.
-      //    vel is the lagging inertia — the "trailing" effect.
-      //    stiff slowly damps the tail back to rest when parent is still.
-      //    customVelocity injects external forces (wind, etc.).
-      let next = j.currentTail.clone()
-        .add(parentDelta)   // follow the parent bone exactly…
-        .add(vel)           // …but tail velocity lags behind
-        .add(stiff)         // spring back to rest orientation
+      // ── 6. Integrate ──────────────────────────────────────────────────
+      const next = j.currentTail.clone()
+        .add(translationImpulse)
+        .add(vel)
+        .add(stiff)
         .add(j.customVelocity.clone().multiplyScalar(dt));
 
-      // ── 5. Length constraint — keep tail at fixed bone-length from head ───
+      // ── 7. Length constraint ──────────────────────────────────────────
       j.bone.getWorldPosition(_boneHeadWS);
       const toTail = next.clone().sub(_boneHeadWS);
       if (toTail.lengthSq() < 1e-8) toTail.set(0, 1, 0);
-      toTail.normalize();
-      const constrained = _boneHeadWS.clone().addScaledVector(toTail, j.boneLength);
+      const constrained = _boneHeadWS.clone()
+        .addScaledVector(toTail.normalize(), j.boneLength);
 
-      // ── 6. Sphere collider push-out ───────────────────────────────────────
+      // ── 8. Sphere collider push-out ───────────────────────────────────
       for (const col of state.colliders) {
         col.node.getWorldPosition(_colCenter);
         _pushDir.copy(constrained).sub(_colCenter);
         const d = _pushDir.length();
         const minD = col.radius + 0.01;
         if (d < minD) {
-          constrained.copy(_colCenter).addScaledVector(_pushDir.normalize(), minD);
-          // Re-apply length constraint after push-out.
+          constrained.copy(_colCenter)
+            .addScaledVector(_pushDir.normalize(), minD);
           j.bone.getWorldPosition(_boneHeadWS);
           constrained.copy(
             _boneHeadWS.clone().addScaledVector(
@@ -335,26 +335,24 @@ export function useSpringBones({
         }
       }
 
-      // ── 7. Bone rotation: align bone from rest direction to simulated dir ─
-      //    Compute everything in parent-local space so the delta composes
-      //    cleanly on top of whatever the animation mixer already set.
-      if (j.bone.parent) {
-        _invParentMtx.copy(j.bone.parent.matrixWorld).invert();
+      // ── 9. Bone rotation ──────────────────────────────────────────────
+      if (j.boneParent) {
+        _invParentMtx.copy(j.boneParent.matrixWorld).invert();
 
-        const headLocal     = _boneHeadWS.clone().applyMatrix4(_invParentMtx);
-        const restLocalWS   = restTailWS.clone().applyMatrix4(_invParentMtx);
-        const simLocal      = constrained.clone().applyMatrix4(_invParentMtx);
+        const headLocal    = _boneHeadWS.clone().applyMatrix4(_invParentMtx);
+        const restLocalDir = restTailWS.clone().applyMatrix4(_invParentMtx).sub(headLocal);
+        const simLocalDir  = constrained.clone().applyMatrix4(_invParentMtx).sub(headLocal);
 
-        _restDir.copy(restLocalWS).sub(headLocal).normalize();
-        _simDir.copy(simLocal).sub(headLocal).normalize();
+        _restDir.copy(restLocalDir).normalize();
+        _simDir.copy(simLocalDir).normalize();
 
         if (_restDir.lengthSq() > 1e-6 && _simDir.lengthSq() > 1e-6) {
-          _rotDelta.setFromUnitVectors(_restDir, _simDir);
-          j.bone.quaternion.premultiply(_rotDelta);
+          _rotQ.setFromUnitVectors(_restDir, _simDir);
+          j.bone.quaternion.premultiply(_rotQ);
         }
       }
 
-      // ── 8. Advance Verlet state ───────────────────────────────────────────
+      // ── 10. Advance Verlet state ──────────────────────────────────────
       j.prevTail.copy(j.currentTail);
       j.currentTail.copy(constrained);
     }
