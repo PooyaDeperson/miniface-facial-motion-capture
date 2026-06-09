@@ -3,5 +3,29 @@
     "env": {
       "CI": "false"
     }
-  }
+  },
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "facemocap.vercel.app"
+        }
+      ],
+      "destination": "https://facemocap.radframes.com/$1",
+      "permanent": true
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "facemocap.radframes.app"
+        }
+      ],
+      "destination": "https://facemocap.radframes.com/$1",
+      "permanent": true
+    }
+  ]
 }
