@@ -19,6 +19,14 @@ import { BlendshapeSmoother, QuaternionSmoother } from "./smoothing";
 import { getAvatarMetadata } from "./avatarMetadata";
 import { useSecondaryMotion } from "./useSecondaryMotion";
 
+// ─── Dev flags ───────────────────────────────────────────────────────────────
+// Set DEBUG_COLLISION_SPHERES to true to render cyan wireframe spheres over
+// every collision volume. The sphere is scaled to (bounding-sphere radius +
+// collisionMargin), which is the exact push-out distance used each frame.
+// Skinned mesh volumes follow the live skeleton pose — if a sphere drifts away
+// from the body, the mesh is not skinned or its bone hierarchy is broken.
+const DEBUG_COLLISION_SPHERES = false;
+
 interface AvatarProps {
   url: string;
   onLoaded?: () => void;
@@ -91,6 +99,7 @@ function Avatar({ url, onLoaded }: AvatarProps) {
   useSecondaryMotion({
     scene,
     chains: secondaryMotion,
+    debugCollision: DEBUG_COLLISION_SPHERES,
   });
 
   useFrame((_, delta) => {
@@ -125,9 +134,9 @@ function Avatar({ url, onLoaded }: AvatarProps) {
 
     if (headMatrix && !isMobileTracking) {
       headMatrix.decompose(
-        { set: () => {} } as any,
+        { set: () => { } } as any,
         _targetQuat,
-        { set: () => {} } as any
+        { set: () => { } } as any
       );
       smoothedQuat = quaternionSmoother.smooth(_targetQuat, delta);
     } else {

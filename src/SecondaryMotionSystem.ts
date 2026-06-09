@@ -32,7 +32,13 @@
  *  8. SET bone quaternion = restLocalQuat * delta  (never premultiply/accumulate).
  */
 
-import { Object3D, Vector3, Quaternion, Matrix4 } from "three";
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import {
+  Object3D, Vector3, Quaternion, Matrix4,
+  Mesh, SkinnedMesh, Box3, BufferGeometry,
+  SphereGeometry, MeshBasicMaterial, LineSegments, EdgesGeometry,
+} from "three";
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 // ─── Public config ────────────────────────────────────────────────────────────
 
@@ -55,9 +61,91 @@ export interface SecondaryChainConfig {
   inertiaScale?: number;
   /** Smoothing factor for driver velocity (exponential smoothing α). Range 0–1, default 0.12. Higher = smoother but more lag, lower = more responsive but jittery. */
   smoothing?: number;
+  /**
+   * Optional collision mesh name(s) found in the scene.
+   * The chain's simulated particles will be pushed out of these meshes each frame.
+   * The meshes are located by name at init time — they do not need to be visible.
+   * Examples: "colonly"  |  ["col_body", "col_shoulder"]
+   */
+  collisionMeshes?: string | string[];
+  /**
+   * Extra stand-off distance added on top of the collision radius so particles
+   * stop before visually touching the surface. In scene units (metres for GLB):
+   *   0.005 =  5 mm  |  0.02 = 2 cm (default)  |  0.05 = 5 cm
+   * Set to 0 to sit exactly on the sphere surface.
+   */
+  collisionMargin?: number;
+  /**
+   * Per-chain array of explicit collision sphere definitions.
+   * USE THIS instead of (or alongside) collisionMeshes when you want:
+   *   - exact radius control without relying on bounding-sphere computation
+   *   - multiple spheres from a single mesh parented to different bones
+   *   - zero per-frame vertex skinning cost (tracks a bone, not the full mesh)
+   *
+   * Each entry names a scene node (any Object3D — sphere mesh, bone, empty).
+   * Radius options:
+   *   - Positive number: used as-is in world units.
+   *   - 0 or omitted:    auto-computed from the node's geometry bounding sphere
+   *                      × world scale at init time (ideal for UV-sphere meshes).
+   *
+   * Example (avatar1 ponytail):
+   *   collisionSpheresDef: [
+   *     { node: "col_neck" },          // radius auto-read from geometry
+   *     { node: "col_head" },          // radius auto-read from geometry
+   *     { node: "col_spine", radius: 0.13 }, // explicit override
+   *   ]
+   *
+   * Recommended Blender workflow:
+   *   1. Add UV-sphere meshes, scale them to match the body part.
+   *   2. Name them (e.g. "col_neck", "col_head").
+   *   3. Parent/skin each sphere to ONE bone.
+   *   4. Mark them invisible / hidden layer (or set visible=false in GLB).
+   *   5. Export to GLB — they travel with the skeleton.
+   *   6. List them here; leave radius unset to auto-read from geometry.
+   */
+  collisionSpheresDef?: Array<{ node: string; radius?: number }>;
 }
 
 // ─── Internal types ───────────────────────────────────────────────────────────
+
+/**
+ * A single resolved collision sphere primitive.
+ *
+ * Two resolution strategies — chosen at init:
+ *
+ * EXPLICIT (collisionSpheresDef):
+ *   `trackNode` is the dominant skeleton bone found from skin weights (for
+ *   SkinnedMesh nodes) or the node itself (for rigid/plain nodes).
+ *   World position is just `trackNode.getWorldPosition()` each frame — O(1).
+ *   For SkinnedMesh nodes, `localOffset` holds the geometry center in the
+ *   dominant bone's local space so the sphere stays locked to the mesh center.
+ *
+ * BOUNDING-BOX (collisionMeshes fallback):
+ *   Box3.setFromObject() each frame — correct but O(vertex count) for skinned meshes.
+ */
+interface CollisionSphere {
+  /** Bone (for explicit skinned) or the original mesh node (for fallback). */
+  trackNode: Object3D;
+  /**
+   * True when using the explicit definition path (collisionSpheresDef).
+   * trackNode is the dominant bone; worldCenter = bone worldPos + localOffset.
+   */
+  isExplicit: boolean;
+  /** True when trackNode is a SkinnedMesh (bounding-box fallback path). */
+  isSkinned: boolean;
+  /**
+   * For explicit skinned spheres: offset from the dominant bone world pos to
+   * the mesh geometry center, in world-space at bind time. Reapplied each frame.
+   * For non-skinned rigid meshes: local-space center relative to trackNode.
+   */
+  localCenter: Vector3;
+  /** Effective collision radius. Fixed for explicit, updated per-frame for bounding-box. */
+  radius: number;
+  /** Live world-space center — updated once per frame before the bone loop. */
+  worldCenter: Vector3;
+  /** Wireframe sphere helper visible when debugCollision = true. */
+  debugMesh?: LineSegments;
+}
 
 interface BoneState {
   bone: Object3D;
@@ -82,6 +170,8 @@ interface ChainState {
   bones: BoneState[];
   smoothDriverVel: Vector3;
   prevDriverPos: Vector3;
+  /** Zero or more collision spheres resolved at init time for this chain. */
+  collisionSpheres: CollisionSphere[];
 }
 
 // ─── Pre-allocated scratch (reused every frame, never heap-allocated in hot path) ─
@@ -91,7 +181,7 @@ const _s_rawVel = new Vector3();
 const _s_restTailWS = new Vector3();
 const _s_boneHeadWS = new Vector3();
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _s_restHeadWS = new Vector3()
+const _s_restHeadWS = new Vector3();
 const _s_restDir = new Vector3();
 const _s_simDir = new Vector3();
 const _s_springTarget = new Vector3();
@@ -106,6 +196,8 @@ const _s_headLocal = new Vector3();
 const _s_restLocal = new Vector3();
 const _s_simLocal = new Vector3();
 const _s_diff = new Vector3();
+// Collision scratch — reused per sphere per bone.
+const _s_colPush = new Vector3();
 
 
 // ─── SecondaryMotionSystem ────────────────────────────────────────────────────
@@ -115,6 +207,16 @@ export class SecondaryMotionSystem {
   private configs: SecondaryChainConfig[];
   private configMap = new Map<string, SecondaryChainConfig>();
   private scene: Object3D;
+
+  /**
+   * When true, wireframe spheres are rendered at each collision sphere
+   * position every frame, showing both the bounding-sphere size and the
+   * effective push radius (radius + collisionMargin).
+   *
+   * Toggle at runtime: `system.debugCollision = true`
+   * Or set it before the component mounts in useSecondaryMotion.
+   */
+  public debugCollision = false;
 
   constructor(scene: Object3D, configs: SecondaryChainConfig[]) {
     this.scene = scene;
@@ -195,12 +297,182 @@ for (const cfg of this.configs) {
       const prevDriverPos = new Vector3();
       driver.getWorldPosition(prevDriverPos);
 
+      // ── Resolve collision spheres for this chain ──────────────────────
+      const collisionSpheres: CollisionSphere[] = [];
+
+      // ── Strategy A: explicit sphere definitions (preferred, O(1)/frame) ─
+      if (cfg.collisionSpheresDef && cfg.collisionSpheresDef.length > 0) {
+        for (const def of cfg.collisionSpheresDef) {
+          if (!def.node) continue;
+          const node = this._find(def.node);
+          if (!node) {
+            console.warn(
+              `[SecondaryMotion] collisionSpheresDef node "${def.node}" not found for chain "${cfg.id}" — skipping.`
+            );
+            continue;
+          }
+          node.updateWorldMatrix(true, false);
+
+          // Radius resolution:
+          //   - Explicit positive number → use as-is (world units).
+          //   - 0 / undefined → auto-read from geometry bounding sphere × world scale.
+          let resolvedRadius = (def.radius ?? 0) > 0 ? def.radius! : 0;
+          if (resolvedRadius === 0 && (node as Mesh).isMesh) {
+            const geo = (node as Mesh).geometry as BufferGeometry;
+            if (geo) {
+              if (!geo.boundingSphere) geo.computeBoundingSphere();
+              if (geo.boundingSphere) {
+                const worldScale = new Vector3();
+                node.getWorldScale(worldScale);
+                resolvedRadius = geo.boundingSphere.radius * Math.max(worldScale.x, worldScale.y, worldScale.z);
+              }
+            }
+          }
+          if (resolvedRadius <= 0) resolvedRadius = 0.1; // safe fallback
+
+          // For SkinnedMesh nodes the Object3D world position sits at the
+          // skeleton root — it does NOT follow the bone the mesh is weighted to.
+          // Resolution: find the dominant bone from skin weights and track it.
+          // localCenter stores the offset from that bone to the geometry centroid
+          // in the bone's local space, applied each frame to get worldCenter.
+          let trackNode: Object3D = node;
+          let localCenter = new Vector3();
+
+          if ((node as SkinnedMesh).isSkinnedMesh) {
+            const sm = node as SkinnedMesh;
+            const dominantBone = this._dominantBone(sm);
+            if (dominantBone) {
+              trackNode = dominantBone;
+              // Compute geometry centroid in world space at bind time, then
+              // convert to the dominant bone's local space for per-frame use.
+              const worldCentroid = new Vector3();
+              node.getWorldPosition(worldCentroid); // mesh origin as approximation
+              if (sm.geometry.boundingSphere) {
+                // Add geometry bounding sphere center (object-space) transformed to world.
+                const bsc = sm.geometry.boundingSphere.center.clone()
+                  .applyMatrix4(sm.matrixWorld);
+                worldCentroid.copy(bsc);
+              }
+              // Convert world centroid → dominant bone local space.
+              const invBone = new Matrix4().copy(dominantBone.matrixWorld).invert();
+              localCenter = worldCentroid.applyMatrix4(invBone);
+              console.log(
+                `[SecondaryMotion] "${def.node}" skinned → tracking bone "${dominantBone.name}" ` +
+                `r=${resolvedRadius.toFixed(4)} for chain "${cfg.id}".`
+              );
+            } else {
+              console.warn(
+                `[SecondaryMotion] "${def.node}" is SkinnedMesh but no skeleton bones found — ` +
+                `falling back to node world position.`
+              );
+            }
+          } else {
+            console.log(
+              `[SecondaryMotion] explicit sphere "${def.node}" r=${resolvedRadius.toFixed(4)} ` +
+              `(${(def.radius ?? 0) > 0 ? "manual" : "auto from geometry"}) for chain "${cfg.id}".`
+            );
+          }
+
+          const worldCenter = new Vector3();
+          trackNode.getWorldPosition(worldCenter);
+          // Apply local offset if we resolved a dominant bone.
+          if ((node as SkinnedMesh).isSkinnedMesh && trackNode !== node) {
+            worldCenter.copy(localCenter).applyMatrix4(trackNode.matrixWorld);
+          }
+
+          collisionSpheres.push({
+            trackNode,
+            isExplicit: true,
+            isSkinned: (node as SkinnedMesh).isSkinnedMesh === true,
+            localCenter,
+            radius: resolvedRadius,
+            worldCenter,
+          });
+        }
+      }
+
+      // ── Strategy B: bounding-box / bounding-sphere fallback ─────────────
+      // Used when collisionMeshes is set (no explicit radii known).
+      // For SkinnedMesh: Box3.setFromObject() is called every frame — correct
+      // but costs O(vertex count). Suitable for prototyping; prefer Strategy A
+      // once you know the right radii.
+      const rawNames = cfg.collisionMeshes;
+      if (rawNames) {
+        const nameList = Array.isArray(rawNames) ? rawNames : [rawNames];
+        for (const meshName of nameList) {
+          if (!meshName) continue;
+          const node = this._find(meshName);
+          if (!node) {
+            console.warn(
+              `[SecondaryMotion] collisionMesh "${meshName}" not found for chain "${cfg.id}" — skipping.`
+            );
+            continue;
+          }
+
+          node.updateWorldMatrix(true, false);
+          const isSkinned = (node as SkinnedMesh).isSkinnedMesh === true;
+          console.log(
+            `[SecondaryMotion] "${meshName}" resolved as ${isSkinned ? "SkinnedMesh (bounding-box, O(verts)/frame)" : "static Mesh"} ` +
+            `for chain "${cfg.id}". TIP: switch to collisionSpheresDef for O(1) cost.`
+          );
+
+          let localCenter = new Vector3();
+          let radius = 0.1;
+          const worldCenter = new Vector3();
+
+          if (isSkinned) {
+            // Live bounding box — correct for deforming mesh, computed each frame.
+            const box = new Box3().setFromObject(node);
+            const size = new Vector3();
+            box.getSize(size);
+            box.getCenter(worldCenter);
+            // Use the largest axis half-extent, not the diagonal.
+            // size.length() * 0.5 gives the box diagonal / 2 which is ~1.73x
+            // too large for a sphere mesh. Math.max of the three half-extents
+            // matches the actual sphere radius in world units.
+            radius = Math.max(size.x, size.y, size.z) * 0.5;
+          } else if ((node as Mesh).isMesh) {
+            const geo = (node as Mesh).geometry as BufferGeometry;
+            if (geo) {
+              if (!geo.boundingSphere) geo.computeBoundingSphere();
+              if (geo.boundingSphere) {
+                localCenter = geo.boundingSphere.center.clone();
+                // Scale geometry radius by the node's uniform world scale so
+                // a sphere scaled in the DCC gives the correct collision size.
+                const worldScale = new Vector3();
+                node.getWorldScale(worldScale);
+                radius = geo.boundingSphere.radius * Math.max(worldScale.x, worldScale.y, worldScale.z);
+                worldCenter.copy(localCenter).applyMatrix4(node.matrixWorld);
+              }
+            }
+          } else {
+            const box = new Box3().setFromObject(node);
+            const size = new Vector3();
+            box.getSize(size);
+            box.getCenter(worldCenter);
+            const invNode = new Matrix4().copy(node.matrixWorld).invert();
+            localCenter = worldCenter.clone().applyMatrix4(invNode);
+            radius = Math.max(size.x, size.y, size.z) * 0.5;
+          }
+
+          collisionSpheres.push({
+            trackNode: node,
+            isExplicit: false,
+            isSkinned,
+            localCenter,
+            radius,
+            worldCenter,
+          });
+        }
+      }
+
       this.chains.push({
         id: cfg.id,
         driver,
         bones,
         smoothDriverVel: new Vector3(),
         prevDriverPos,
+        collisionSpheres,
       });
     }
   }
@@ -225,6 +497,9 @@ for (const cfg of this.configs) {
       const gravity = cfg.gravity ?? 0.07;
       const inertiaScale = cfg.inertiaScale ?? 0.08;
       const smoothing = cfg.smoothing ?? 0.12;
+      // collisionMargin: extra stand-off on top of the bounding-sphere radius.
+      // Default 0.02 (2 cm) keeps hair visually clear of the collision surface.
+      const collisionMargin = cfg.collisionMargin ?? 0.02;
 
       // ── Driver velocity (exponentially smoothed) ──────────────────────
       chain.driver.getWorldPosition(_s_driverPos);
@@ -251,6 +526,71 @@ for (const cfg of this.configs) {
 
       // Rebuild driver inverse this frame (driver moves with the skeleton).
       _s_invDriver.copy(chain.driver.matrixWorld).invert();
+
+      // ── Collision sphere world-center pre-pass ────────────────────────
+      // Update every sphere's worldCenter once before the per-bone loop.
+      for (let si = 0; si < chain.collisionSpheres.length; si++) {
+        const col = chain.collisionSpheres[si];
+
+        if (col.isExplicit) {
+          if (col.isSkinned) {
+            // Explicit skinned sphere: trackNode is the dominant bone.
+            // Apply the stored local offset to get the geometry centroid in world space.
+            col.worldCenter
+              .copy(col.localCenter)
+              .applyMatrix4(col.trackNode.matrixWorld);
+          } else {
+            // Explicit rigid node: O(1) world position lookup.
+            col.trackNode.getWorldPosition(col.worldCenter);
+          }
+        } else if (col.isSkinned) {
+          // Skinned bounding-box fallback: O(vertex count) — correct but heavier.
+          // Use collisionSpheresDef to avoid this cost in production.
+          const box = new Box3().setFromObject(col.trackNode);
+          const size = new Vector3();
+          box.getSize(size);
+          box.getCenter(col.worldCenter);
+          // Largest axis half-extent — correct for sphere meshes, avoids the
+          // ~1.73x diagonal inflation from size.length() * 0.5.
+          col.radius = Math.max(size.x, size.y, size.z) * 0.5;
+        } else {
+          // Rigid mesh: transform local center by matrixWorld.
+          col.worldCenter
+            .copy(col.localCenter)
+            .applyMatrix4(col.trackNode.matrixWorld);
+        }
+
+        // ── Debug wireframe ───────────────────────────────────────────────
+        if (this.debugCollision) {
+          const cfg2 = this.configMap.get(chain.id);
+          const margin = cfg2?.collisionMargin ?? 0.02;
+          const effectiveR = col.radius + margin;
+
+          if (!col.debugMesh) {
+            // Create wireframe sphere on first debug frame.
+            const geo = new SphereGeometry(1, 12, 8);
+            const mat = new MeshBasicMaterial({
+              color: 0x00ffff,
+              wireframe: true,
+              depthTest: false,
+              transparent: true,
+              opacity: 0.5,
+            });
+            const edges = new EdgesGeometry(geo);
+            col.debugMesh = new LineSegments(edges, mat);
+            (col.debugMesh.material as MeshBasicMaterial).depthTest = false;
+            col.debugMesh.renderOrder = 999;
+            this.scene.add(col.debugMesh);
+          }
+
+          // Scale to effective radius and position at live world center.
+          col.debugMesh.position.copy(col.worldCenter);
+          col.debugMesh.scale.setScalar(effectiveR);
+          col.debugMesh.visible = true;
+        } else if (col.debugMesh) {
+          col.debugMesh.visible = false;
+        }
+      }
 
       // ── Per-bone spring ───────────────────────────────────────────────
       const chainLength = chain.bones.length;
@@ -328,6 +668,41 @@ const dist = _s_diff.length();
             .add(_s_boneHeadWS);
         }
 
+        // 6b. Collision resolution — push simTail out of each collision sphere.
+        for (let si = 0; si < chain.collisionSpheres.length; si++) {
+          const col = chain.collisionSpheres[si];
+          // worldCenter was already refreshed once per frame in the pre-pass
+          // above (before the per-bone loop), so reuse it here.
+          const effectiveRadius = col.radius + collisionMargin;
+
+          _s_colPush.copy(b.simTail).sub(col.worldCenter);
+          const penetrationDist = _s_colPush.length();
+
+          if (penetrationDist < effectiveRadius && penetrationDist > 1e-6) {
+            // Push particle to effective surface.
+            b.simTail
+              .copy(_s_colPush)
+              .normalize()
+              .multiplyScalar(effectiveRadius)
+              .add(col.worldCenter);
+
+            // Cancel inward Verlet velocity to prevent tunnelling oscillation.
+            _s_colPush.normalize();
+            const velAlongNormal = b.prevTail
+              .clone()
+              .sub(b.simTail)
+              .dot(_s_colPush);
+            if (velAlongNormal < 0) {
+              b.prevTail.addScaledVector(_s_colPush, -velAlongNormal);
+            }
+          }
+
+          // Degenerate: particle exactly at sphere center — eject up.
+          if (penetrationDist <= 1e-6 && effectiveRadius > 0) {
+            b.simTail.copy(col.worldCenter).addScaledVector(new Vector3(0, 1, 0), effectiveRadius);
+          }
+        }
+
         // 7. Compute delta rotation in parent-local space: restDir → simDir.
         _s_invParent.copy(b.boneParent.matrixWorld).invert();
 
@@ -387,7 +762,65 @@ if (
     return snap;
   }
 
+  // ── Dispose ────────────────────────────────────────────────────────────────
+
+  /**
+   * Remove all debug wireframe meshes from the scene and free their GPU memory.
+   * Call this when the avatar unmounts or the system is destroyed.
+   */
+  public dispose(): void {
+    for (const chain of this.chains) {
+      for (const col of chain.collisionSpheres) {
+        if (col.debugMesh) {
+          this.scene.remove(col.debugMesh);
+          (col.debugMesh.geometry as EdgesGeometry).dispose();
+          (col.debugMesh.material as MeshBasicMaterial).dispose();
+          col.debugMesh = undefined;
+        }
+      }
+    }
+  }
+
   // ── Helpers ────────────────────────────────────────────────────────────────
+
+  /**
+   * Find the dominant skeleton bone for a SkinnedMesh by scanning its skin
+   * weight data and returning the bone with the highest total weight influence.
+   * This is the bone the mesh is "most attached to" — its matrixWorld gives
+   * the best O(1) world-space position for the collision sphere each frame.
+   * Returns null if the mesh has no skeleton or empty bone array.
+   */
+  private _dominantBone(sm: SkinnedMesh): Object3D | null {
+    const skeleton = sm.skeleton;
+    if (!skeleton || skeleton.bones.length === 0) return null;
+
+    const skinWeight = sm.geometry.attributes.skinWeight;
+    const skinIndex = sm.geometry.attributes.skinIndex;
+    if (!skinWeight || !skinIndex) {
+      // No skin data — fall back to first bone.
+      return skeleton.bones[0] ?? null;
+    }
+
+    const boneTotals = new Float32Array(skeleton.bones.length);
+    const itemSize = skinWeight.itemSize; // usually 4
+    const count = skinWeight.count;
+
+    for (let vi = 0; vi < count; vi++) {
+      for (let c = 0; c < itemSize; c++) {
+        const boneIdx = Math.round(skinIndex.getComponent(vi, c));
+        const weight = skinWeight.getComponent(vi, c);
+        if (boneIdx >= 0 && boneIdx < boneTotals.length) {
+          boneTotals[boneIdx] += weight;
+        }
+      }
+    }
+
+    let maxIdx = 0;
+    for (let i = 1; i < boneTotals.length; i++) {
+      if (boneTotals[i] > boneTotals[maxIdx]) maxIdx = i;
+    }
+    return skeleton.bones[maxIdx];
+  }
 
   private _find(name: string): Object3D | null {
     let found: Object3D | null = null;
