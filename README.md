@@ -6,7 +6,7 @@
   
   **Real-time face tracking with 3D avatars in your browser** ✨
 
-  Try it at : https://facemocap.vercel.app/?utm_source=github
+  Try it at : https://facemocap.radframes.com/
   
  [![License: MIT-Attribution](https://img.shields.io/badge/License-MIT--Attribution-yellow.svg)](LICENSE.md)
  [![React](https://img.shields.io/badge/React-18.2.0-blue.svg)](https://reactjs.org/)
@@ -58,11 +58,13 @@ It leverages the power of MediaPipe and Three.js to create an immersive experien
 ## 🎯 Current Feature Status
 
 ### ✅ Implemented Features
-- **🎤 Real-time Face Tracking**: Captures facial landmarks using MediaPipe.
+- **🎤 Real-time Face Tracking**: Captures facial landmarks using MediaPipe in a dedicated worker thread.
+- **🧵 Web Worker Architecture**: Face detection runs on a separate thread, keeping the main UI responsive.
 - **🎬 3D Avatar Integration**: Renders Ready Player Me avatars with Three.js.
 - **📹 Motion Capture Recording**: Record facial blendshapes and head/neck/spine bone movements in real-time.
 - **💾 GLB Animation Export**: Save recorded animations as self-contained `.glb` files with full avatar geometry and animation data.
 - **🎨 Avatar and Color Switcher**: Easily switch between different avatars and background colors.
+- **🌪️ Secondary Motion System**: Spring-based physics for hair, clothing, and secondary body parts without a physics engine.
 - **⚙️ Component-Based Architecture**: Built with React for a modular and maintainable codebase.
 - **🌐 Web Application**: Runs entirely in the browser.
 
@@ -77,8 +79,10 @@ It leverages the power of MediaPipe and Three.js to create an immersive experien
 
 ### Technology Stack
 - **Frontend**: React, TypeScript, Three.js, react-three/fiber, react-three/drei
-- **Face Tracking**: MediaPipe Tasks Vision
+- **Face Tracking**: MediaPipe Tasks Vision (running in Web Worker)
+- **Physics System**: Spring-based secondary motion (no external physics engine)
 - **Build Tool**: Create React App
+- **Export Format**: GLB (GLTF binary with embedded animations)
 
 ---
 
@@ -176,38 +180,92 @@ Capture your facial expressions and head movements as animations on your selecte
 
 ---
 
+## 🌪️ Secondary Motion System
+
+### Overview
+A lightweight spring-based physics system for realistic secondary motion on hair, clothing, and other secondary body parts without requiring an external physics engine.
+
+### How It Works
+The system uses a Verlet integration approach with configurable per-chain physics:
+
+1. **Spring chains**: Define chains of bones (e.g., ponytail, skirt) with a driver bone
+2. **Driver-based inertia**: Chain follows driver movement with configurable lag
+3. **Gravity simulation**: Gentle constant downward bias for natural droop
+4. **Damping & stiffness**: Per-chain controls for feel and response
+5. **Velocity smoothing**: Exponential smoothing for responsive yet stable motion
+
+### Configuration
+Each chain requires:
+- `id`: Unique identifier
+- `driver`: Bone whose movement drives the chain
+- `chainStart` & `chainEnd`: Bone range in the spring chain
+- `stiffness`: Spring strength (0–1, default 0.28)
+- `damping`: Velocity damping (0–1, default 0.80)
+- `gravity`: Downward sag bias (default 0.07)
+- `inertiaScale`: Driver velocity lag multiplier (default 0.08)
+- `smoothing`: Driver velocity smoothing (0–1, default 0.12)
+
+### Technical Details
+- **Per-frame algorithm**: Rest-pose computation → gravity sag → inertia offset → spring constraint → Verlet integration → bone rotation
+- **Performance**: O(n) complexity where n = chain length; no broad-phase collision detection
+- **Frame-rate agnostic**: All calculations are delta-time normalized for consistent feel across 20–60+ fps
+- **Integration points**: Bones always spring back to rest pose; no permanent drift
+
+---
+
 ```
 facial-motion-capture/
 ├── 📄 .gitignore          # Specifies intentionally untracked files to ignore
 ├── 📄 package.json        # Lists the project's dependencies and scripts
-├── 📄 package-lock.json  # Records the exact version of each installed package
+├── 📄 package-lock.json   # Records the exact version of each installed package
 ├── 📄 README.md           # This file, providing an overview of the project
 ├── 📄 PROJECT_OVERVIEW.md # Detailed technical documentation of the codebase
 ├── 📄 tsconfig.json       # The configuration file for the TypeScript compiler
+├── 📄 vercel.json         # Vercel deployment configuration
 ├── 📁 public/              # Contains static assets that are publicly accessible
+│   ├── 📁 animation/       # Idle animation GLB files for avatars
 │   ├── 📁 avatar/          # Stores the 3D avatar models in .glb format
-│   ├── 📁 images/         # Contains various image assets for the application
-│   ├── 📄 index.html      # The main HTML file that serves as the entry point
-│   └── 📄 logo.png        # The project's logo
+│   ├── 📁 images/          # Contains various image assets for the application
+│   │   ├── 📁 app/
+│   │   │   ├── 📁 avatar/
+│   │   │   ├── 📁 explainers/
+│   │   │   └── 📁 icons/
+│   │   └── 📁 seo/
+│   ├── 📁 models/          # MediaPipe model files
+│   │   └── 📄 face_landmarker.task # Face detection model
+│   ├── 📁 wasm/            # WebAssembly files for MediaPipe
+│   │   ├── 📄 vision_wasm_internal.js
+│   │   ├── 📄 vision_wasm_module_internal.js
+│   │   └── 📄 vision_wasm_nosimd_internal.js
+│   ├── 📄 index.html       # The main HTML file that serves as the entry point
+│   ├── 📄 manifest.json    # PWA manifest for web app installation
+│   ├── 📄 robots.txt       # SEO robots configuration
+│   └── 📄 sitemap.xml      # XML sitemap for search engines
 └── 📁 src/                # Contains the main source code for the application
     ├── 📁 components/     # Reusable React components used throughout the app
     │   ├── 📄 AvatarSwitcher.tsx     # Allows users to switch between different avatars
     │   ├── 📄 ColorSwitcher.tsx      # Enables changing the background color
     │   ├── 📄 CustomDropdown.tsx     # A custom dropdown component for UI elements
-    │   └── 📄 RecordingControls.tsx  # Motion capture recording UI (NEW)
-    ├── 📁 hooks/          # Custom React hooks for managing state and logic
-    ├── 📁 icons/          # SVG icons used in the user interface
-    ├── 📁 images/         # Image assets specific to components
-    ├── 📄 App.css         # Styles for the main application component (includes recording UI)
-    ├── 📄 App.tsx         # The root component of the application
-    ├── 📄 Avatar.tsx      # Renders the 3D avatar model (updated for motion capture)
+    │   ├── 📄 PermissionPopup.tsx    # Camera permission request popup
+    │   └── 📄 RecordingControls.tsx  # Motion capture recording UI
+    ├── 📄 App.css          # Styles for the main application component (includes recording UI)
+    ├── 📄 App.tsx          # The root component of the application
+    ├── 📄 Avatar.tsx       # Renders the 3D avatar model (integrated with motion capture)
     ├── 📄 AvatarCanvas.tsx # The Three.js canvas where the avatar is displayed
-    ├── 📄 AvatarOrbitControls.tsx # Implements camera controls for the avatar
-    ├── 📄 camera-permission.tsx # Handles requesting and managing camera permissions
-    ├── 📄 FaceTracking.tsx # The core logic for tracking the user's face
-    ├── 📄 index.css       # Not used / Empty
-    ├── 📄 index.tsx       # The entry point for the React application
-    ├── 📄 AvatarLoader.tsx      # A loading avatar indicator component
-    ├── 📄 useMotionRecorder.ts  # Motion capture recording engine (NEW)
-    └── 📄 react-app-env.d.ts # TypeScript type declarations for the React environment
+    ├── 📄 AvatarLoader.tsx # A loading avatar indicator component
+    ├── 📄 AvatarOrbitControls.tsx   # Implements camera controls for the avatar
+    ├── 📄 camera-permission.tsx     # Handles requesting and managing camera permissions
+    ├── 📄 FaceTracking.tsx # Face detection host — owns video element, pumps frames to worker
+    ├── 📄 faceWorker.js    # Web Worker for face tracking (runs MediaPipe on separate thread)
+    ├── 📄 SecondaryMotionSystem.ts  # Spring-based physics for secondary motion (hair, cloth)
+    ├── 📄 smoothing.ts     # Pure math utilities for real-time motion smoothing
+    ├── 📄 useAnimationPlayer.ts     # Hook for playing idle animations with proper bone exclusion
+    ├── 📄 useMotionRecorder.ts      # Motion capture recording engine and GLB export
+    ├── 📄 useSecondaryMotion.ts     # React Three Fiber hook for secondary motion integration
+    ├── 📄 avatarMetadata.ts         # Avatar metadata and configuration
+    ├── 📄 color.css        # Color theme and styling
+    ├── 📄 icon.css         # Icon styling
+    ├── 📄 index.css        # Global styles
+    ├── 📄 index.tsx        # The entry point for the React application
+    └── 📄 react-app-env.d.ts        # TypeScript type declarations for the React environment
 ```
