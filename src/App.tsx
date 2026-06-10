@@ -38,6 +38,7 @@ function App() {
   }, []);
 
   const handleStreamReady = (stream: MediaStream) => {
+    setMediapipeReady(false);
     setVideoStream(stream);
   };
 
@@ -87,7 +88,7 @@ function App() {
 
   return (
     <div className="App">
-      <CameraPermissions onStreamReady={handleStreamReady} />
+      <CameraPermissions onStreamReady={handleStreamReady} disabled={isSwitcherDisabled} />
 
       {avatarReady && videoStream && !mediapipeReady && (
         <div className="reveal fade mediapipe-loader pos-fixed top-0 left-0 w-full h-full flex items-center justify-center bg-black bg-opacity-70 z-999">
@@ -99,6 +100,7 @@ function App() {
         <FaceTracking
           videoStream={videoStream}
           onMediapipeReady={handleMediapipeReady}
+          disabled={isSwitcherDisabled}
         />
       )}
 

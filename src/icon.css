@@ -18,6 +18,16 @@
   --color-icon: url('../public/images/app/icons/icon_color.svg');
   --pattern-icon: url('../public/images/app/icons/icon_pattern.svg');
   --notallowed-icon: url('../public/images/app/icons/icon_notallowed.svg');
+
+
+  /* =========================
+     CURSOR ICONS
+     ========================= */
+
+  --cursor-default: url('../public/images/app/icons/cursor/icon_cursor_default.svg');
+  --cursor-pointer: url('../public/images/app/icons/cursor/icon_cursor_pointer.svg');
+  --cursor-drag: url('../public/images/app/icons/cursor/icon_cursor_drag.svg');
+  --cursor-dragging: url('../public/images/app/icons/cursor/icon_cursor_dragging.svg');
 }
 
 
