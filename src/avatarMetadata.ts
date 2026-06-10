@@ -89,7 +89,79 @@ const AVATAR_METADATA: AvatarMetadata[] = [
   // ── Avatar 2 ──────────────────────────────────────────────────────────────
   {
     avatarPath: "/avatar/avatar2.glb",
-    secondaryMotion: [],
+    secondaryMotion: [
+      {
+        id: "hairstrands_left",
+        driver: "LeftHair_head",
+        chainStart: "LeftHair_1",
+        chainEnd: "LeftHair_6",
+        stiffness: 0.05,    // Spring strength: lower = softer return (0.02-0.05 for smooth decay, 0.2+ for snappy)
+        damping: 0.15,      // safe ranges : damping: 0.70 – 0.90 damping too low = unstable energy loss Velocity retention: lower = less jitter (0.2 good for jitter-free, 0.7+ for bouncy)
+        gravity: 0.08,      // Natural droop amount: increase for more sag (0.05-0.15 typical)
+        inertiaScale: 0.5, // Lag intensity: how much tail lags behind driver (0.3-0.5 for natural feel)
+        smoothing: 0.99,    // Velocity filter: higher = smoother movement, less micro-jitter (0.1-0.2 responsive, 0.8+ smooth)
+        // COLLISION — using Strategy A (O(1)/frame, exact geometry radius):
+        // col_neck and col_head are UV-sphere SkinnedMeshes parented to their
+        // respective bones. Radius is auto-read from geometry × world scale
+        // at init — no manual measurement needed. Enable DEBUG_COLLISION_SPHERES
+        // in Avatar.tsx to verify the sphere sizes visually.
+        // Radii are diameter / 2 from Blender's object Dimensions field (metres).
+        // Blender shows the full diameter in Dimensions, not the radius —
+        // so 0.255931 m diameter → 0.127966 m radius, etc.
+        // collisionSpheresDef: [
+        //   { node: "col_neck", radius: 0.268359 / 2 },
+        // ],
+        // collisionMargin: 0.00,
+      },
+      {
+        id: "hairstrand1_1",
+        driver: "hairstrand1_1",
+        chainStart: "hairstrand1_1",
+        chainEnd: "hairstrand1_3",
+        stiffness: 0.15,    // Spring strength: lower = softer return (0.02-0.05 for smooth decay, 0.2+ for snappy)
+        damping: 0.15,      // safe ranges : damping: 0.70 – 0.90 damping too low = unstable energy loss Velocity retention: lower = less jitter (0.2 good for jitter-free, 0.7+ for bouncy)
+        gravity: 0.08,      // Natural droop amount: increase for more sag (0.05-0.15 typical)
+        inertiaScale: 0.5,  // Lag intensity: how much tail lags behind driver (0.3-0.5 for natural feel)
+        smoothing: 0.99,    // Velocity filter: higher = smoother movement, less micro-jitter (0.1-0.2 responsive, 0.8+ smooth)
+
+      },
+            {
+        id: "hairstrand2_1",
+        driver: "hairstrand2_1",
+        chainStart: "hairstrand2_1",
+        chainEnd: "hairstrand2_3",
+        stiffness: 0.15,    // Spring strength: lower = softer return (0.02-0.05 for smooth decay, 0.2+ for snappy)
+        damping: 0.15,      // safe ranges : damping: 0.70 – 0.90 damping too low = unstable energy loss Velocity retention: lower = less jitter (0.2 good for jitter-free, 0.7+ for bouncy)
+        gravity: 0.08,      // Natural droop amount: increase for more sag (0.05-0.15 typical)
+        inertiaScale: 0.5,  // Lag intensity: how much tail lags behind driver (0.3-0.5 for natural feel)
+        smoothing: 0.99,    // Velocity filter: higher = smoother movement, less micro-jitter (0.1-0.2 responsive, 0.8+ smooth)
+
+      },
+            {
+        id: "hairstrand3_1",
+        driver: "hairstrand3_1",
+        chainStart: "hairstrand3_2",
+        chainEnd: "hairstrand3_3",
+        stiffness: 0.25,    // Spring strength: lower = softer return (0.02-0.05 for smooth decay, 0.2+ for snappy)
+        damping: 0.15,      // safe ranges : damping: 0.70 – 0.90 damping too low = unstable energy loss Velocity retention: lower = less jitter (0.2 good for jitter-free, 0.7+ for bouncy)
+        gravity: 0.08,      // Natural droop amount: increase for more sag (0.05-0.15 typical)
+        inertiaScale: 0.5,  // Lag intensity: how much tail lags behind driver (0.3-0.5 for natural feel)
+        smoothing: 0.99,    // Velocity filter: higher = smoother movement, less micro-jitter (0.1-0.2 responsive, 0.8+ smooth)
+
+      },
+            {
+        id: "hairstrand4_1",
+        driver: "hairstrand4_1",
+        chainStart: "hairstrand4_2",
+        chainEnd: "hairstrand4_3",
+        stiffness: 0.05,    // Spring strength: lower = softer return (0.02-0.05 for smooth decay, 0.2+ for snappy)
+        damping: 0.15,      // safe ranges : damping: 0.70 – 0.90 damping too low = unstable energy loss Velocity retention: lower = less jitter (0.2 good for jitter-free, 0.7+ for bouncy)
+        gravity: 0.08,      // Natural droop amount: increase for more sag (0.05-0.15 typical)
+        inertiaScale: 0.5,  // Lag intensity: how much tail lags behind driver (0.3-0.5 for natural feel)
+        smoothing: 0.99,    // Velocity filter: higher = smoother movement, less micro-jitter (0.1-0.2 responsive, 0.8+ smooth)
+
+      },
+    ],
   },
 
   // ── Avatar 3 ──────────────────────────────────────────────────────────────
