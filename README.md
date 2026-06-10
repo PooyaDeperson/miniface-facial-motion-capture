@@ -1,6 +1,6 @@
 <div align="left">
   
-  ![gh face mocap demo](https://github.com/user-attachments/assets/20fced07-943c-4f5a-bd92-1a027d9f2bee)
+  ![gh face mocap demo](https://github.com/user-attachments/assets/741b1fdd-0dab-4e97-a24b-22a7d34b9a15)
   
   # Facial Motion Capture
   
