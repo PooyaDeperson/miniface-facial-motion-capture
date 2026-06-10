@@ -57,9 +57,11 @@ function isMobileDevice(): boolean {
 function FaceTracking({
   videoStream,
   onMediapipeReady,
+  disabled,
 }: {
   videoStream: MediaStream;
   onMediapipeReady?: () => void;
+  disabled?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const workerRef = useRef<Worker | null>(null);
@@ -219,7 +221,7 @@ function FaceTracking({
       playsInline
       muted
       id="video"
-      className="camera-feed w-1 tb:w-400 br-12 tb:br-24 m-4"
+      className={`camera-feed w-1 tb:w-400 br-12 tb:br-24 m-4${disabled ? " switcher-disabled" : ""}`}
       style={{}}
     />
   );

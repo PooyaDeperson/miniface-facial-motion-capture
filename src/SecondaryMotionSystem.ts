@@ -172,15 +172,6 @@ interface ChainState {
   prevDriverPos: Vector3;
   /** Zero or more collision spheres resolved at init time for this chain. */
   collisionSpheres: CollisionSphere[];
-  /**
-   * Phase 1 — sleep tracking.
-   * Consecutive frames where the driver velocity is below threshold AND the
-   * spring simulation has converged to rest. Once this exceeds SLEEP_FRAMES
-   * the chain enters sleep and the entire per-bone Verlet loop is skipped.
-   */
-  sleepFrames: number;
-  /** True when the chain is fully at rest — Verlet is skipped each frame. */
-  isSleeping: boolean;
 }
 
 // ─── Pre-allocated scratch (reused every frame, never heap-allocated in hot path) ─
@@ -207,11 +198,6 @@ const _s_simLocal = new Vector3();
 const _s_diff = new Vector3();
 // Collision scratch — reused per sphere per bone.
 const _s_colPush = new Vector3();
-// Up vector reused for degenerate eject (avoids new Vector3 allocation in hot path).
-const _s_up = new Vector3(0, 1, 0);
-// Bounding-box fallback scratch — avoids per-frame Box3/Vector3 allocation.
-const _s_box = new Box3();
-const _s_boxSize = new Vector3();
 
 
 // ─── SecondaryMotionSystem ────────────────────────────────────────────────────
@@ -221,8 +207,6 @@ export class SecondaryMotionSystem {
   private configs: SecondaryChainConfig[];
   private configMap = new Map<string, SecondaryChainConfig>();
   private scene: Object3D;
-  /** Phase 1: rolling frame counter used for bounding-box throttle. */
-  private _frameCount = 0;
 
   /**
    * When true, wireframe spheres are rendered at each collision sphere
@@ -245,11 +229,11 @@ export class SecondaryMotionSystem {
   private _init(): void {
     this.scene.updateWorldMatrix(true, true);
 
-    for (const cfg of this.configs) {
+for (const cfg of this.configs) {
+  
+  this.configMap.set(cfg.id, cfg);
 
-      this.configMap.set(cfg.id, cfg);
-
-      const driver = this._find(cfg.driver);
+  const driver = this._find(cfg.driver);
       if (!driver) {
         console.warn(
           `[SecondaryMotion] driver "${cfg.driver}" not found — skipping "${cfg.id}".`,
@@ -489,8 +473,6 @@ export class SecondaryMotionSystem {
         smoothDriverVel: new Vector3(),
         prevDriverPos,
         collisionSpheres,
-        sleepFrames: 0,
-        isSleeping: false,
       });
     }
   }
@@ -503,26 +485,13 @@ export class SecondaryMotionSystem {
     // Clamp dt so a tab-switch / pause doesn't explode velocities.
     const dt = Math.min(deltaTime, 0.05);
 
-    // Phase 1 opt: targeted matrix updates — walk only each chain's skeleton
-    // path and its collision nodes instead of traversing the whole scene graph.
-    // updateWorldMatrix(true, false) updates this node AND all its ancestors
-    // up to the scene root, so calling it on the chain's last bone ensures every
-    // parent bone (including the driver) is current. O(skeleton depth) per chain
-    // vs. O(total scene nodes) for the old scene.updateWorldMatrix(true, true).
-    for (let ci = 0; ci < this.chains.length; ci++) {
-      const chain = this.chains[ci];
-      const lastBone = chain.bones[chain.bones.length - 1];
-      if (lastBone) lastBone.bone.updateWorldMatrix(true, false);
-      for (let si = 0; si < chain.collisionSpheres.length; si++) {
-        chain.collisionSpheres[si].trackNode.updateWorldMatrix(true, false);
-      }
-    }
+    this.scene.updateWorldMatrix(true, true);
 
     for (let ci = 0; ci < this.chains.length; ci++) {
       const chain = this.chains[ci];
       const cfg = this.configMap.get(chain.id);
-      if (!cfg) continue;
-
+        if (!cfg) continue;
+      
       const stiffness = cfg.stiffness ?? 0.28;
       const damping = cfg.damping ?? 0.8;
       const gravity = cfg.gravity ?? 0.07;
@@ -546,7 +515,7 @@ export class SecondaryMotionSystem {
 
       // α = smoothing → slow follower = smooth lag without overshoot.
       const alpha = 1 - smoothing;
-      chain.smoothDriverVel.lerp(_s_rawVel, alpha);
+        chain.smoothDriverVel.lerp(_s_rawVel, alpha);
 
       // Dead zone: eliminate micro-movements that cause jitter on small motions.
       if (chain.smoothDriverVel.length() < 0.01) {
@@ -557,40 +526,6 @@ export class SecondaryMotionSystem {
 
       // Rebuild driver inverse this frame (driver moves with the skeleton).
       _s_invDriver.copy(chain.driver.matrixWorld).invert();
-
-      // ── Sleep detection ───────────────────────────────────────────────────
-      // Sleep is driven purely by driver stillness — bones can be anywhere
-      // (mid-swing, against a collider, or at rest pose) and will sleep
-      // wherever they currently are once the driver stops moving.
-      // The chain wakes instantly the moment the driver starts moving again.
-      //
-      // Tunables (single source of truth):
-      //   SLEEP_FRAMES  — consecutive still frames before sleep.
-      //                   At 60 fps: 30 = ~0.5s | 60 = ~1s | 120 = ~2s
-      //                   Raise to delay sleep; lower for faster sleep.
-
-      const SLEEP_FRAMES = 4200;
-      //   DRIVER_VEL_SQ — driver velocity² threshold below which we count
-      //                   the driver as "still". Lower = more sensitive to
-      //                   tiny movements; higher = requires more motion to
-      //                   stay awake.
-      const DRIVER_VEL_SQ = 0.0000000001;
-
-      const driverMoving = chain.smoothDriverVel.lengthSq() > DRIVER_VEL_SQ;
-
-      if (!driverMoving) {
-        if (!chain.isSleeping) {
-          chain.sleepFrames++;
-          if (chain.sleepFrames > SLEEP_FRAMES) {
-            chain.isSleeping = true;
-          }
-        }
-        if (chain.isSleeping) continue;
-      } else {
-        // Driver is moving — wake up immediately.
-        chain.sleepFrames = 0;
-        chain.isSleeping = false;
-      }
 
       // ── Collision sphere world-center pre-pass ────────────────────────
       // Update every sphere's worldCenter once before the per-bone loop.
@@ -610,16 +545,14 @@ export class SecondaryMotionSystem {
           }
         } else if (col.isSkinned) {
           // Skinned bounding-box fallback: O(vertex count) — correct but heavier.
-          // Phase 1 opt: throttle to every 4 frames and reuse pre-allocated scratch
-          // to avoid per-frame Box3/Vector3 allocation.
           // Use collisionSpheresDef to avoid this cost in production.
-          if (this._frameCount % 4 === 0) {
-            _s_box.setFromObject(col.trackNode);
-            _s_box.getSize(_s_boxSize);
-            _s_box.getCenter(col.worldCenter);
-            col.radius = Math.max(_s_boxSize.x, _s_boxSize.y, _s_boxSize.z) * 0.5;
-          }
-          // else: reuse cached col.worldCenter and col.radius from last recompute.
+          const box = new Box3().setFromObject(col.trackNode);
+          const size = new Vector3();
+          box.getSize(size);
+          box.getCenter(col.worldCenter);
+          // Largest axis half-extent — correct for sphere meshes, avoids the
+          // ~1.73x diagonal inflation from size.length() * 0.5.
+          col.radius = Math.max(size.x, size.y, size.z) * 0.5;
         } else {
           // Rigid mesh: transform local center by matrixWorld.
           col.worldCenter
@@ -671,9 +604,9 @@ export class SecondaryMotionSystem {
         const tipWeight = 0.3 + chainFactor * 0.7;
 
         // 1. Rest-pose tail in world space this frame.
-        _s_restTailWS
-          .copy(b.restTailDriverLocal)
-          .applyMatrix4(chain.driver.matrixWorld);
+_s_restTailWS
+  .copy(b.restTailDriverLocal)
+  .applyMatrix4(chain.driver.matrixWorld);
 
 
 
@@ -688,28 +621,28 @@ export class SecondaryMotionSystem {
           .addScaledVector(_s_down, gravity * b.boneLength);
 
         const speedSq = chain.smoothDriverVel.lengthSq();
-        const speed = Math.sqrt(speedSq);
-        const deadZone = 0.08;
+const speed = Math.sqrt(speedSq);
+const deadZone = 0.08;
 
-        if (speed > deadZone) {
+if (speed > deadZone) {
 
-          const normalizedSpeed = Math.min((speed - deadZone) / 2.0, 1.0);
-          const motionWeight = Math.pow(normalizedSpeed, 3.0);
+  const normalizedSpeed = Math.min((speed - deadZone) / 2.0, 1.0);
+  const motionWeight = Math.pow(normalizedSpeed, 3.0);
 
 
 
-          const baseInertia = speed * inertiaScale;
-          const weightedInertia = baseInertia * tipWeight * motionWeight;
-          const maxInertia = b.boneLength * 0.7;
+    const baseInertia = speed * inertiaScale;
+    const weightedInertia = baseInertia * tipWeight * motionWeight;
+      const maxInertia = b.boneLength * 0.7;
 
-          _s_inertia
-            .copy(chain.smoothDriverVel)
-            .normalize()
-            .negate()
-            .multiplyScalar(Math.min(weightedInertia, maxInertia));
+  _s_inertia
+    .copy(chain.smoothDriverVel)
+    .normalize()
+    .negate()
+    .multiplyScalar(Math.min(weightedInertia, maxInertia));
 
-          _s_springTarget.add(_s_inertia);
-        }
+  _s_springTarget.add(_s_inertia);
+}
 
         // 5. Verlet integrate.
         _s_vel.copy(b.simTail).sub(b.prevTail).multiplyScalar(damping);
@@ -725,11 +658,11 @@ export class SecondaryMotionSystem {
         // 6. Re-read head (parent may have been updated earlier this loop)
         //    then constrain tail to bone-length sphere.
         b.bone.getWorldPosition(_s_boneHeadWS);
-        _s_diff.copy(b.simTail).sub(_s_boneHeadWS);
-        const dist = _s_diff.length();
+      _s_diff.copy(b.simTail).sub(_s_boneHeadWS);
+const dist = _s_diff.length();
         if (dist > 1e-6) {
-          b.simTail
-            .copy(_s_diff)
+       b.simTail
+  .copy(_s_diff)
             .normalize()
             .multiplyScalar(b.boneLength)
             .add(_s_boneHeadWS);
@@ -766,7 +699,7 @@ export class SecondaryMotionSystem {
 
           // Degenerate: particle exactly at sphere center — eject up.
           if (penetrationDist <= 1e-6 && effectiveRadius > 0) {
-            b.simTail.copy(col.worldCenter).addScaledVector(_s_up, effectiveRadius);
+            b.simTail.copy(col.worldCenter).addScaledVector(new Vector3(0, 1, 0), effectiveRadius);
           }
         }
 
@@ -777,40 +710,37 @@ export class SecondaryMotionSystem {
         b.bone.getWorldPosition(_s_boneHeadWS);
 
         // Transform both tail endpoints into parent-local space.
-        _s_headLocal.copy(_s_boneHeadWS).applyMatrix4(_s_invParent);
+_s_headLocal.copy(_s_boneHeadWS).applyMatrix4(_s_invParent);
 
-        _s_restLocal
-          .copy(_s_restTailWS)
-          .applyMatrix4(_s_invParent)
-          .sub(_s_headLocal);
+_s_restLocal
+  .copy(_s_restTailWS)
+  .applyMatrix4(_s_invParent)
+  .sub(_s_headLocal);
 
-        _s_simLocal
-          .copy(b.simTail)
-          .applyMatrix4(_s_invParent)
-          .sub(_s_headLocal);
+_s_simLocal
+  .copy(b.simTail)
+  .applyMatrix4(_s_invParent)
+  .sub(_s_headLocal);
 
-        _s_restDir.copy(_s_restLocal).normalize();
-        _s_simDir.copy(_s_simLocal).normalize();
+     _s_restDir.copy(_s_restLocal).normalize();
+_s_simDir.copy(_s_simLocal).normalize();
 
-        // 8. SET bone quat = restLocalQuat * delta — stable version
-        if (
-          _s_restDir.lengthSq() > 1e-6 &&
-          _s_simDir.lengthSq() > 1e-6
-        ) {
-          _s_deltaQ.setFromUnitVectors(_s_restDir, _s_simDir);
+// 8. SET bone quat = restLocalQuat * delta — stable version
+if (
+  _s_restDir.lengthSq() > 1e-6 &&
+  _s_simDir.lengthSq() > 1e-6
+) {
+  _s_deltaQ.setFromUnitVectors(_s_restDir, _s_simDir);
 
-          b.bone.quaternion
-            .copy(b.restLocalQuat)
-            .multiply(_s_deltaQ)   // FIX: multiply (not premultiply)
-            .normalize();
-        } else {
-          b.bone.quaternion.slerp(b.restLocalQuat, 0.08);
-        }
+  b.bone.quaternion
+    .copy(b.restLocalQuat)
+    .multiply(_s_deltaQ)   // FIX: multiply (not premultiply)
+    .normalize();
+} else {
+  b.bone.quaternion.slerp(b.restLocalQuat, 0.08);
+}
       }
     }
-
-    // Increment frame counter — used for bounding-box throttle (every 4 frames).
-    this._frameCount++;
   }
 
   // ── Snapshot (for recording) ──────────────────────────────────────────────

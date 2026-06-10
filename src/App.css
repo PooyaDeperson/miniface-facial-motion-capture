@@ -25,6 +25,7 @@
 * {
   margin: 0;
   padding: 0;
+
 }
 
 /* Set base font settings */
@@ -50,6 +51,15 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #fff;
   color: #000;
+}
+
+* {
+  cursor: var(--cursor-default), auto;
+}
+
+button,
+button>* {
+  cursor: var(--cursor-pointer), auto;
 }
 
 /* Reset anchor styles */
@@ -724,7 +734,7 @@ textarea {
 
 /* Make buttons clickable */
 button {
-  cursor: pointer;
+  cursor: var(--cursor-pointer), auto;
 }
 
 /* Remove quotes from blockquotes/quotes */
@@ -882,12 +892,12 @@ p.subtitle.refresh-subtitle {
   background-size: cover;
   /* makes sure it fills nicely */
   /* border: none; */
-  cursor: pointer;
+  cursor: var(--cursor-pointer), auto;
   background-color: #fff;
 }
 
 .avatar-btn:disabled {
-  cursor: unset;
+  cursor: var(--cursor-default), auto;
 
 }
 
@@ -1406,7 +1416,7 @@ html {
   /* border-radius: 12px; */
   border: none;
   background: none;
-  cursor: pointer;
+  cursor: var(--cursor-pointer), auto;
   font-size: 24px;
   /* box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); */
   transition: transform 0.2s ease;
@@ -1747,7 +1757,7 @@ button:active,
 div.pattern-card,
 div.color-card,
 button.tab-button {
-  transition: scale 100ms ease-in-out, filter 100ms ease-in-out, transform 100ms ease-in-out;
+  transition: scale 100ms ease-in-out, filter 100ms ease-in-out, transform 50ms ease-in-out;
 }
 
 button:not(.avatar-btn, .rec-btn):hover {
@@ -1759,8 +1769,9 @@ button.secondary:active,
 button.avatar-btn:active,
 div.pattern-card:active,
 div.color-card:active,
-button.tab-button:active {
-  scale: 0.93;
+button.tab-button:active,
+.rec-btn:active {
+  transform: translateY(2px);
 }
 
 video.camera-feed {
@@ -1833,7 +1844,7 @@ button.cd-selected>.has-icon.selected-icon {
   width: 81px;
   height: 95px;
   /* border-radius: 12px; */
-  cursor: pointer;
+  cursor: var(--cursor-pointer), auto;
   transition: transform 0.2s ease, border 0.2s ease;
 
 }
@@ -1884,11 +1895,11 @@ button.icon-holder.tab-button:not(.active) {
 }
 
 canvas {
-  cursor: grab;
+  cursor: var(--cursor-drag), auto;
 }
 
 canvas:active {
-  cursor: grabbing;
+  cursor: var(--cursor-dragging), auto;
 }
 
 /* ------------------------ ------------------------ end of tablet and greater styles */
@@ -1954,7 +1965,7 @@ canvas:active {
   /* font-size: 0.875rem; */
   font-weight: 500;
   letter-spacing: 0.02em;
-  cursor: pointer;
+  cursor: var(--cursor-pointer), auto;
   /* border: none;
   outline: none; */
   transition: opacity 0.15s ease, transform 0.1s ease, background 0.2s ease;
@@ -1962,9 +1973,7 @@ canvas:active {
   user-select: none;
 }
 
-.rec-btn:active {
-  transform: scale(0.96);
-}
+
 
 .rec-btn:disabled {
   opacity: 0.55;
@@ -2206,8 +2215,14 @@ canvas:active {
   }
 }
 
-/* ── AvatarSwitcher disabled state (recording or review phase) ── */
-.avatar-switcher.switcher-disabled {
+.camera-feed {
+  transform-origin: top left;
+  transition: transform 0.1s ease;
+  transform: scale(1);
+  animation: scale-reset 0.1s ease forwards;
+}
+
+.switcher-disabled {
   opacity: 0.4;
   pointer-events: none;
   cursor: not-allowed;
@@ -2215,18 +2230,20 @@ canvas:active {
   opacity: 0.5 !important;
   /* right: -54px !important; */
   /* position: relative; or absolute/fixed if needed */
+
+}
+
+/* ── AvatarSwitcher disabled state (recording or review phase) ── */
+.avatar-switcher.switcher-disabled {
   animation: hide-right 0.3s ease forwards;
 }
 
 .popup-container.selector-container.switcher-disabled {
-  opacity: 0.4;
-  pointer-events: none;
-  cursor: not-allowed;
-  transition: all 0.2s ease;
-  opacity: 0.5 !important;
-
   animation: hide-bottom 0.3s ease forwards;
+}
 
+.camera-feed.switcher-disabled {
+  animation: scale-topleft 0.2s ease forwards;
 }
 
 @keyframes hide-right {
@@ -2250,6 +2267,30 @@ canvas:active {
   100% {
     opacity: 0.5;
     bottom: -64px;
+  }
+}
+
+@keyframes scale-topleft {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0.5;
+    transform: scale(0.3);
+  }
+}
+
+@keyframes scale-reset {
+  0% {
+    opacity: 0.5;
+    transform: scale(0.3);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 

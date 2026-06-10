@@ -10,7 +10,7 @@
  */
 
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import CustomDropdown, { Option } from "./components/CustomDropdown";
 import PermissionPopup from "./components/PermissionPopup";
 
@@ -29,16 +29,24 @@ const VideoIcon = (
 
 interface CameraPermissionsProps {
   onStreamReady: (stream: MediaStream) => void;
+  disabled?: boolean;
 }
 
-export default function CameraPermissions({ onStreamReady }: CameraPermissionsProps) {
+export default function CameraPermissions({ onStreamReady, disabled }: CameraPermissionsProps) {
   const [permissionState, setPermissionState] = useState<"prompt" | "denied" | "granted">("prompt");
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string | null>(null);
-  const [showPromptPopup, setShowPromptPopup] = useState(false);
+  const activeStreamRef = useRef<MediaStream | null>(null);
 
   const requestCamera = async (deviceId?: string) => {
     try {
+      // Stop any previously active tracks before opening a new stream so the
+      // old camera is released and we don't accumulate stale MediaStreamTracks.
+      if (activeStreamRef.current) {
+        activeStreamRef.current.getTracks().forEach((t) => t.stop());
+        activeStreamRef.current = null;
+      }
+
       // On mobile, strict resolution constraints (e.g. 1280x720) cause
       // getUserMedia to fail or return a degraded stream on many Samsung/Xiaomi
       // front cameras. Use ideal (not exact) constraints so the browser can
@@ -55,10 +63,8 @@ export default function CameraPermissions({ onStreamReady }: CameraPermissionsPr
         audio: false,
       };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      activeStreamRef.current = stream;
       setPermissionState("granted");
-
-      const video = document.getElementById("video") as HTMLVideoElement;
-      if (video) video.srcObject = stream;
 
       onStreamReady(stream);
     } catch (err: any) {
@@ -85,7 +91,7 @@ export default function CameraPermissions({ onStreamReady }: CameraPermissionsPr
   const handleCameraChange = (deviceId: string) => {
     setSelectedCamera(deviceId);
     localStorage.setItem("selectedCamera", deviceId);
-    setShowPromptPopup(true);
+    requestCamera(deviceId);
   };
 
   useEffect(() => {
@@ -145,7 +151,7 @@ export default function CameraPermissions({ onStreamReady }: CameraPermissionsPr
       })()}
 
       {permissionState === "granted" && cameras.length > 1 && (
-        <div className="cp-dropdown pos-abs reveal fade scaleIn top-0 right-0 tb:left-0 tb:display-table z-9991 m-6">
+        <div className={`camera-selection cp-dropdown pos-abs reveal fade scaleIn top-0 right-0 tb:left-0 tb:display-table z-9991 m-6${disabled ? " switcher-disabled" : ""}`}>
           <CustomDropdown
             options={dropdownOptions}
             value={selectedCamera}
@@ -155,16 +161,6 @@ export default function CameraPermissions({ onStreamReady }: CameraPermissionsPr
         </div>
       )}
 
-      {showPromptPopup && (
-        <PermissionPopup
-          variant="prompt"
-          title="Refresh to animate your character!"
-          subtitle="You changed the camera. Please refresh the page to see the animation in action."
-          buttonText="Refresh page"
-          onClick={() => window.location.reload()}
-          showButton
-        />
-      )}
     </>
   );
 }
