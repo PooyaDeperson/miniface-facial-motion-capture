@@ -63,6 +63,7 @@ function Avatar({ url, onLoaded }: AvatarProps) {
     if (nodes.Wolf3D_Head_Custom) headMesh.push(nodes.Wolf3D_Head_Custom);
     if (nodes.avatar) headMesh.push(nodes.avatar);
     if (nodes.Avatar) headMesh.push(nodes.Avatar);
+    if (nodes.face) headMesh.push(nodes.face);
 
     setSceneForExport(scene, nodes, headMesh as Mesh[]);
 
