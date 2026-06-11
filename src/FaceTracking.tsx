@@ -58,10 +58,12 @@ function FaceTracking({
   videoStream,
   onMediapipeReady,
   disabled,
+  isFlipped,
 }: {
   videoStream: MediaStream;
   onMediapipeReady?: () => void;
   disabled?: boolean;
+  isFlipped: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const workerRef = useRef<Worker | null>(null);
@@ -226,7 +228,7 @@ function FaceTracking({
     autoPlay
     playsInline
     muted
-    className="br-2 flipped-x"
+    className={`br-2 ${isFlipped ? "flipped-x" : ""}`}
     style={{}}
   />
 </div>

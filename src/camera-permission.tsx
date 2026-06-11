@@ -30,9 +30,11 @@ const VideoIcon = (
 interface CameraPermissionsProps {
   onStreamReady: (stream: MediaStream) => void;
   disabled?: boolean;
+  isFlipped: boolean;
+  setIsFlipped: (value: boolean) => void;
 }
 
-export default function CameraPermissions({ onStreamReady, disabled }: CameraPermissionsProps) {
+export default function CameraPermissions({ onStreamReady, disabled, isFlipped, setIsFlipped }: CameraPermissionsProps) {
   const [permissionState, setPermissionState] = useState<"prompt" | "denied" | "granted">("prompt");
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string | null>(null);
@@ -134,7 +136,7 @@ export default function CameraPermissions({ onStreamReady, disabled }: CameraPer
         {permissionState === "denied" && (() => {
           const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
           return (
-        
+
             <PermissionPopup
               variant="denied"
               title="oh... you haven't given camera access yet."
@@ -161,11 +163,12 @@ export default function CameraPermissions({ onStreamReady, disabled }: CameraPer
             />
           </div>
         )}
-            <button
-              className="flex video-flip-switcher icon-holder br-12 tab-button size-30"
-              >
-                <span className="has-icon icon-size-18 flip-icon"></span>
-            </button>
+        <button
+          className="flex video-flip-switcher icon-holder br-12 tab-button size-30 mb:size-48"
+          onClick={() => setIsFlipped(!isFlipped)}
+        >
+          <span className={`has-icon icon-size-18 flip-icon ${isFlipped ? "flipped" : ""}`}></span>
+        </button>
       </div>
     </>
   );

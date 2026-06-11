@@ -20,9 +20,10 @@ interface AvatarCanvasProps {
   url: string | null;
   avatarKey: number;
   setAvatarReady: (ready: boolean) => void;
+  isFlipped: boolean;
 }
 
-const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarReady }) => {
+const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarReady, isFlipped }) => {
   const [loading, setLoading] = useState(true);
 
   const cameraPosition = [-0.0, 1.62, 1.09] as [number, number, number];
@@ -49,7 +50,7 @@ const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarRe
 
 
       <Canvas
-        className="avatar-container mb:pos tb:avatar-pos bottom-0 pos-abs-important z-1 flipped-x"
+        className={`avatar-container mb:pos tb:avatar-pos bottom-0 pos-abs-important z-1 ${isFlipped ? "flipped-x" : ""}`}
         camera={{
           fov: 27,
           position: cameraPosition,
