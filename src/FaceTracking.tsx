@@ -217,7 +217,7 @@ function FaceTracking({
   return (
     <div
   id="video"
-  className={`camera-feed flipped-x w-1 tb:w-400 br-12 tb:br-24 m-4${
+  className={`camera-feed w-1 tb:w-400 br-12 tb:br-24 m-4${
     disabled ? " switcher-disabled" : ""
   }`}
 >
@@ -226,7 +226,7 @@ function FaceTracking({
     autoPlay
     playsInline
     muted
-    className="br-2"
+    className="br-2 flipped-x"
     style={{}}
   />
 </div>

@@ -1863,7 +1863,12 @@ button.icon-holder.tab-button:not(.active) {
 .has-icon.pattern-icon {
   background: no-repeat center / contain var(--pattern-icon);
 }
-
+.has-icon.flip-icon {
+  background: no-repeat center / contain var(--flip-icon);
+}
+.has-icon.flipped {
+  transform: scaleX(-1);
+}
 /* pattern icon */
 .has-icon.color-icon {
   background: no-repeat center / contain var(--color-icon);
@@ -1888,7 +1893,12 @@ button.icon-holder.tab-button:not(.active) {
 }
 
 
-
+.flipped-x {
+  transform: scaleX(-1);
+}
+.flipped-y {
+  transform: scaleY(-1);
+}
 
 @media (min-width:1025px) and (orientation: landscape),
 (max-height:400px),

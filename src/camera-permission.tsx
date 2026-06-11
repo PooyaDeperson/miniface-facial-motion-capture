@@ -120,7 +120,7 @@ export default function CameraPermissions({ onStreamReady, disabled }: CameraPer
   return (
     <>
 
-      <div className={`flex flex-row gap-1 pos-abs reveal fade scaleIn top-0 right-0 tb:left-0 z-9991 m-6`}>
+      <div className={`flex flex-row flex-start gap-1 pos-abs reveal fade scaleIn top-0 right-0 tb:left-0 z-9991 m-6`}>
         {permissionState === "prompt" && (
           <PermissionPopup
             variant="prompt"
@@ -164,7 +164,7 @@ export default function CameraPermissions({ onStreamReady, disabled }: CameraPer
             <button
               className="flex video-flip-switcher icon-holder br-12 tab-button size-30"
               >
-                <span className="has-icon icon-size-18 pattern-icon"></span>
+                <span className="has-icon icon-size-18 flip-icon"></span>
             </button>
       </div>
     </>
