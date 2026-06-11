@@ -64,7 +64,10 @@ const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarRe
         <pointLight position={[-10, 0, 10]} intensity={50} castShadow />
         <pointLight position={[0, 0, 10]} intensity={0.5} castShadow />
 
-        <AvatarOrbitControls target={avatarCenter} enableZoom={true} isFlipped={isFlipped}/>
+        <AvatarOrbitControls 
+        target={avatarCenter} 
+        enableZoom={true} 
+        isFlipped={isFlipped}/>
 
         {url && (
           <Suspense fallback={null}>
