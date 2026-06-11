@@ -298,6 +298,10 @@ svg {
   flex-direction: row;
 }
 
+.flex-row-reverse {
+  flex-direction: row-reverse;
+}
+
 .row-reverse {
   flex-direction: row-reverse;
 }
@@ -1427,8 +1431,13 @@ html {
 }
 
 .tab-button.size-48 {
-  width: 48px;
-  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+}
+
+.tab-button.size-30 {
+  width: 30px;
+  height: 30px;
 }
 
 
@@ -1457,7 +1466,7 @@ html {
 .flex-row {
   display: flex;
   flex-direction: row;
-  align-items: center;
+  /* align-items: center; */
 }
 
 /* selection cards and buttons rotation */
@@ -1561,13 +1570,29 @@ svg {
 
   .avatar-container.mb\:pos {
 
-    --scale: 1.05;
+    /* --scale: 1.05; */
     /* 1 = normal, 1.1 = +10%, 0.9 = -10% */
     transform: translateX(calc(-100% * (var(--scale) - 1))) scale(var(--scale));
-    transform-origin: left bottom;
+    transform-origin: center bottom;
     transition: transform 0.3s ease;
   }
 
+  .tab-button.mb\:size-48 {
+    min-width: 48px;
+    min-height: 48px;
+  }
+
+  .tab-button.mb\:size-30 {
+    width: 30px;
+    height: 30px;
+  }
+    .mb\:flex-row {
+    flex-direction: row;
+  }
+
+  .mb\:flex-row-reverse {
+    flex-direction: row-reverse;
+  }
   .mb\:camera-dropdown {
 
     width: 48px;
@@ -1860,6 +1885,14 @@ button.icon-holder.tab-button:not(.active) {
   background: no-repeat center / contain var(--pattern-icon);
 }
 
+.has-icon.flip-icon {
+  background: no-repeat center / contain var(--flip-icon);
+}
+
+.has-icon.flipped {
+  transform: scaleX(-1);
+}
+
 /* pattern icon */
 .has-icon.color-icon {
   background: no-repeat center / contain var(--color-icon);
@@ -1884,7 +1917,9 @@ button.icon-holder.tab-button:not(.active) {
 }
 
 
-
+.flipped-x {
+  scale: -1 1 1;
+}
 
 @media (min-width:1025px) and (orientation: landscape),
 (max-height:400px),

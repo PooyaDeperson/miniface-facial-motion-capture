@@ -30,9 +30,11 @@ const VideoIcon = (
 interface CameraPermissionsProps {
   onStreamReady: (stream: MediaStream) => void;
   disabled?: boolean;
+  isFlipped: boolean;
+  setIsFlipped: (value: boolean) => void;
 }
 
-export default function CameraPermissions({ onStreamReady, disabled }: CameraPermissionsProps) {
+export default function CameraPermissions({ onStreamReady, disabled, isFlipped, setIsFlipped }: CameraPermissionsProps) {
   const [permissionState, setPermissionState] = useState<"prompt" | "denied" | "granted">("prompt");
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string | null>(null);
@@ -119,48 +121,55 @@ export default function CameraPermissions({ onStreamReady, disabled }: CameraPer
 
   return (
     <>
-      {permissionState === "prompt" && (
-        <PermissionPopup
-          variant="prompt"
-          title="pssst… give camera access to animate!"
-          subtitle="use your camera for fun face animation! by tapping 'let’s go & allow,' you agree to camera and cookie use."
-          buttonText="let’s go & allow"
-          onClick={() => requestCamera(selectedCamera || undefined)}
-          showButton
-        />
-      )}
 
-      {permissionState === "denied" && (() => {
-        const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-        return (
+      <div className={`flex flex-row flex-start gap-1 pos-abs reveal fade scaleIn top-0 right-0 tb:left-0 z-9991 m-6`}>
+        {permissionState === "prompt" && (
           <PermissionPopup
-            variant="denied"
-            title="oh... you haven't given camera access yet."
-            image={isMobile
-              ? "/images/app/explainers/campermission-denied-mobile.webp"
-              : "/images/app/explainers/campermission-denied-pc.webp"
-            }
-            imagAlt={isMobile
-              ? "How to enable camera permission on mobile"
-              : "How to enable camera permission on desktop"
-            }
-            subtitle="at the top, tap the Site Info icon and enable the camera toggle in the settings."
-            showButton={false}
+            variant="prompt"
+            title="pssst… give camera access to animate!"
+            subtitle="use your camera for fun face animation! by tapping 'let’s go & allow,' you agree to camera and cookie use."
+            buttonText="let’s go & allow"
+            onClick={() => requestCamera(selectedCamera || undefined)}
+            showButton
           />
-        );
-      })()}
+        )}
+        {permissionState === "denied" && (() => {
+          const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+          return (
 
-      {permissionState === "granted" && cameras.length > 1 && (
-        <div className={`camera-selection cp-dropdown pos-abs reveal fade scaleIn top-0 right-0 tb:left-0 tb:display-table z-9991 m-6${disabled ? " switcher-disabled" : ""}`}>
-          <CustomDropdown
-            options={dropdownOptions}
-            value={selectedCamera}
-            onChange={handleCameraChange}
-            placeholder="Select camera"
-          />
-        </div>
-      )}
-
+            <PermissionPopup
+              variant="denied"
+              title="oh... you haven't given camera access yet."
+              image={isMobile
+                ? "/images/app/explainers/campermission-denied-mobile.webp"
+                : "/images/app/explainers/campermission-denied-pc.webp"
+              }
+              imagAlt={isMobile
+                ? "How to enable camera permission on mobile"
+                : "How to enable camera permission on desktop"
+              }
+              subtitle="at the top, tap the Site Info icon and enable the camera toggle in the settings."
+              showButton={false}
+            />
+          );
+        })()}
+        {permissionState === "granted" && cameras.length > 1 && (
+          <div className={`flex camera-selection cp-dropdown ${disabled ? " switcher-disabled" : ""}`}>
+            <CustomDropdown
+              options={dropdownOptions}
+              value={selectedCamera}
+              onChange={handleCameraChange}
+              placeholder="Select camera"
+            />
+          </div>
+        )}
+        <button
+          className="flex video-flip-switcher icon-holder br-12 tab-button size-30 mb:size-48"
+          onClick={() => setIsFlipped(!isFlipped)}
+        >
+          <span className={`has-icon icon-size-18 flip-icon ${isFlipped ? "flipped" : ""}`}></span>
+        </button>
+      </div>
     </>
   );
 }
