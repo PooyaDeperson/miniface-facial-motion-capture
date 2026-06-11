@@ -1430,6 +1430,10 @@ html {
   width: 48px;
   height: 48px;
 }
+.tab-button.size-30 {
+  width: 30px;
+  height: 30px;
+}
 
 
 
