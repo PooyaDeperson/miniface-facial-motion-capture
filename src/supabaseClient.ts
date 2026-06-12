@@ -5,47 +5,30 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-// ── Project configs ──────────────────────────────────────────────────────────
-const PROD = {
-  url: "https://zblmtezhaqcknkleswts.supabase.co",
-  anonKey:
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpibG10ZXpoYXFja25rbGVzd3RzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzkwODQsImV4cCI6MjA5Njg1NTA4NH0.W6qIQ-tZASWN_VK3ovIHRZODFrPKMxyctH2EEn_MQEs",
-};
-
-const STAGE = {
-  url: "https://zdzlbxxnajouvqhovnfs.supabase.co",
-  anonKey:
-    "sb_publishable_39kb1ww30HcIie3KkN5IBg_z5sjo-YG",
-};
-
 // ── Environment detection ────────────────────────────────────────────────────
-// Priority order:
-//   1. Explicit REACT_APP_SUPABASE_URL / ANON_KEY  → always wins (Vercel prod deployment)
-//   2. Explicit REACT_APP_SUPABASE_STAGE_URL / ANON_KEY → stage deployment
-//   3. Hostname check: facemocap.radframes.com → PROD inline values
-//   4. Everything else (localhost, preview, stage host) → STAGE inline values
+// On facemocap.radframes.com → use REACT_APP_SUPABASE_URL / ANON_KEY (prod vars).
+// On every other host       → use REACT_APP_SUPABASE_STAGE_URL / STAGE_ANON_KEY.
+// Set the matching pair in Vercel's Environment Variables for each deployment.
 
 const isProductionHost =
   typeof window !== "undefined" &&
   window.location.hostname === "facemocap.radframes.com";
 
-const explicitProdUrl = process.env.REACT_APP_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const explicitProdKey =
-  process.env.REACT_APP_SUPABASE_ANON_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  process.env.SUPABASE_ANON_PUBLIC;
+const supabaseUrl = isProductionHost
+  ? process.env.REACT_APP_SUPABASE_URL
+  : process.env.REACT_APP_SUPABASE_STAGE_URL;
 
-const explicitStageUrl = process.env.REACT_APP_SUPABASE_STAGE_URL;
-const explicitStageKey = process.env.REACT_APP_SUPABASE_STAGE_ANON_KEY;
+const supabaseAnonKey = isProductionHost
+  ? process.env.REACT_APP_SUPABASE_ANON_KEY
+  : process.env.REACT_APP_SUPABASE_STAGE_ANON_KEY;
 
-const supabaseUrl =
-  explicitProdUrl ||
-  explicitStageUrl ||
-  (isProductionHost ? PROD.url : STAGE.url);
-
-const supabaseAnonKey =
-  explicitProdKey ||
-  explicitStageKey ||
-  (isProductionHost ? PROD.anonKey : STAGE.anonKey);
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    `[supabase] Missing env vars for ${isProductionHost ? "production" : "stage"}. ` +
+    `Expected ${isProductionHost
+      ? "REACT_APP_SUPABASE_URL + REACT_APP_SUPABASE_ANON_KEY"
+      : "REACT_APP_SUPABASE_STAGE_URL + REACT_APP_SUPABASE_STAGE_ANON_KEY"}.`
+  );
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
