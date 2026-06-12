@@ -2329,6 +2329,22 @@ canvas:active {
   }
 }
 
+/* ── Auth Modal ── */
+.auth-popup .inner-container {
+  display: flex;
+  flex-direction: column;
+}
+
+button.button.primary.w-full {
+  width: 100%;
+  border-radius: 999px;
+}
+
+/* Google sign-in button override — light surface */
+button.button.primary.w-full[style*="gray-100"] {
+  margin-top: 0;
+}
+
 @keyframes recording-pulse {
   0% {
     outline-color: var(--outline-danger)
