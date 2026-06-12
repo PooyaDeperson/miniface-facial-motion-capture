@@ -19,20 +19,33 @@ const STAGE = {
 };
 
 // ── Environment detection ────────────────────────────────────────────────────
-// Env vars take priority (set in Vercel project settings per deployment).
-// Fallback: detect by hostname so localhost / stage preview use STAGE config.
-const isProduction =
+// Priority order:
+//   1. Explicit REACT_APP_SUPABASE_URL / ANON_KEY  → always wins (Vercel prod deployment)
+//   2. Explicit REACT_APP_SUPABASE_STAGE_URL / ANON_KEY → stage deployment
+//   3. Hostname check: facemocap.radframes.com → PROD inline values
+//   4. Everything else (localhost, preview, stage host) → STAGE inline values
+
+const isProductionHost =
   typeof window !== "undefined" &&
   window.location.hostname === "facemocap.radframes.com";
 
-const envUrl =
-  process.env.REACT_APP_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const envKey =
+const explicitProdUrl = process.env.REACT_APP_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+const explicitProdKey =
   process.env.REACT_APP_SUPABASE_ANON_KEY ||
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   process.env.SUPABASE_ANON_PUBLIC;
 
-const supabaseUrl = envUrl || (isProduction ? PROD.url : STAGE.url);
-const supabaseAnonKey = envKey || (isProduction ? PROD.anonKey : STAGE.anonKey);
+const explicitStageUrl = process.env.REACT_APP_SUPABASE_STAGE_URL;
+const explicitStageKey = process.env.REACT_APP_SUPABASE_STAGE_ANON_KEY;
+
+const supabaseUrl =
+  explicitProdUrl ||
+  explicitStageUrl ||
+  (isProductionHost ? PROD.url : STAGE.url);
+
+const supabaseAnonKey =
+  explicitProdKey ||
+  explicitStageKey ||
+  (isProductionHost ? PROD.anonKey : STAGE.anonKey);
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
