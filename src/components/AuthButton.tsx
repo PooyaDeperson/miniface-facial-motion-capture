@@ -29,28 +29,41 @@ export default function AuthButton() {
   return (
     <>
       <button
-        className="tab-button icon-holder br-12 reveal fade anim-delay-1"
+        className="tab-button br-12 reveal fade anim-delay-1"
         onClick={() => setShowModal(true)}
         aria-label={user ? "Account" : "Sign in"}
-        title={user ? (user.user_metadata?.full_name ?? user.email ?? "Account") : "Sign in"}
-        style={{ padding: "6px 10px", minWidth: "36px", minHeight: "36px" }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          padding: "6px 14px",
+          minHeight: "36px",
+        }}
       >
         {user?.user_metadata?.avatar_url ? (
-          <img
-            src={user.user_metadata.avatar_url}
-            alt={user.user_metadata?.full_name ?? "avatar"}
-            style={{ width: "24px", height: "24px", borderRadius: "50%", objectFit: "cover" }}
-          />
-        ) : (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle cx="12" cy="8" r="4" stroke="var(--purple-900)" strokeWidth="2" />
-            <path
-              d="M4 20c0-4 3.6-7 8-7s8 3 8 7"
-              stroke="var(--purple-900)"
-              strokeWidth="2"
-              strokeLinecap="round"
+          <>
+            <img
+              src={user.user_metadata.avatar_url}
+              alt={user.user_metadata?.full_name ?? "avatar"}
+              style={{ width: "22px", height: "22px", borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
             />
-          </svg>
+            <span style={{ fontSize: "13px", fontWeight: 500, maxWidth: "120px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {user.user_metadata?.given_name ?? user.user_metadata?.full_name ?? user.email ?? "Account"}
+            </span>
+          </>
+        ) : (
+          <>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+              <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2" />
+              <path
+                d="M4 20c0-4 3.6-7 8-7s8 3 8 7"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+            <span style={{ fontSize: "13px", fontWeight: 500 }}>Log in</span>
+          </>
         )}
       </button>
 
