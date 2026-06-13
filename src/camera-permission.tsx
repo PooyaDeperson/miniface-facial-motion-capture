@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2025 Pooya Moradi M. poamrd@gmail.com https://github.com/PooyaDeperson
  * Licensed under the MIT License with Attribution.
@@ -121,38 +120,40 @@ export default function CameraPermissions({ onStreamReady, disabled, isFlipped, 
 
   return (
     <>
-
-      <div className={`flex flex-row flex-start gap-1 pos-abs reveal fade scaleIn top-0 right-0 tb:left-0 z-9991 m-6`}>
-        {permissionState === "prompt" && (
+      {/* Permission popup at root level - above the control div */}
+      {permissionState === "prompt" && (
+        <PermissionPopup
+          variant="prompt"
+          title="pssst… give camera access to animate!"
+          subtitle="use your camera for fun face animation! by tapping 'let's go & allow,' you agree to camera and cookie use."
+          buttonText="let's go & allow"
+          onClick={() => requestCamera(selectedCamera || undefined)}
+          showButton
+        />
+      )}
+      
+      {permissionState === "denied" && (() => {
+        const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+        return (
           <PermissionPopup
-            variant="prompt"
-            title="pssst… give camera access to animate!"
-            subtitle="use your camera for fun face animation! by tapping 'let’s go & allow,' you agree to camera and cookie use."
-            buttonText="let’s go & allow"
-            onClick={() => requestCamera(selectedCamera || undefined)}
-            showButton
+            variant="denied"
+            title="oh... you haven't given camera access yet."
+            image={isMobile
+              ? "/images/app/explainers/campermission-denied-mobile.webp"
+              : "/images/app/explainers/campermission-denied-pc.webp"
+            }
+            imagAlt={isMobile
+              ? "How to enable camera permission on mobile"
+              : "How to enable camera permission on desktop"
+            }
+            subtitle="at the top, tap the Site Info icon and enable the camera toggle in the settings."
+            showButton={false}
           />
-        )}
-        {permissionState === "denied" && (() => {
-          const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-          return (
+        );
+      })()}
 
-            <PermissionPopup
-              variant="denied"
-              title="oh... you haven't given camera access yet."
-              image={isMobile
-                ? "/images/app/explainers/campermission-denied-mobile.webp"
-                : "/images/app/explainers/campermission-denied-pc.webp"
-              }
-              imagAlt={isMobile
-                ? "How to enable camera permission on mobile"
-                : "How to enable camera permission on desktop"
-              }
-              subtitle="at the top, tap the Site Info icon and enable the camera toggle in the settings."
-              showButton={false}
-            />
-          );
-        })()}
+      {/* Main control div */}
+      <div className={`flex flex-row flex-start gap-1 pos-abs reveal fade scaleIn top-0 left-0 z-9991 m-6`}>
         {permissionState === "granted" && cameras.length > 1 && (
           <div className={`flex camera-selection cp-dropdown ${disabled ? " switcher-disabled" : ""}`}>
             <CustomDropdown
