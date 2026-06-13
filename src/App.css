@@ -567,6 +567,7 @@ svg {
 .mt-2 {
   margin-top: 2px;
 }
+
 .mt-4 {
   margin-top: 4px;
 }
@@ -1142,6 +1143,12 @@ button {
   letter-spacing: -0px;
 }
 
+.text.sm {
+  font-size: 13px;
+  font-weight: 500;
+
+}
+
 
 html {
   overflow: hidden;
@@ -1448,7 +1455,17 @@ html {
 }
 
 
+.text-center {
+  text-align: center;
+}
 
+.text-left {
+  text-align: left;
+}
+
+.text-right {
+  text-align: right;
+}
 
 .selector-inner-container {
   display: flex;

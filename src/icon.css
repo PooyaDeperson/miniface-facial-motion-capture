@@ -14,6 +14,7 @@
   --selected-icon: url('../public/images/app/icons/icon_selected.svg');
   --camera-icon: url('../public/images/app/icons/icon_camera.svg');
   --google-icon: url('../public/images/app/icons/icon_google.svg');
+  --login-icon: url('../public/images/app/icons/icon_login.svg');
   --dropdown-icon: url('../public/images/app/icons/icon_dropdown.svg');
   --circle-tile: url('../public/images/app/icons/icon_bkg_tile.svg');
   --color-icon: url('../public/images/app/icons/icon_color.svg');
@@ -63,6 +64,9 @@
 }
 .has-icon.google-icon {
   background: no-repeat center / contain var(--google-icon);
+}
+.has-icon.login-icon {
+  background: no-repeat center / contain var(--login-icon);
 }
 
 

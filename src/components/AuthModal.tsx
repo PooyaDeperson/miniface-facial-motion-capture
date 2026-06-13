@@ -188,13 +188,8 @@ export default function AuthModal({ onClose }: AuthModalProps) {
               </button>
 
               <p
-                className="subtitle mt-8"
-                style={{
-                  fontSize: "13px",
-                  color: "var(--text-tertiary)",
-                  textAlign: "center",
-                  lineHeight: "1.5",
-                }}
+                className="text sm text-muted text-center mt-8"
+             
               >
                 hey, reminder by continuing you agree cookie use.
               </p>
