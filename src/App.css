@@ -68,6 +68,7 @@ a {
   text-decoration: underline;
   color: inherit;
 }
+
 /* Remove list styles */
 ul,
 ol {
@@ -1646,10 +1647,22 @@ svg {
     display: none;
   }
 }
+
 .avatar-image-containter {
   left: 20px;
-    top: -46px;
+  top: -40px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--purple-200);
+  display: flex;
+  alignItems: center;
+  justifyContent: center;
+  fontSize: 24px;
+  margin: 0 auto;
+  outline: 4px solid var(--gray-100-op50);
 }
+
 /* ------------------------ ------------------------ mobile first styles */
 .w-1 {
   max-width: 100px;

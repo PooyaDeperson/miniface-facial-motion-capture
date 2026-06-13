@@ -105,17 +105,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
             <div className="flex-col" style={{ gap: "16px", paddingBottom: "8px" }}>
               <div
               className="avatar-image-containter pos-abs"
-                style={{
-                  width: "56px",
-                  height: "56px",
-                  borderRadius: "50%",
-                  background: "var(--purple-200)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "24px",
-                  margin: "0 auto",
-                }}
+               
                 aria-hidden="true"
               >
                 {user.user_metadata?.avatar_url ? (
@@ -137,7 +127,8 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                 </h1>
                 <p className="subtitle prompt-subtitle">
                   you are connected as, <br/>
-                  {user.email}, you can disconnect from here. Sad to see you go.
+                  {user.email},<br/>
+                  you can disconnect from here. Sad to see you go.
                 </p>
               </div>
 
