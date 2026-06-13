@@ -1646,7 +1646,10 @@ svg {
     display: none;
   }
 }
-
+.avatar-image-containter {
+  left: 20px;
+    top: -33px;
+}
 /* ------------------------ ------------------------ mobile first styles */
 .w-1 {
   max-width: 100px;
@@ -2039,7 +2042,7 @@ button.icon-holder.tab-button:not(.active) {
 
 .popup-container {
   min-height: 72px;
-  overflow: hidden;
+  /* overflow: hidden; */
   min-width: 128px;
   max-width: 360px;
   max-height: 330px;

@@ -104,6 +104,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
             /* ── Signed-in state ── */
             <div className="flex-col items-center" style={{ gap: "16px", textAlign: "center", paddingBottom: "8px" }}>
               <div
+              className="avatar-image-containter pos-abs"
                 style={{
                   width: "56px",
                   height: "56px",
