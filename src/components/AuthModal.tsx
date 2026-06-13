@@ -147,7 +147,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                 disabled={loading}
                 style={{ marginTop: "8px" }}
               >
-                {loading ? "signing out…" : "sign out"}
+                {loading ? "disconnecting..." : "disconnect"}
               </button>
             </div>
           ) : (
