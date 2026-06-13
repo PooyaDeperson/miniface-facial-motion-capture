@@ -1652,8 +1652,8 @@ svg {
   left: 20px;
   top: -40px;
   width: 56px;
-  height: 56px,
-    borderRadius:50%;
+  height: 56px;
+  border-radius: 50%;
   background: var(--purple-200);
   display: flex;
   alignItems: center;
