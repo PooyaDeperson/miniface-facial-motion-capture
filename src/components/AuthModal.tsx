@@ -102,7 +102,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
 
           {user ? (
             /* ── Signed-in state ── */
-            <div className="flex-col items-center" style={{ gap: "16px", textAlign: "center", paddingBottom: "8px" }}>
+            <div className="flex-col" style={{ gap: "16px", textAlign: "center", paddingBottom: "8px" }}>
               <div
               className="avatar-image-containter pos-abs"
                 style={{
