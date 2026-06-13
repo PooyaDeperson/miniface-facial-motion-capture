@@ -57,6 +57,7 @@ body {
   cursor: var(--cursor-default), auto;
 }
 
+a,
 button,
 button>* {
   cursor: var(--cursor-pointer), auto;
@@ -64,10 +65,9 @@ button>* {
 
 /* Reset anchor styles */
 a {
-  text-decoration: none;
+  text-decoration: underline;
   color: inherit;
 }
-
 /* Remove list styles */
 ul,
 ol {

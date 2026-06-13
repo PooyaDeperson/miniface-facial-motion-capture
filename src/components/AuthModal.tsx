@@ -154,7 +154,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
               <div className="flex-col">
                 <h1 className="title prompt-title">Connect to save your motion and stream foreverrrrrrrrrrrrrrrrr....</h1>
                 <p className="subtitle prompt-subtitle">
-                  It's easier than ever, just use your Google account.
+                  just use your Google account, also by continuing you agree to <a className="" href="/cookies" target="_blank">cookies</a>
                 </p>
               </div>
 
@@ -186,13 +186,6 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                   </>
                 )}
               </button>
-
-              <p
-                className="text sm text-muted text-center mt-8"
-             
-              >
-                hey, reminder by continuing you agree cookie use.
-              </p>
             </div>
           )}
         </div>
