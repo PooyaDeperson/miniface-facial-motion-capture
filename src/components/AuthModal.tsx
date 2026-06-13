@@ -102,7 +102,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
 
           {user ? (
             /* ── Signed-in state ── */
-            <div className="flex-col" style={{ gap: "16px", textAlign: "center", paddingBottom: "8px" }}>
+            <div className="flex-col" style={{ gap: "16px", paddingBottom: "8px" }}>
               <div
               className="avatar-image-containter pos-abs"
                 style={{
@@ -131,12 +131,13 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                 )}
               </div>
 
-              <div style={{ gap: "4px" }} className="flex-col">
-                <h1 className="title prompt-title" style={{ textAlign: "center" }}>
-                  {user.user_metadata?.full_name ?? "welcome back"}
+              <div className="flex-col gap-4">
+                <h1 className="title prompt-title">
+                  hey, {user.user_metadata?.full_name ?? "welcome back"}
                 </h1>
-                <p className="subtitle prompt-subtitle" style={{ textAlign: "center" }}>
-                  {user.email}
+                <p className="subtitle prompt-subtitle">
+                  you are connected as, <br/>
+                  {user.email}, you can disconnect from here. Sad to see you go.
                 </p>
               </div>
 
@@ -151,10 +152,10 @@ export default function AuthModal({ onClose }: AuthModalProps) {
             </div>
           ) : (
             /* ── Signed-out state ── */
-            <div className="flex-col">
-              <div className="flex-col">
-                <h1 className="title prompt-title">Connect to save your motion and stream foreverrrrrrrrrrrrrrrrr....</h1>
-                <p className="subtitle prompt-subtitle">
+            <div className="flex-col login-prompt">
+              <div className="flex-col login-prompt-inner">
+                <h1 className="title prompt-title login-title">Connect to save your motion and stream foreverrrrrrrrrrrrrrrrr....</h1>
+                <p className="subtitle prompt-subtitle login-subtitle">
                   just use your Google account, also by continuing you agree to <a className="" href="/cookies" target="_blank">cookies</a>
                 </p>
               </div>
