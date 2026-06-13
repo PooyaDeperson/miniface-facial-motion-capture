@@ -87,7 +87,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
       >
         <div className="inner-container p-5 flex-col br-16" style={{ gap: "0" }}>
           {/* Close button */}
-          <div className="flex-row" style={{ justifyContent: "flex-end", marginBottom: "4px" }}>
+          {/* <div className="flex-row" style={{ justifyContent: "flex-end", marginBottom: "4px" }}>
             <button
               className="tab-button icon-holder size-30"
               onClick={onClose}
@@ -98,7 +98,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                 <path d="M12 4L4 12M4 4l8 8" stroke="var(--gray-600)" strokeWidth="2" strokeLinecap="round" />
               </svg>
             </button>
-          </div>
+          </div> */}
 
           {user ? (
             /* ── Signed-in state ── */
@@ -150,11 +150,11 @@ export default function AuthModal({ onClose }: AuthModalProps) {
             </div>
           ) : (
             /* ── Signed-out state ── */
-            <div className="flex-col" style={{ gap: "20px" }}>
-              <div className="flex-col" style={{ gap: "6px" }}>
-                <h1 className="title prompt-title">sign in</h1>
+            <div className="flex-col">
+              <div className="flex-col">
+                <h1 className="title prompt-title">Connect to save your motion and stream foreverrrrrrrrrrrrrrrrr....</h1>
                 <p className="subtitle prompt-subtitle">
-                  use your google account to save and access your face capture sessions.
+                  It's easier than ever, just use your Google account.
                 </p>
               </div>
 
@@ -169,19 +169,10 @@ export default function AuthModal({ onClose }: AuthModalProps) {
               )}
 
               <button
-                className="button primary w-full flex-row items-center justify-center"
+                className="flex  flex-row justify-center button primary prompt-button items-center gap-1 "
                 onClick={handleGoogleLogin}
                 disabled={loading}
-                style={{
-                  marginTop: "0",
-                  gap: "10px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "var(--gray-100)",
-                  color: "var(--gray-900)",
-                  border: "1.5px solid var(--border-primary)",
-                }}
+        
               >
                 {loading ? (
                   <>
@@ -190,14 +181,14 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                   </>
                 ) : (
                   <>
-                    <GoogleIcon />
+                    <span className="has-icon icon-size-16 google-icon"></span>
                     continue with google
                   </>
                 )}
               </button>
 
               <p
-                className="subtitle"
+                className="subtitle mt-8"
                 style={{
                   fontSize: "13px",
                   color: "var(--text-tertiary)",
@@ -205,7 +196,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                   lineHeight: "1.5",
                 }}
               >
-                by continuing you agree to camera and cookie use.
+                hey, reminder by continuing you agree cookie use.
               </p>
             </div>
           )}

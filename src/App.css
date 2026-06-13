@@ -564,6 +564,9 @@ svg {
 
 /* Margin Top */
 
+.mt-2 {
+  margin-top: 2px;
+}
 .mt-4 {
   margin-top: 4px;
 }
