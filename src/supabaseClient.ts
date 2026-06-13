@@ -3,7 +3,7 @@
  * Licensed under the MIT License with Attribution.
  */
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 // ── Environment detection ────────────────────────────────────────────────────
 // On facemocap.radframes.com → use REACT_APP_SUPABASE_URL / ANON_KEY (prod vars).
@@ -22,13 +22,26 @@ const supabaseAnonKey = isProductionHost
   ? process.env.REACT_APP_SUPABASE_ANON_KEY
   : process.env.REACT_APP_SUPABASE_STAGE_ANON_KEY;
 
+// ── Availability flag ────────────────────────────────────────────────────────
+// When env vars are absent (local dev, CI, preview without secrets) we export
+// null instead of throwing so the rest of the app keeps running.  Auth-dependent
+// features should guard with `if (!supabase)` or `isSupabaseAvailable()`.
+
+const missingVar = isProductionHost
+  ? "REACT_APP_SUPABASE_URL + REACT_APP_SUPABASE_ANON_KEY"
+  : "REACT_APP_SUPABASE_STAGE_URL + REACT_APP_SUPABASE_STAGE_ANON_KEY";
+
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    `[supabase] Missing env vars for ${isProductionHost ? "production" : "stage"}. ` +
-    `Expected ${isProductionHost
-      ? "REACT_APP_SUPABASE_URL + REACT_APP_SUPABASE_ANON_KEY"
-      : "REACT_APP_SUPABASE_STAGE_URL + REACT_APP_SUPABASE_STAGE_ANON_KEY"}.`
+  console.warn(
+    `[supabase] env vars not set (${missingVar}). ` +
+    `Auth features will be disabled. Add them to .env.local to enable.`
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase: SupabaseClient | null =
+  supabaseUrl && supabaseAnonKey
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : null;
+
+/** Returns true when Supabase is properly configured and auth features are available. */
+export const isSupabaseAvailable = (): boolean => supabase !== null;

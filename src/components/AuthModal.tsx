@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { supabase } from "../supabaseClient";
+import { supabase, isSupabaseAvailable } from "../supabaseClient";
 import type { User } from "@supabase/supabase-js";
 import PermissionPopup from "./PermissionPopup";
 
@@ -18,6 +18,8 @@ export default function AuthModal({ onClose }: AuthModalProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!supabase) return;
+
     supabase.auth.getSession().then(({ data }) => {
       setUser(data.session?.user ?? null);
     });
@@ -32,6 +34,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
   }, []);
 
   const handleGoogleLogin = async () => {
+    if (!supabase) return;
     setLoading(true);
     setError(null);
     const { error: err } = await supabase.auth.signInWithOAuth({
@@ -48,6 +51,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
   };
 
   const handleSignOut = async () => {
+    if (!supabase) return;
     setLoading(true);
     await supabase.auth.signOut();
     setLoading(false);
@@ -99,8 +103,15 @@ export default function AuthModal({ onClose }: AuthModalProps) {
     >
       <p className="subtitle prompt-subtitle">
         just use your Google account, also by continuing you agree to{" "}
-        <a href="/cookies" target="_blank">cookies</a>
+        <a href="/cookies" target="_blank" rel="noreferrer">cookies</a>
       </p>
+
+      {/* Supabase not configured */}
+      {!isSupabaseAvailable() && (
+        <p className="subtitle denied-subtitle error-banner" role="status">
+          auth not configured — set Supabase env vars to enable sign in
+        </p>
+      )}
 
       {/* Error banner */}
       {error && (
@@ -113,7 +124,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
       <button
         className="button primary prompt-button flex flex-row justify-center items-center gap-1 w-full mt-8"
         onClick={handleGoogleLogin}
-        disabled={loading}
+        disabled={loading || !isSupabaseAvailable()}
       >
         {loading ? (
           <>
