@@ -87,7 +87,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
       >
         <div className="inner-container p-5 flex-col br-16" style={{ gap: "0" }}>
           {/* Close button */}
-          <div className="flex-row" style={{ justifyContent: "flex-end", marginBottom: "4px" }}>
+          {/* <div className="flex-row" style={{ justifyContent: "flex-end", marginBottom: "4px" }}>
             <button
               className="tab-button icon-holder size-30"
               onClick={onClose}
@@ -98,12 +98,13 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                 <path d="M12 4L4 12M4 4l8 8" stroke="var(--gray-600)" strokeWidth="2" strokeLinecap="round" />
               </svg>
             </button>
-          </div>
+          </div> */}
 
           {user ? (
             /* ── Signed-in state ── */
-            <div className="flex-col items-center" style={{ gap: "16px", textAlign: "center", paddingBottom: "8px" }}>
+            <div className="flex-col" style={{ gap: "16px", paddingBottom: "8px" }}>
               <div
+              className="avatar-image-containter pos-abs"
                 style={{
                   width: "56px",
                   height: "56px",
@@ -130,12 +131,13 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                 )}
               </div>
 
-              <div style={{ gap: "4px" }} className="flex-col">
-                <h1 className="title prompt-title" style={{ textAlign: "center" }}>
-                  {user.user_metadata?.full_name ?? "welcome back"}
+              <div className="flex-col gap-4">
+                <h1 className="title prompt-title">
+                  hey, {user.user_metadata?.full_name ?? "welcome back"}
                 </h1>
-                <p className="subtitle prompt-subtitle" style={{ textAlign: "center" }}>
-                  {user.email}
+                <p className="subtitle prompt-subtitle">
+                  you are connected as, <br/>
+                  {user.email}, you can disconnect from here. Sad to see you go.
                 </p>
               </div>
 
@@ -145,16 +147,16 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                 disabled={loading}
                 style={{ marginTop: "8px" }}
               >
-                {loading ? "signing out…" : "sign out"}
+                {loading ? "disconnecting..." : "disconnect"}
               </button>
             </div>
           ) : (
             /* ── Signed-out state ── */
-            <div className="flex-col" style={{ gap: "20px" }}>
-              <div className="flex-col" style={{ gap: "6px" }}>
-                <h1 className="title prompt-title">sign in</h1>
-                <p className="subtitle prompt-subtitle">
-                  use your google account to save and access your face capture sessions.
+            <div className="flex-col login-prompt">
+              <div className="flex-col login-prompt-inner">
+                <h1 className="title prompt-title login-title">Connect to save your motion and stream foreverrrrrrrrrrrrrrrrr....</h1>
+                <p className="subtitle prompt-subtitle login-subtitle">
+                  just use your Google account, also by continuing you agree to <a className="" href="/cookies" target="_blank">cookies</a>
                 </p>
               </div>
 
@@ -169,19 +171,10 @@ export default function AuthModal({ onClose }: AuthModalProps) {
               )}
 
               <button
-                className="button primary w-full flex-row items-center justify-center"
+                className="flex  flex-row justify-center button primary prompt-button items-center gap-1 "
                 onClick={handleGoogleLogin}
                 disabled={loading}
-                style={{
-                  marginTop: "0",
-                  gap: "10px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "var(--gray-100)",
-                  color: "var(--gray-900)",
-                  border: "1.5px solid var(--border-primary)",
-                }}
+        
               >
                 {loading ? (
                   <>
@@ -190,23 +183,11 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                   </>
                 ) : (
                   <>
-                    <GoogleIcon />
+                    <span className="has-icon icon-size-16 google-icon"></span>
                     continue with google
                   </>
                 )}
               </button>
-
-              <p
-                className="subtitle"
-                style={{
-                  fontSize: "13px",
-                  color: "var(--text-tertiary)",
-                  textAlign: "center",
-                  lineHeight: "1.5",
-                }}
-              >
-                by continuing you agree to camera and cookie use.
-              </p>
             </div>
           )}
         </div>

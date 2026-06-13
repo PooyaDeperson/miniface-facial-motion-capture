@@ -57,6 +57,7 @@ body {
   cursor: var(--cursor-default), auto;
 }
 
+a,
 button,
 button>* {
   cursor: var(--cursor-pointer), auto;
@@ -64,10 +65,9 @@ button>* {
 
 /* Reset anchor styles */
 a {
-  text-decoration: none;
+  text-decoration: underline;
   color: inherit;
 }
-
 /* Remove list styles */
 ul,
 ol {
@@ -563,6 +563,10 @@ svg {
 }
 
 /* Margin Top */
+
+.mt-2 {
+  margin-top: 2px;
+}
 
 .mt-4 {
   margin-top: 4px;
@@ -1139,6 +1143,12 @@ button {
   letter-spacing: -0px;
 }
 
+.text.sm {
+  font-size: 13px;
+  font-weight: 500;
+
+}
+
 
 html {
   overflow: hidden;
@@ -1445,7 +1455,17 @@ html {
 }
 
 
+.text-center {
+  text-align: center;
+}
 
+.text-left {
+  text-align: left;
+}
+
+.text-right {
+  text-align: right;
+}
 
 .selector-inner-container {
   display: flex;
@@ -1626,7 +1646,10 @@ svg {
     display: none;
   }
 }
-
+.avatar-image-containter {
+  left: 20px;
+    top: -46px;
+}
 /* ------------------------ ------------------------ mobile first styles */
 .w-1 {
   max-width: 100px;
@@ -2019,7 +2042,7 @@ button.icon-holder.tab-button:not(.active) {
 
 .popup-container {
   min-height: 72px;
-  overflow: hidden;
+  /* overflow: hidden; */
   min-width: 128px;
   max-width: 360px;
   max-height: 330px;
