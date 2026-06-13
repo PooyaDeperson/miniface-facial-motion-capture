@@ -32,13 +32,7 @@ export default function AuthButton() {
         className="tab-button br-12 reveal fade anim-delay-1"
         onClick={() => setShowModal(true)}
         aria-label={user ? "Account" : "Sign in"}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          padding: "6px 14px",
-          minHeight: "36px",
-        }}
+    
       >
         {user?.user_metadata?.avatar_url ? (
           <>
@@ -47,9 +41,9 @@ export default function AuthButton() {
               alt={user.user_metadata?.full_name ?? "avatar"}
               style={{ width: "22px", height: "22px", borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
             />
-            <span className="text sm">
+            {/* <span className="text sm">
               {user.user_metadata?.given_name ?? user.user_metadata?.full_name ?? user.email ?? "Account"}
-            </span>
+            </span> */}
           </>
         ) : (
           <>
