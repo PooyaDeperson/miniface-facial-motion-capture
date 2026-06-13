@@ -13,6 +13,8 @@ export default function AuthButton() {
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
+    if (!supabase) return;
+
     supabase.auth.getSession().then(({ data }) => {
       setUser(data.session?.user ?? null);
     });

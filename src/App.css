@@ -1032,11 +1032,13 @@ button.avatar-btn.avatar-selection.active {
   0% {
     /* opacity: 0; */
     transform: scale(0.75);
+    
   }
 
   100% {
     /* opacity: 1; */
     transform: scale(1);
+    
   }
 }
 
@@ -2486,9 +2488,91 @@ button.button.primary.w-full {
   border-radius: 999px;
 }
 
-/* Google sign-in button override — light surface */
-button.button.primary.w-full[style*="gray-100"] {
-  margin-top: 0;
+/* =========================
+   UTILITY: scaleIn animation class
+   (keyframe defined above, class was missing)
+========================= */
+.scaleIn {
+  animation-name: scaleIn;
+}
+
+/* =========================
+   UTILITY: Backdrop overlay
+========================= */
+.backdrop-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9991;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+/* =========================
+   UTILITY: Centered fixed popup
+========================= */
+.popup-centered {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%)!important;
+}
+
+/* =========================
+   UTILITY: Auth-modal popup width
+========================= */
+.popup-width-auth {
+  width: min(360px, calc(100vw - 40px));
+}
+
+/* =========================
+   UTILITY: Avatar circle
+========================= */
+.avatar-circle-img {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatar-circle-fallback {
+  color: var(--purple-900);
+  font-weight: 600;
+}
+
+/* =========================
+   UTILITY: Error banner
+========================= */
+.error-banner {
+  background: var(--bg-danger-soft);
+  padding: 10px 14px;
+  border-radius: 10px;
+}
+
+/* =========================
+   UTILITY: Spinner size variant
+========================= */
+.spinner.spinner-sm {
+  width: 18px;
+  height: 18px;
+  border-width: 3px;
+}
+
+/* =========================
+   UTILITY: Margin top
+========================= */
+.mt-8 {
+  margin-top: 8px;
+}
+
+/* =========================
+   UTILITY: justify-center
+========================= */
+.justify-center {
+  justify-content: center;
 }
 
 @keyframes recording-pulse {
