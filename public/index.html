@@ -14,8 +14,10 @@
     <!-- Canonical URL -->
     <link rel="canonical" href="https://facemocap.radframes.com/" />
 
-    <!-- Preload and load Chicle font for faster loading -->
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Chicle&display=swap" as="style" />
+    <!-- Preconnect to Google Fonts origins to resolve DNS/TLS early -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Load Chicle with display=swap so text renders immediately with fallback -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chicle&display=swap" />
     
     <!-- Favicons -->
