@@ -39,6 +39,7 @@ import {
 } from "three";
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter";
 import type { SecondaryMotionSystem } from "./SecondaryMotionSystem";
+import type { FingerQuats } from "./FaceTracking";
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -55,6 +56,9 @@ export interface MotionFrame {
    * registered; omitted entirely when no secondary chains are active.
    */
   secondaryBones?: Record<string, [number, number, number, number]>;
+  /** Finger bone quaternions for left/right hand. Null when hand not visible. */
+  leftFingers?:  FingerQuats;
+  rightFingers?: FingerQuats;
 }
 
 export interface RecorderState {
@@ -181,7 +185,9 @@ export function discardRecording(): void {
  */
 export function captureFrame(
   currentBlendshapes: Array<{ categoryName: string; score: number }>,
-  headEuler: [number, number, number]
+  headEuler: [number, number, number],
+  leftFingers?: FingerQuats,
+  rightFingers?: FingerQuats
 ): void {
   if (!_isRecording) return;
 
@@ -199,7 +205,14 @@ export function captureFrame(
     ? _secondarySystem.snapshotBoneQuaternions()
     : undefined;
 
-  _frames.push({ t, blendshapes: bsMap, headEuler, secondaryBones });
+  _frames.push({
+    t,
+    blendshapes: bsMap,
+    headEuler,
+    secondaryBones,
+    leftFingers:  leftFingers  ?? undefined,
+    rightFingers: rightFingers ?? undefined,
+  });
 
   // Notify UI listeners at ~1 Hz (assuming ~30 fps)
   if (_frames.length % 30 === 0) _notify();
@@ -362,6 +375,84 @@ export async function buildAndExportGLB(): Promise<void> {
         quatValues[i * 4 + 2] = q ? q[2] : 0;
         quatValues[i * 4 + 3] = q ? q[3] : 1;
       }
+      tracks.push(
+        new QuaternionKeyframeTrack(
+          `${boneName}.quaternion`,
+          times,
+          quatValues
+        )
+      );
+    }
+  }
+
+  // ── finger bone tracks ─────────────────────────────────────────────────────
+  // Build QuaternionKeyframeTrack for every finger + wrist bone that had at
+  // least one non-identity frame.  We only emit tracks when a hand was seen,
+  // so files stay lean for face-only recordings.
+  //
+  // "Wrist" maps to the Hand bone (LeftHand / RightHand) — no "Hand" suffix.
+  const FINGER_KEYS = [
+    "Thumb1","Thumb2","Thumb3","Thumb4",
+    "Index1","Index2","Index3","Index4",
+    "Middle1","Middle2","Middle3","Middle4",
+    "Ring1","Ring2","Ring3","Ring4",
+    "Pinky1","Pinky2","Pinky3","Pinky4",
+  ] as const;
+
+  for (const side of ["Left", "Right"] as const) {
+    const frameKey = side === "Left" ? "leftFingers" : "rightFingers";
+
+    // ── wrist / Hand bone ──────────────────────────────────────────────────
+    const wristBoneName = `${side}Hand`;
+    const wristBone = nodes[wristBoneName];
+    if (wristBone) {
+      const quatValues = new Float32Array(frames.length * 4);
+      let hasMotion = false;
+      for (let i = 0; i < frames.length; i++) {
+        const fingerData = frames[i][frameKey];
+        const q = fingerData ? (fingerData as any)["Wrist"] : null;
+        if (q) {
+          quatValues[i * 4 + 0] = q[0];
+          quatValues[i * 4 + 1] = q[1];
+          quatValues[i * 4 + 2] = q[2];
+          quatValues[i * 4 + 3] = q[3];
+          if (Math.abs(q[3]) < 0.9999) hasMotion = true;
+        } else {
+          quatValues[i * 4 + 3] = 1;
+        }
+      }
+      if (hasMotion) {
+        tracks.push(new QuaternionKeyframeTrack(`${wristBoneName}.quaternion`, times, quatValues));
+      }
+    }
+
+    // ── finger joints ──────────────────────────────────────────────────────
+    for (const key of FINGER_KEYS) {
+      const boneName = `${side}Hand${key}`;
+      const bone = nodes[boneName];
+      if (!bone) continue; // non-RPM rig — skip
+
+      const quatValues = new Float32Array(frames.length * 4);
+      let hasMotion = false;
+
+      for (let i = 0; i < frames.length; i++) {
+        const fingerData = frames[i][frameKey];
+        const q = fingerData ? (fingerData as any)[key] : null;
+        if (q) {
+          quatValues[i * 4 + 0] = q[0];
+          quatValues[i * 4 + 1] = q[1];
+          quatValues[i * 4 + 2] = q[2];
+          quatValues[i * 4 + 3] = q[3];
+          // Check if meaningfully non-identity
+          if (Math.abs(q[3]) < 0.9999) hasMotion = true;
+        } else {
+          // Hand not detected this frame — use identity quaternion
+          quatValues[i * 4 + 3] = 1;
+        }
+      }
+
+      if (!hasMotion) continue; // skip bones that never moved
+
       tracks.push(
         new QuaternionKeyframeTrack(
           `${boneName}.quaternion`,

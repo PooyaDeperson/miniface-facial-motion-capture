@@ -18,7 +18,6 @@
   --color-icon: url('../public/images/app/icons/icon_color.svg');
   --pattern-icon: url('../public/images/app/icons/icon_pattern.svg');
   --notallowed-icon: url('../public/images/app/icons/icon_notallowed.svg');
-  --flip-icon: url('../public/images/app/icons/icon_flip.svg');
 
 
   /* =========================
@@ -39,18 +38,18 @@
 }
 
 .icon-size-16 {
-  min-width: 16px;
-  min-height: 16px;
+  width: 16px;
+  height: 16px;
 }
 
 .icon-size-18 {
-  min-width: 18px;
-  min-height: 18px;
+  width: 18px;
+  height: 18px;
 }
 
 .icon-size-32 {
-  min-width: 32px;
-  min-height: 32px;
+  width: 32px;
+  height: 32px;
 }
 
 .has-icon.dropdown-icon {

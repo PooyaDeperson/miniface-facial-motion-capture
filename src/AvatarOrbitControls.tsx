@@ -18,13 +18,11 @@ import { Vector3 } from "three";
 interface AvatarOrbitControlsProps {
   target?: [number, number, number];
   enableZoom?: boolean;
-  isFlipped?: boolean;
 }
 
 const AvatarOrbitControls: React.FC<AvatarOrbitControlsProps> = ({
   target = [0, 1.62, 0],
   enableZoom = true,
-  isFlipped = true,
 }) => {
   const controlsRef = useRef<any>(null);
 
@@ -47,7 +45,6 @@ const AvatarOrbitControls: React.FC<AvatarOrbitControlsProps> = ({
       maxPolarAngle={Math.PI / 2}
       minDistance={minDistance}
       maxDistance={maxDistance}
-       rotateSpeed={isFlipped ? -1 : 1}
     />
   );
 };

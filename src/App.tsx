@@ -27,7 +27,6 @@ function App() {
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
   const [mediapipeReady, setMediapipeReady] = useState(false);
   const [recordingPhase, setRecordingPhase] = useState<"idle" | "recording" | "review" | "done">("idle");
-  const [isFlipped, setIsFlipped] = useState(true);
   // Timeout fallback: if face detection never fires within 30s on mobile,
   // dismiss the overlay so the user isn't permanently stuck.
   const mediapipeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -89,7 +88,7 @@ function App() {
 
   return (
     <div className="App">
-      <CameraPermissions onStreamReady={handleStreamReady} disabled={isSwitcherDisabled} isFlipped={isFlipped} setIsFlipped={setIsFlipped} />
+      <CameraPermissions onStreamReady={handleStreamReady} disabled={isSwitcherDisabled} />
 
       {avatarReady && videoStream && !mediapipeReady && (
         <div className="reveal fade mediapipe-loader pos-fixed top-0 left-0 w-full h-full flex items-center justify-center bg-black bg-opacity-70 z-999">
@@ -102,12 +101,11 @@ function App() {
           videoStream={videoStream}
           onMediapipeReady={handleMediapipeReady}
           disabled={isSwitcherDisabled}
-          isFlipped={isFlipped}
         />
       )}
 
       {/* 3D Avatar Canvas */}
-      <AvatarCanvas url={url} avatarKey={avatarKey} setAvatarReady={setAvatarReady} isFlipped={isFlipped} />
+      <AvatarCanvas url={url} avatarKey={avatarKey} setAvatarReady={setAvatarReady} />
 
       <ColorSwitcher disabled={isSwitcherDisabled} />
       <AvatarSwitcher activeUrl={url} onAvatarChange={handleAvatarChange} disabled={isSwitcherDisabled} />
