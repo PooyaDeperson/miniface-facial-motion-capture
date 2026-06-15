@@ -103,7 +103,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
     >
       <p className="subtitle prompt-subtitle">
         just use your Google account, also by continuing you agree to{" "}
-        <a href="/cookies" target="_blank" rel="noreferrer">cookies</a> and <a href="/privacy" target="_blank" rel="noreferrer">privacy</a>
+        <a href="/terms" target="_blank" rel="noreferrer">Terms</a> and <a href="/privacy" target="_blank" rel="noreferrer">privacy</a>
 
       </p>
 
