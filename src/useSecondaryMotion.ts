@@ -65,6 +65,7 @@ export function useSecondaryMotion({ scene, chains, debugCollision = false }: Us
       systemRef.current = null;
       setSecondaryMotionSystem(null);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene, chains]);
 
   // Allow toggling debug at runtime without remounting.
