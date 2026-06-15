@@ -19,6 +19,7 @@ import RecordingControls from "./components/RecordingControls";
 import FaceTracking from "./FaceTracking";
 import AvatarCanvas from "./AvatarCanvas";
 import { discardRecording } from "./useMotionRecorder";
+import AuthButton from "./components/AuthButton";
 
 function App() {
   const [url, setUrl] = useState<string | null>(null);
@@ -108,6 +109,11 @@ function App() {
 
       {/* 3D Avatar Canvas */}
       <AvatarCanvas url={url} avatarKey={avatarKey} setAvatarReady={setAvatarReady} isFlipped={isFlipped} />
+
+      {/* Auth trigger — fixed top-right corner */}
+      <div className="pos-fixed top-0 right-0 z-9992 m-3" style={{ pointerEvents: "auto" }}>
+        <AuthButton />
+      </div>
 
       <ColorSwitcher disabled={isSwitcherDisabled} />
       <AvatarSwitcher activeUrl={url} onAvatarChange={handleAvatarChange} disabled={isSwitcherDisabled} />

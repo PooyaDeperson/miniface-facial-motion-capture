@@ -212,7 +212,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
         >
           {/* <span className="rec-dot rec-dot-pulse" aria-hidden="true" /> */}
           <button
-            className="rec-btn rec-btn-stop bg-danger gap-8 pl-22 pr-22 pt-10 pb-10"
+            className="rec-btn rec-btn-stop bg-danger gap-3 pl-22 pr-22 pt-10 pb-3"
             onClick={handleStop}
             aria-label="Stop recording"
           >
@@ -230,14 +230,14 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
             >
               {frameCount}&thinsp;f
             </span>
-            
+
           </button>
         </div>
       )}
 
       {/* ── REVIEW ── */}
       {phase === "review" && (
-        <div className="rec-bar p-20 gap-12 rec-bar-review p-20 flex flex-col">
+        <div className="rec-bar p-3 gap-12 rec-bar-review p-20 flex flex-col">
           {/* Stats row */}
           <div className="rec-stats" aria-label="Recording stats">
             <span className="rec-stat-label">recorded</span>
@@ -258,7 +258,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
           {/* Actions */}
           <div className="rec-actions flex flex-col">
             <button
-              className="rec-btn gap-8 justify-center w-full rec-btn-save"
+              className="rec-btn gap-3 justify-center w-full rec-btn-save"
               onClick={handleSave}
               disabled={isExporting}
               aria-label="Save recording as GLB file"
@@ -317,7 +317,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
                   Exporting&hellip;
                 </>
               ) : (
-                    <>
+                <>
                   {/* <span className="rec-save-icon" aria-hidden="true" /> */}
                   save &nbsp;.glb
                 </>
