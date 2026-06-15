@@ -153,7 +153,7 @@ export default function CameraPermissions({ onStreamReady, disabled, isFlipped, 
       })()}
 
       {/* Main control div */}
-      <div className={`flex flex-row flex-start gap-1 pos-abs reveal fade scaleIn top-0 right-0 tb:left-0 z-9991 m-6`}>
+      <div className={`flex flex-row flex-start gap-1 pos-abs reveal fade scaleIn top-0 left-0 z-9991 m-6`}>
         {permissionState === "granted" && cameras.length > 1 && (
           <div className={`flex camera-selection cp-dropdown ${disabled ? " switcher-disabled" : ""}`}>
             <CustomDropdown
