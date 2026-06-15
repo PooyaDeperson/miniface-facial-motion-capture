@@ -440,6 +440,8 @@ export default function PrivacyPage() {
             &nbsp;&middot;&nbsp;
             <a href="/cookies" className="legal-link">Cookie Policy</a>
             &nbsp;&middot;&nbsp;
+            <a href="/terms" className="legal-link">Terms of Service</a>
+            &nbsp;&middot;&nbsp;
             <a href="/" className="legal-link">Back to app</a>
           </p>
           <p style={{ marginTop: "8px" }}>

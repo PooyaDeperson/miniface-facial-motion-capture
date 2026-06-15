@@ -14,6 +14,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import CookiesPage from './pages/CookiesPage';
 import PrivacyPage from './pages/PrivacyPage';
+import TermsPage from './pages/TermsPage';
 
 // Lazy-load App so that supabaseClient.ts (which throws if env vars are missing)
 // is only imported when the "/" route is actually rendered.
@@ -29,6 +30,7 @@ root.render(
         <Route path="/" element={<Suspense fallback={null}><App /></Suspense>} />
         <Route path="/cookies" element={<CookiesPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>
