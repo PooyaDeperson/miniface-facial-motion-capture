@@ -23,7 +23,7 @@ import AvatarCanvas from "./AvatarCanvas";
 import { discardRecording, subscribePlaybackReady } from "./useMotionRecorder";
 import AuthButton from "./components/AuthButton";
 import AuthModal from "./components/AuthModal";
-import { hasDriveAccess, listDriveMotions, uploadToDrive, subscribeMotionUploaded, subscribeQuotaExceeded, DriveQuotaError, BulkSyncProgress } from "./useDriveSync";
+import { hasDriveAccess, listDriveMotions, uploadToDrive, subscribeMotionUploaded, subscribeQuotaExceeded, subscribeNoDriveScope, DriveQuotaError, BulkSyncProgress } from "./useDriveSync";
 import type { DriveMotionFile } from "./useDriveSync";
 
 function App() {
@@ -208,6 +208,18 @@ function App() {
     return subscribeQuotaExceeded(() => {
       setDriveUploadStatus("quota");
       setLibraryOpen(true); // open the library so the banner is visible
+    });
+  }, []);
+
+  // ── Subscribe to sign-in without Drive scope ──────────────────────────────
+  // When the user signs in with Google but does NOT grant Drive appdata access,
+  // supabaseClient fires notifyNoDriveScope(). We auto-open the AuthModal so
+  // they immediately see the friendly "grant Drive access" prompt. Their
+  // pending recording blob is still in latestPlaybackRef and will upload once
+  // they successfully grant access and hasDrive becomes true.
+  useEffect(() => {
+    return subscribeNoDriveScope(() => {
+      setShowAuthModal(true);
     });
   }, []);
 
@@ -485,6 +497,7 @@ function App() {
           quotaReached={driveUploadStatus === "quota"}
           isLoggedIn={hasDrive}
           onLoginRequest={() => setShowAuthModal(true)}
+          onNoDriveAccessRetry={() => setShowAuthModal(true)}
           isInPlayback={isInPlayback}
           playbackBlob={playbackBlob}
           isPendingUploading={driveUploadStatus === "uploading"}
@@ -499,6 +512,7 @@ function App() {
             setShowAuthModal(false);
             setHasDrive(hasDriveAccess());
           }}
+          hasPendingMotion={latestPlaybackRef.current !== null}
         />
       )}
     </div>

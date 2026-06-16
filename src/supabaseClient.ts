@@ -4,7 +4,7 @@
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { storeDriveTokens, clearDriveTokens } from "./useDriveSync";
+import { storeDriveTokens, clearDriveTokens, notifyNoDriveScope } from "./useDriveSync";
 
 // ── Environment detection ────────────────────────────────────────────────────
 // On facemocap.radframes.com → use REACT_APP_SUPABASE_URL / ANON_KEY (prod vars).
@@ -60,6 +60,11 @@ if (supabase) {
         session.provider_refresh_token ?? null,
         session.user?.email
       );
+    }
+    if (event === "SIGNED_IN" && !session?.provider_token) {
+      // User signed in with Google but did not grant the Drive scope.
+      // Notify subscribers so the app can prompt them to retry with Drive access.
+      notifyNoDriveScope();
     }
     if (event === "SIGNED_OUT") {
       clearDriveTokens();

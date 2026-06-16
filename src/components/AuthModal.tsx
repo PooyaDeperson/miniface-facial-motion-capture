@@ -13,9 +13,14 @@ interface AuthModalProps {
   onClose: () => void;
   /** Called after Drive scope is successfully obtained */
   onDriveConnected?: () => void;
+  /**
+   * When true the modal shows a stronger "you have an unsaved recording"
+   * message to encourage the user to grant Drive access.
+   */
+  hasPendingMotion?: boolean;
 }
 
-export default function AuthModal({ onClose, onDriveConnected }: AuthModalProps) {
+export default function AuthModal({ onClose, onDriveConnected, hasPendingMotion = false }: AuthModalProps) {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -103,9 +108,27 @@ export default function AuthModal({ onClose, onDriveConnected }: AuthModalProps)
           </p>
         ) : (
           <>
-            <p className="subtitle prompt-subtitle mt-8" style={{ fontSize: "13px" }}>
-              Connect Google Drive to save and sync your motions across devices.
-            </p>
+            {/* ── Drive scope missing ── */}
+            <div
+              className="ml-no-drive-banner"
+              role="alert"
+              style={{
+                marginTop: "12px",
+                padding: "12px 14px",
+                borderRadius: "10px",
+                background: "var(--bg-secondary, rgba(255,255,255,0.06))",
+                border: "1px solid var(--border-color, rgba(255,255,255,0.12))",
+              }}
+            >
+              <p style={{ margin: 0, fontSize: "13px", lineHeight: 1.5, color: "var(--text-primary)" }}>
+                <strong>Google Drive access was not granted.</strong>
+              </p>
+              <p style={{ margin: "6px 0 0", fontSize: "13px", lineHeight: 1.5, color: "var(--text-secondary)" }}>
+                {hasPendingMotion
+                  ? "Your recorded motion is still here and will be saved automatically once you grant access. Click below and make sure to check the Google Drive checkbox when Google asks."
+                  : "To save and sync your motions, you need to allow access to Google Drive. Click below and make sure to check the Google Drive checkbox when Google asks."}
+              </p>
+            </div>
             <button
               className="button primary w-full mt-8"
               onClick={handleGoogleLoginWithDrive}
@@ -119,7 +142,7 @@ export default function AuthModal({ onClose, onDriveConnected }: AuthModalProps)
               ) : (
                 <>
                   <span className="has-icon icon-size-16 google-icon" />
-                  connect Google Drive
+                  grant Google Drive access
                 </>
               )}
             </button>
