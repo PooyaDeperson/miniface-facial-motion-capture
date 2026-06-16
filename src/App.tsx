@@ -125,10 +125,14 @@ function App() {
     };
   }, [avatarReady, videoStream, mediapipeReady]);
 
-  const handleAvatarChange = (newUrl: string) => {
+  const handleAvatarChange = (newUrl: string, keepPending = false) => {
     discardRecording();
-    // Clear any pending playback that was waiting for avatar to load
-    pendingPlaybackRef.current = null;
+    // Clear any pending playback unless this swap is itself triggered by a
+    // library selection (keepPending = true), in which case the ref was just
+    // set by handleSelectMotion and must survive into the avatarReady effect.
+    if (!keepPending) {
+      pendingPlaybackRef.current = null;
+    }
 
     useGLTF.clear(newUrl);
 
@@ -314,7 +318,8 @@ function App() {
       pendingPlaybackRef.current = { blob, file };
       // Clear current playback so the canvas shows the loader cleanly
       setPlaybackBlob(null);
-      handleAvatarChange(targetAvatarUrl);
+      // Pass keepPending=true so handleAvatarChange does NOT wipe the ref we just set
+      handleAvatarChange(targetAvatarUrl, true);
       setActiveMotionId(file.driveFileId);
       setActiveMotionName(file.name.replace(/\.glb$/i, ""));
       return;
