@@ -6,16 +6,20 @@
 /**
  * MotionLibrary.tsx
  *
- * A slide-in panel that shows the user's motions stored in Google Drive
- * (appDataFolder). Only rendered when the user is logged in with Drive scope.
+ * A slide-in panel that shows the user's motions.
+ *
+ * - When not logged in: shows an empty-state CTA with a login button.
+ * - When logged in: shows motions from Google Drive.
+ *
+ * Clicking a motion row plays it (no separate play button).
+ * Delete uses a PermissionPopup confirmation instead of window.confirm.
  *
  * Layout (top → bottom)
  * ─────────────────────
  * 1. Header: "motion library" + close button
- * 2. Cloud sync status row
- * 3. Bulk sync progress bar (when syncing)
- * 4. "live motion capture" button
- * 5. Scrollable motion list
+ * 2. Cloud sync status / bulk progress
+ * 3. "live motion capture" button (logged-in only)
+ * 4. Scrollable motion list OR unauthenticated empty state
  *
  * On desktop: fixed right-edge column.
  * On mobile:  full-screen overlay; tapping backdrop closes it.
@@ -31,36 +35,27 @@ import {
   BulkSyncProgress,
 } from "../useDriveSync";
 import IconButton from "./IconButton";
+import PermissionPopup from "./PermissionPopup";
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
 export interface MotionLibraryProps {
-  /** Called when user closes the panel */
   onClose: () => void;
-  /** Currently playing motion's Drive file ID (highlights the row) */
   activeMotionId?: string | null;
-  /** Called when user selects a motion to play — passes the Blob */
   onSelectMotion: (blob: Blob, file: DriveMotionFile) => void;
-  /** Called when user wants to start live motion capture */
   onStartLive: () => void;
-  /** Optional bulk-sync progress (set externally by App.tsx) */
   bulkProgress?: BulkSyncProgress | null;
-  /**
-   * Incrementing this value triggers a background re-fetch of the Drive list.
-   * App.tsx bumps it after a successful upload to ensure the list is canonical.
-   */
   refreshKey?: number;
-  /**
-   * A motion that was just uploaded — optimistically prepended to the list
-   * immediately so the user sees it without waiting for a Drive round-trip.
-   * Once the re-fetch completes the real Drive entry replaces it.
-   */
   pendingMotion?: DriveMotionFile | null;
-  /**
-   * Set to true when the last upload was rejected with a quota-exceeded error.
-   * Displays a prominent banner with clean-up instructions.
-   */
   quotaReached?: boolean;
+  /** Whether the user is logged in with Drive access */
+  isLoggedIn?: boolean;
+  /** Called when the guest-state login button is clicked */
+  onLoginRequest?: () => void;
+  /** Whether currently in playback mode */
+  isInPlayback?: boolean;
+  /** The playback blob for guest users (used to download guest recordings) */
+  playbackBlob?: Blob | null;
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -79,7 +74,6 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/** Stable hue from a string — used as the motion row colour chip */
 function stringToHue(str: string): number {
   let h = 0;
   for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) & 0xffffffff;
@@ -97,16 +91,22 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
   refreshKey = 0,
   pendingMotion,
   quotaReached = false,
+  isLoggedIn = false,
+  onLoginRequest,
+  isInPlayback = false,
+  playbackBlob = null,
 }) => {
   const [motions, setMotions] = useState<DriveMotionFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  // Track which refreshKey value we last fetched for, so we refetch on change
   const lastRefreshKey = useRef(-1);
+
+  /** The file currently pending delete confirmation (null = no confirm shown) */
+  const [deleteConfirmFile, setDeleteConfirmFile] = useState<DriveMotionFile | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Load Drive motions
   const fetchMotions = useCallback(async (silent = false) => {
@@ -127,43 +127,62 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
     }
   }, []);
 
-  // Initial fetch + re-fetch whenever refreshKey increments
   useEffect(() => {
     if (lastRefreshKey.current !== refreshKey) {
       lastRefreshKey.current = refreshKey;
-      // First open: show skeleton (loading=true). Subsequent refreshes: silent
-      // background fetch so existing rows stay visible while we update.
       const isFirstFetch = motions.length === 0 && !lastSynced;
       fetchMotions(!isFirstFetch);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey, fetchMotions]);
 
-  // Reload when bulk sync finishes
   useEffect(() => {
     if (bulkProgress && bulkProgress.done === bulkProgress.total && bulkProgress.total > 0) {
-      fetchMotions(true); // silent refresh
+      fetchMotions(true);
     }
   }, [bulkProgress, fetchMotions]);
 
-  const handlePlay = useCallback(async (file: DriveMotionFile) => {
+  // Click on a row → play it
+  const handleRowClick = useCallback(async (file: DriveMotionFile) => {
+    if (deletingId === file.driveFileId) return;
     setDownloadingId(file.driveFileId);
     setDownloadError(null);
     try {
-      const blob = await downloadFromDrive(file.driveFileId);
-      onSelectMotion(blob, file);
+      // For guest users with pending motion, if it's already active/in playback,
+      // just call onSelectMotion with empty blob (App will use existing playbackBlob)
+      if (!isLoggedIn && file.driveFileId === pendingMotion?.driveFileId) {
+        onSelectMotion(new Blob(), file);
+      } else {
+        // For Drive motions, download from Drive
+        const blob = await downloadFromDrive(file.driveFileId);
+        onSelectMotion(blob, file);
+      }
     } catch (err: any) {
       setDownloadError(err?.message ?? "Download failed");
     } finally {
       setDownloadingId(null);
     }
-  }, [onSelectMotion]);
+  }, [onSelectMotion, deletingId, isLoggedIn, pendingMotion]);
 
-  const handleDownload = useCallback(async (file: DriveMotionFile) => {
+  const handleDownload = useCallback(async (e: React.MouseEvent, file: DriveMotionFile) => {
+    e.stopPropagation();
     setDownloadingId(file.driveFileId);
     setDownloadError(null);
     try {
-      const blob = await downloadFromDrive(file.driveFileId);
+      let blob: Blob;
+      
+      // For guest users with pending motion, use the playbackBlob
+      if (!isLoggedIn && file.driveFileId === pendingMotion?.driveFileId && playbackBlob) {
+        blob = playbackBlob;
+      } else if (!isLoggedIn && file.driveFileId === pendingMotion?.driveFileId) {
+        // Guest motion without playback blob available
+        setDownloadError("Motion data not available for download");
+        return;
+      } else {
+        // For Drive motions, download from Drive
+        blob = await downloadFromDrive(file.driveFileId);
+      }
+      
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -177,10 +196,17 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
     } finally {
       setDownloadingId(null);
     }
+  }, [isLoggedIn, pendingMotion, playbackBlob]);
+
+  const handleDeleteClick = useCallback((e: React.MouseEvent, file: DriveMotionFile) => {
+    e.stopPropagation();
+    setDeleteConfirmFile(file);
   }, []);
 
-  const handleDelete = useCallback(async (file: DriveMotionFile) => {
-    if (!window.confirm(`Delete "${file.name}"? This cannot be undone.`)) return;
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteConfirmFile) return;
+    const file = deleteConfirmFile;
+    setDeleteConfirmFile(null);
     setDeletingId(file.driveFileId);
     try {
       await deleteDriveFile(file.driveFileId);
@@ -190,11 +216,14 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
     } finally {
       setDeletingId(null);
     }
+  }, [deleteConfirmFile]);
+
+  const handleDeleteCancel = useCallback(() => {
+    setDeleteConfirmFile(null);
   }, []);
 
   const isBulkSyncing = bulkProgress != null && bulkProgress.done < bulkProgress.total;
 
-  // Merge the pending motion (optimistic) at the top, deduped by driveFileId
   const displayMotions: DriveMotionFile[] = pendingMotion
     ? [
         pendingMotion,
@@ -206,7 +235,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
     <>
       {/* Mobile backdrop */}
       <div
-        className="ml-backdrop"
+        className="ml-backdrop motion-library-backdrop"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -250,8 +279,8 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
           </div>
         )}
 
-        {/* ── Sync status ── */}
-        {lastSynced && !isBulkSyncing && (
+        {/* ── Sync status (logged-in only) ── */}
+        {isLoggedIn && lastSynced && !isBulkSyncing && (
           <div className="ml-sync-status">
             <span className="has-icon icon-size-12 cloud-check-icon" aria-hidden="true" />
             <span>synced to Google Drive</span>
@@ -266,15 +295,29 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
           </div>
         )}
 
-        {/* ── Live capture button ── */}
-        <button
-          className="rec-btn rec-btn-record ml-live-btn outline-5 outline-soft gap-2"
-          onClick={onStartLive}
-          aria-label="Start live motion capture"
-        >
-          <span className="rec-dot rec-dot-idle" aria-hidden="true" />
-          live motion capture
-        </button>
+        {/* ── Live capture button (logged-in only) ── */}
+        {isLoggedIn && (
+          <button
+            className="rec-btn rec-btn-record ml-live-btn outline-5 outline-soft gap-2 live-capture-button"
+            onClick={onStartLive}
+            aria-label="Start live motion capture"
+          >
+            <span className="rec-dot rec-dot-idle" aria-hidden="true" />
+            live motion capture
+          </button>
+        )}
+
+        {/* ── Live motion button (during playback for guests and logged-in users) ── */}
+        {isInPlayback && (
+          <button
+            className="rec-btn rec-btn-record ml-live-btn outline-5 outline-soft gap-2 playback-live-motion-button"
+            onClick={onStartLive}
+            aria-label="Start live motion capture"
+          >
+            <span className="rec-dot rec-dot-idle" aria-hidden="true" />
+            live motion
+          </button>
+        )}
 
         {/* ── Error ── */}
         {(loadError || downloadError) && (
@@ -303,112 +346,116 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
           </div>
         )}
 
-        {/* ── List ── */}
-        <div className="ml-list" role="list">
-          {/* Skeleton rows — shown while loading and no items exist yet */}
-          {loading && displayMotions.length === 0 && (
-            <>
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="ml-skeleton-item" aria-hidden="true">
-                  <div className="ml-skeleton ml-skeleton-chip" />
-                  <div className="ml-skeleton-info">
-                    <div className="ml-skeleton ml-skeleton-name" />
-                    <div className="ml-skeleton ml-skeleton-meta" />
-                  </div>
-                  <div className="ml-skeleton-actions">
-                    <div className="ml-skeleton ml-skeleton-btn" />
-                    <div className="ml-skeleton ml-skeleton-btn" />
-                    <div className="ml-skeleton ml-skeleton-btn" />
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
-
-          {!loading && displayMotions.length === 0 && !loadError && (
-            <p className="ml-empty">No motions saved yet.</p>
-          )}
-
-          {displayMotions.map((file) => {
-            const hue = stringToHue(file.driveFileId);
-            const isActive = file.driveFileId === activeMotionId;
-            const isDownloading = downloadingId === file.driveFileId;
-            const isDeleting = deletingId === file.driveFileId;
-
-            return (
-              <div
-                key={file.driveFileId}
-                className={`ml-item${isActive ? " ml-item-active" : ""}`}
-                role="listitem"
-              >
-                {/* Colour chip */}
-                <div
-                  className="ml-item-chip"
-                  style={{ background: `hsl(${hue}, 60%, 65%)` }}
-                  aria-hidden="true"
-                />
-
-                {/* Info */}
-                <div className="ml-item-info">
-                  <span className="ml-item-name" title={file.name}>
-                    {file.name.replace(/\.glb$/i, "")}
-                  </span>
-                  <span className="ml-item-meta">
-                    {file.duration != null && (
-                      <>{formatDuration(file.duration)} &middot; </>
-                    )}
-                    {formatBytes(file.size)}
-                  </span>
-                </div>
-
-                {/* Actions */}
-                <div className="ml-item-actions">
-                  {/* Play */}
-                  <button
-                    className="ml-action-btn"
-                    onClick={() => handlePlay(file)}
-                    disabled={isDownloading || isDeleting}
-                    aria-label={`Play ${file.name}`}
-                    title="Play"
-                  >
-                    {isDownloading ? (
-                      <span className="rec-spinner rec-spinner-xs" aria-hidden="true" />
-                    ) : (
-                      <span className="playback-play-icon playback-play-icon-sm" aria-hidden="true" />
-                    )}
-                  </button>
-
-                  {/* Download */}
-                  <button
-                    className="ml-action-btn"
-                    onClick={() => handleDownload(file)}
-                    disabled={isDownloading || isDeleting}
-                    aria-label={`Download ${file.name}`}
-                    title="Download .glb"
-                  >
-                    <span className="has-icon icon-size-14 download-icon" aria-hidden="true" />
-                  </button>
-
-                  {/* Delete */}
-                  <button
-                    className="ml-action-btn ml-action-btn-danger"
-                    onClick={() => handleDelete(file)}
-                    disabled={isDownloading || isDeleting}
-                    aria-label={`Delete ${file.name}`}
-                    title="Delete"
-                  >
-                    {isDeleting ? (
-                      <span className="rec-spinner rec-spinner-xs" aria-hidden="true" />
-                    ) : (
-                      <span className="has-icon icon-size-14 trash-icon" aria-hidden="true" />
-                    )}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+      {/* ── Guest empty state — always shown when not logged in ── */}
+      {!isLoggedIn && (
+        <div className="ml-guest-empty guest-empty-state">
+          <p className="ml-guest-headline">your motions will show up here</p>
+          <p className="ml-guest-sub">connect to keep them forever</p>
+          <button
+            className="rec-btn rec-btn-record ml-live-btn outline-5 outline-soft gap-2 mt-8 guest-login-button"
+            onClick={onLoginRequest}
+            aria-label="Sign in to save motions"
+          >
+            <span className="has-icon icon-size-16 login-icon" aria-hidden="true" />
+            connect
+          </button>
         </div>
+      )}
+
+        {/* ── Guest with pending motion (during playback or after recording) ── */}
+        {!isLoggedIn && pendingMotion && (
+          <div className="ml-list motion-list-container guest-motion-list" role="list">
+            {(() => {
+              const file = pendingMotion;
+              const hue = stringToHue(file.driveFileId);
+              const isActive = file.driveFileId === activeMotionId;
+              const isDownloading = downloadingId === file.driveFileId;
+
+              return (
+                <div
+                  key={file.driveFileId}
+                  className={`ml-item ml-item-clickable motion-row${isActive ? " ml-item-active" : ""}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Play ${file.name.replace(/\.glb$/i, "")}`}
+                  onClick={() => handleRowClick(file)}
+                  onKeyDown={(e) => e.key === "Enter" && handleRowClick(file)}
+                >
+                  {/* Colour chip */}
+                  <div
+                    className="ml-item-chip motion-row-chip"
+                    style={{ background: `hsl(${hue}, 60%, 65%)` }}
+                    aria-hidden="true"
+                  />
+
+                  {/* Loading spinner overlay when downloading this row */}
+                  {isDownloading && (
+                    <span className="rec-spinner rec-spinner-xs ml-row-spinner" aria-hidden="true" />
+                  )}
+
+                  {/* Info */}
+                  <div className="ml-item-info motion-row-info">
+                    <span className="ml-item-name" title={file.name}>
+                      {file.name.replace(/\.glb$/i, "")}
+                    </span>
+                    <span className="ml-item-meta">
+                      {file.duration != null && (
+                        <>{formatDuration(file.duration)} &middot; </>
+                      )}
+                      {formatBytes(file.size)}
+                    </span>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="ml-item-actions motion-row-actions">
+                    {/* Download */}
+                    <button
+                      className="ml-action-btn"
+                      onClick={(e) => handleDownload(e, file)}
+                      disabled={isDownloading}
+                      aria-label={`Download ${file.name}`}
+                      title="Download .glb"
+                    >
+                      <span className="has-icon icon-size-14 download-icon" aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
       </aside>
+
+      {/* ��─ Delete confirmation popup ── */}
+      {deleteConfirmFile && (
+        <PermissionPopup
+          variant="prompt"
+          centered
+          backdrop
+          onBackdropClick={handleDeleteCancel}
+          aria-label="Confirm delete"
+          title={`delete "${deleteConfirmFile.name.replace(/\.glb$/i, "")}"?`}
+          className="ml-delete-popup motion-delete-confirmation"
+        >
+          <p className="subtitle prompt-subtitle">
+            this cannot be undone.
+          </p>
+          <button
+            className="button primary w-full mt-8"
+            onClick={handleDeleteConfirm}
+            style={{ background: "var(--red-900, #c0137b)", color: "#fff" }}
+          >
+            delete
+          </button>
+          <button
+            className="button primary w-full mt-8"
+            onClick={handleDeleteCancel}
+            style={{ background: "var(--bg-secondary)", color: "var(--text-primary)" }}
+          >
+            cancel
+          </button>
+        </PermissionPopup>
+      )}
     </>
   );
 };

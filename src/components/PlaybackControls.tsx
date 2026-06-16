@@ -42,12 +42,12 @@ interface PlaybackControlsProps {
   onTogglePlay: () => void;
   /** Callback to seek — normalised 0–1 */
   onSeek: (t: number) => void;
-  /** Callback to toggle loop */
-  onSetLoop: (loop: boolean) => void;
   /** Callback when the user wants to go back to recording mode */
   onDoAnother: () => void;
   /** Optional: name of the motion being played (shown in the bar) */
   motionName?: string;
+  /** Optional: download the current motion */
+  onDownload?: () => void;
 }
 
 // ─── component ────────────────────────────────────────────────────────────────
@@ -55,9 +55,9 @@ interface PlaybackControlsProps {
 const PlaybackControls: React.FC<PlaybackControlsProps> = ({
   onTogglePlay,
   onSeek,
-  onSetLoop,
   onDoAnother,
   motionName,
+  onDownload,
 }) => {
   const [state, setState] = useState(getPlaybackState);
   const scrubberRef = useRef<HTMLDivElement>(null);
@@ -164,17 +164,6 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
 
         {/* ── controls row ── */}
         <div className="playback-controls-row">
-          {/* Loop toggle */}
-          <button
-            className={`playback-icon-btn ${state.loop ? "playback-icon-btn-active" : ""}`}
-            onClick={() => onSetLoop(!state.loop)}
-            aria-label={state.loop ? "Loop on" : "Loop off"}
-            aria-pressed={state.loop}
-            title={state.loop ? "Loop on" : "Loop off"}
-          >
-            <span className="has-icon icon-size-16 loop-icon" aria-hidden="true" />
-          </button>
-
           {/* Play / Pause */}
           <button
             className="playback-play-btn"
@@ -187,6 +176,18 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
               <span className="playback-play-icon" aria-hidden="true" />
             )}
           </button>
+
+          {/* Download current motion */}
+          {onDownload && (
+            <button
+              className="playback-icon-btn playback-download-btn"
+              onClick={onDownload}
+              aria-label="Download motion as .glb"
+              title="Download .glb"
+            >
+              <span className="has-icon icon-size-16 download-icon" aria-hidden="true" />
+            </button>
+          )}
 
           {/* Do another */}
           <button

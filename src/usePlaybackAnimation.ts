@@ -13,8 +13,8 @@
  * Features
  * ────────
  * • Play / pause
- * • Loop toggle
- * • Scrubber (seek to any normalised position 0–1)
+ * • Always-loop (loop is permanently on)
+ * • Scrubber (seek to any normalised position 0–1, works while paused)
  * • Auto-play on blob change
  * • Exposes current time and duration for UI
  * • Cleans up mixer on unmount or blob change
@@ -237,6 +237,13 @@ export function usePlaybackAnimation({
     const t = Math.max(0, Math.min(1, normalised)) * clip.duration;
     action.time = t;
     mixer.setTime(t);
+    // When the action is paused, Three.js skips mixer.update() entirely for
+    // that action. Temporarily un-pause, advance by zero, then re-pause so the
+    // bone/morph-target pose is applied and the frame is rendered immediately.
+    const wasPaused = action.paused;
+    if (wasPaused) action.paused = false;
+    mixer.update(0);
+    if (wasPaused) action.paused = true;
     _playbackState = { ..._playbackState, currentTime: t };
     _notifyPlayback();
   }, []);
