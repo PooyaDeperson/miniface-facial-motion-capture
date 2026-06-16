@@ -179,7 +179,7 @@
 ========================================= */
 
 .tooltip-container.elevated-sharp {
-  background: var(--bg-inverse);
+  background: var(--bg-primary);
   border-radius: 6px;
   padding: 2px;
 }
@@ -187,6 +187,6 @@
 .tooltip-container.elevated-sharp .tooltip-inner {
   border-radius: 4px;
   padding: 4px 8px;
-  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border: 1.5px solid var(--border-brand-soft);
   border-style: solid;
 }

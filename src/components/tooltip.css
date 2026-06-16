@@ -35,14 +35,15 @@
 
 .tooltip-inner {
   position: relative;
-  background: var(--bg-inverse);
+  background: var(--bg-primary);
   border-radius: 6px;
   padding: 4px 8px;
+  border: 1px solid var(--border-brand-soft);
   will-change: transform, opacity;
 }
 
 .tooltip-inner p {
-  color: var(--text-inverse);
+  color: var(--text-brand);
   font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
@@ -80,7 +81,7 @@
   height: 0;
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
-  border-bottom: 6px solid var(--bg-inverse);
+  border-bottom: 6px solid var(--bg-primary);
 }
 
 /* =========================================
@@ -109,7 +110,7 @@
   height: 0;
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
-  border-bottom: 6px solid var(--bg-inverse);
+  border-bottom: 6px solid var(--bg-primary);
 }
 
 /* =========================================
@@ -138,7 +139,7 @@
   height: 0;
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
-  border-bottom: 6px solid var(--bg-inverse);
+  border-bottom: 6px solid var(--bg-primary);
 }
 
 /* =========================================
@@ -172,7 +173,7 @@
   height: 0;
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
-  border-top: 6px solid var(--bg-inverse);
+  border-top: 6px solid var(--bg-primary);
 }
 
 /* =========================================
@@ -201,7 +202,7 @@
   height: 0;
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
-  border-top: 6px solid var(--bg-inverse);
+  border-top: 6px solid var(--bg-primary);
 }
 
 /* =========================================
@@ -230,7 +231,7 @@
   height: 0;
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
-  border-top: 6px solid var(--bg-inverse);
+  border-top: 6px solid var(--bg-primary);
 }
 
 /* =========================================
@@ -264,7 +265,7 @@
   height: 0;
   border-top: 6px solid transparent;
   border-bottom: 6px solid transparent;
-  border-left: 6px solid var(--bg-inverse);
+  border-left: 6px solid var(--bg-primary);
 }
 
 /* =========================================
@@ -298,5 +299,5 @@
   height: 0;
   border-top: 6px solid transparent;
   border-bottom: 6px solid transparent;
-  border-right: 6px solid var(--bg-inverse);
+  border-right: 6px solid var(--bg-primary);
 }
