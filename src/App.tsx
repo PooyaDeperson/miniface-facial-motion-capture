@@ -232,14 +232,15 @@ function App() {
   }, [getPlaybackControls]);
 
   // ── "Do another" → back to idle, clear playback ───────────────────────────
-  // Called by BOTH PlaybackControls (scrubber bar) and RecordingControls
-  // (review popup) — must clear everything in both cases.
+  // Called by BOTH PlaybackControls (scrubber bar) and RecordingControls.
   const handleDoAnother = useCallback(() => {
     setPlaybackBlob(null);
     setActiveMotionId(null);
     setActiveMotionName(undefined);
     discardRecording();
     handlePhaseChange("idle");
+    // Reset mediapipe so "keep smiling" loader shows while it re-initialises
+    setMediapipeReady(false);
     // Library stays open so logged-in users can browse their history
   }, [handlePhaseChange]);
 

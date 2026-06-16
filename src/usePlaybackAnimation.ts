@@ -235,11 +235,15 @@ export function usePlaybackAnimation({
     const clip = clipRef.current;
     if (!mixer || !action || !clip) return;
     const t = Math.max(0, Math.min(1, normalised)) * clip.duration;
-    // Set the action time and force-update the mixer by a zero delta so the
-    // pose is applied immediately even when the animation is paused.
     action.time = t;
     mixer.setTime(t);
+    // When the action is paused, Three.js skips mixer.update() entirely for
+    // that action. Temporarily un-pause, advance by zero, then re-pause so the
+    // bone/morph-target pose is applied and the frame is rendered immediately.
+    const wasPaused = action.paused;
+    if (wasPaused) action.paused = false;
     mixer.update(0);
+    if (wasPaused) action.paused = true;
     _playbackState = { ..._playbackState, currentTime: t };
     _notifyPlayback();
   }, []);
