@@ -13,8 +13,8 @@
  * Features
  * ────────
  * • Play / pause
- * • Loop toggle
- * • Scrubber (seek to any normalised position 0–1)
+ * • Always-loop (loop is permanently on)
+ * • Scrubber (seek to any normalised position 0–1, works while paused)
  * • Auto-play on blob change
  * • Exposes current time and duration for UI
  * • Cleans up mixer on unmount or blob change
@@ -235,8 +235,11 @@ export function usePlaybackAnimation({
     const clip = clipRef.current;
     if (!mixer || !action || !clip) return;
     const t = Math.max(0, Math.min(1, normalised)) * clip.duration;
+    // Set the action time and force-update the mixer by a zero delta so the
+    // pose is applied immediately even when the animation is paused.
     action.time = t;
     mixer.setTime(t);
+    mixer.update(0);
     _playbackState = { ..._playbackState, currentTime: t };
     _notifyPlayback();
   }, []);

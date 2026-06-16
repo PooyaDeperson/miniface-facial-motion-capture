@@ -243,7 +243,7 @@ function App() {
     // Library stays open so logged-in users can browse their history
   }, [handlePhaseChange]);
 
-  // ── Start live capture from inside library panel ──────────────────────────
+  // ── Start live capture from inside library panel or player ───────────────
   const handleStartLive = useCallback(() => {
     // If currently recording, stop gracefully before switching
     if (recordingPhase === "recording") {
@@ -254,6 +254,8 @@ function App() {
     setActiveMotionName(undefined);
     handlePhaseChange("idle");
     setLibraryOpen(false);
+    // Reset mediapipe so the "keep smiling" loader shows while it re-initialises
+    setMediapipeReady(false);
   }, [recordingPhase, handlePhaseChange]);
 
   // ── When library opens, stop recording gracefully ────────────────────────────
@@ -373,7 +375,6 @@ function App() {
         <PlaybackControls
           onTogglePlay={handleTogglePlay}
           onSeek={handleSeek}
-          onSetLoop={handleSetLoop}
           onDoAnother={handleDoAnother}
           motionName={activeMotionName}
           onDownload={playbackBlob ? () => {
