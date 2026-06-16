@@ -56,6 +56,8 @@ export interface MotionLibraryProps {
   isInPlayback?: boolean;
   /** The playback blob for guest users (used to download guest recordings) */
   playbackBlob?: Blob | null;
+  /** Whether the pending motion is currently being uploaded to Drive */
+  isPendingUploading?: boolean;
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -95,6 +97,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
   onLoginRequest,
   isInPlayback = false,
   playbackBlob = null,
+  isPendingUploading = false,
 }) => {
   const [motions, setMotions] = useState<DriveMotionFile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -366,6 +369,9 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
               const isActive = file.driveFileId === activeMotionId;
               const isDownloading = downloadingId === file.driveFileId;
               const isDeleting = deletingId === file.driveFileId;
+              // Pending motion is still uploading to Drive
+              const isThisPending = pendingMotion?.driveFileId === file.driveFileId;
+              const isSaving = isThisPending && isPendingUploading;
 
               return (
                 <div
@@ -395,10 +401,19 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
                       {file.name.replace(/\.glb$/i, "")}
                     </span>
                     <span className="ml-item-meta">
-                      {file.duration != null && (
-                        <>{formatDuration(file.duration)} &middot; </>
+                      {isSaving ? (
+                        <span className="ml-item-saving">
+                          <span className="rec-spinner rec-spinner-xs" aria-hidden="true" />
+                          saving...
+                        </span>
+                      ) : (
+                        <>
+                          {file.duration != null && (
+                            <>{formatDuration(file.duration)} &middot; </>
+                          )}
+                          {formatBytes(file.size)}
+                        </>
                       )}
-                      {formatBytes(file.size)}
                     </span>
                   </div>
 
@@ -408,7 +423,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
                     <button
                       className="ml-action-btn"
                       onClick={(e) => handleDownload(e, file)}
-                      disabled={isDownloading || isDeleting}
+                      disabled={isDownloading || isDeleting || isSaving}
                       aria-label={`Download ${file.name}`}
                       title="Download .glb"
                     >
@@ -418,7 +433,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
                     <button
                       className="ml-action-btn ml-action-btn-delete"
                       onClick={(e) => handleDeleteClick(e, file)}
-                      disabled={isDeleting || isDownloading}
+                      disabled={isDeleting || isDownloading || isSaving}
                       aria-label={`Delete ${file.name}`}
                       title="Delete"
                     >

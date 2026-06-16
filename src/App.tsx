@@ -144,7 +144,7 @@ function App() {
 
   // ── Subscribe to playback-ready events from useMotionRecorder ────────────
   useEffect(() => {
-    return subscribePlaybackReady(({ blob, motionId, name }) => {
+    return subscribePlaybackReady(({ blob, motionId, name, durationSeconds }) => {
       setPlaybackBlob(blob);
       setActiveMotionId(motionId);
       setActiveMotionName(name.replace(/\.glb$/i, ""));
@@ -156,18 +156,18 @@ function App() {
       // Always open the library when a motion is saved so the user sees it placed there
       setLibraryOpen(true);
 
-      // For guest users (not logged in), create a local pending motion so they can
-      // see and download the motion they just recorded
-      if (!hasDriveAccess()) {
-        const localMotion: DriveMotionFile = {
-          driveFileId: motionId,
-          name: name,
-          size: blob.size,
-          modifiedTime: new Date().toISOString(),
-          duration: undefined,
-        };
-        setPendingMotion(localMotion);
-      }
+      // Immediately create an optimistic pending motion for ALL users (guest and
+      // logged-in) so the row appears in the library without any delay.
+      // For logged-in users this row shows a "saving…" spinner until Drive
+      // confirms the upload; subscribeMotionUploaded will replace it.
+      const optimisticMotion: DriveMotionFile = {
+        driveFileId: motionId,
+        name: name,
+        size: blob.size,
+        modifiedTime: new Date().toISOString(),
+        duration: durationSeconds,
+      };
+      setPendingMotion(optimisticMotion);
 
       // If already signed in, the Drive upload fires inside stopRecording().
       // Set uploading status immediately and wait for the upload to resolve
@@ -192,14 +192,26 @@ function App() {
   // ── Subscribe to Drive upload completions ─────────────────────────────────
   // When uploadToDrive() succeeds (from any call site — stopRecording, the
   // hasDrive-transition effect, etc.) we get the DriveMotionFile back and:
-  //  1. Set it as pendingMotion → renders immediately at the top of the library
-  //  2. Bump libraryRefreshKey → triggers a silent background re-fetch so the
+  //  1. Replace pendingMotion with the confirmed Drive file (real driveFileId)
+  //  2. If the user is still on this motion (activeMotionId matches the optimistic
+  //     id), update activeMotionId to the real Drive file ID so selection stays correct
+  //  3. Bump libraryRefreshKey → triggers a silent background re-fetch so the
   //     list eventually reflects the canonical Drive order
-  //  3. Increment libraryMotionCount for the badge
-  //  4. Mark driveUploadStatus as "done"
+  //  4. Increment libraryMotionCount for the badge
+  //  5. Mark driveUploadStatus as "done"
   useEffect(() => {
     return subscribeMotionUploaded((file) => {
       setPendingMotion(file);
+      setActiveMotionId((currentId) => {
+        // If the user is still viewing the optimistic motion, point to the real one
+        // We can't compare directly since we don't have the optimistic ID here,
+        // but if the current ID starts with "motion_" it's the local optimistic one
+        if (currentId && currentId.startsWith("motion_")) {
+          setActiveMotionName(file.name.replace(/\.glb$/i, ""));
+          return file.driveFileId;
+        }
+        return currentId;
+      });
       setLibraryRefreshKey((k) => k + 1);
       setLibraryMotionCount((c) => c + 1);
       setDriveUploadStatus("done");
@@ -406,6 +418,7 @@ function App() {
           onLoginRequest={() => setShowAuthModal(true)}
           isInPlayback={isInPlayback}
           playbackBlob={playbackBlob}
+          isPendingUploading={driveUploadStatus === "uploading"}
         />
       )}
 
