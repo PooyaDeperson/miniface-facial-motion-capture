@@ -147,7 +147,7 @@
 ========================================= */
 
 .tooltip-container.pos-top {
-  bottom: calc(100% + 10px);
+  bottom: calc(100% + 14px);
   left: 50%;
   transform:
     translateX(-50%)
