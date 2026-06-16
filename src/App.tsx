@@ -22,7 +22,7 @@ import FaceTracking from "./FaceTracking";
 import AvatarCanvas from "./AvatarCanvas";
 import { discardRecording, subscribePlaybackReady } from "./useMotionRecorder";
 import AuthButton from "./components/AuthButton";
-import { hasDriveAccess, listDriveMotions, BulkSyncProgress } from "./useDriveSync";
+import { hasDriveAccess, listDriveMotions, uploadToDrive, BulkSyncProgress } from "./useDriveSync";
 import type { DriveMotionFile } from "./useDriveSync";
 
 function App() {
@@ -43,6 +43,11 @@ function App() {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [libraryMotionCount, setLibraryMotionCount] = useState(0);
   const [bulkProgress] = useState<BulkSyncProgress | null>(null);
+
+  // ── Drive upload status — shown in RecordingControls review overlay ─────────
+  const [driveUploadStatus, setDriveUploadStatus] = useState<
+    "idle" | "uploading" | "done" | "error"
+  >("idle");
 
   // ── Drive scope state (drive token can appear after sign-in redirect) ─────
   const [hasDrive, setHasDrive] = useState(() => hasDriveAccess());
@@ -66,6 +71,10 @@ function App() {
       .then((files) => setLibraryMotionCount(files.length))
       .catch(() => { /* graceful — badge stays 0 */ });
   }, [hasDrive]);
+
+  // Ref always holds the latest playback blob + name — used by Drive-connect
+  // effect so it can upload without a stale closure over playbackBlob state.
+  const latestPlaybackRef = useRef<{ blob: Blob; name: string } | null>(null);
 
   // Timeout fallback: if face detection never fires within 30s on mobile,
   // dismiss the overlay so the user isn't permanently stuck.
@@ -131,15 +140,24 @@ function App() {
       setPlaybackBlob(blob);
       setActiveMotionId(motionId);
       setActiveMotionName(name.replace(/\.glb$/i, ""));
-      // Auto-open library when logged in with Drive
+      setDriveUploadStatus("idle"); // reset for this new take
+
+      // Keep ref current so Drive-connect effect can upload if user signs in later
+      latestPlaybackRef.current = { blob, name };
+
+      // If already signed in, Drive upload happens inside stopRecording() —
+      // show uploading status and refresh count after a short settle delay.
       if (hasDriveAccess()) {
+        setDriveUploadStatus("uploading");
         setLibraryOpen(true);
-        // Refresh the count after a short delay to let the upload settle
         setTimeout(() => {
           listDriveMotions()
-            .then((files) => setLibraryMotionCount(files.length))
-            .catch(() => { });
-        }, 2000);
+            .then((files) => {
+              setLibraryMotionCount(files.length);
+              setDriveUploadStatus("done");
+            })
+            .catch(() => setDriveUploadStatus("error"));
+        }, 3000);
       }
     });
   }, []);
@@ -203,18 +221,47 @@ function App() {
     // Don't close the library on mobile — user might want to switch again
   }, []);
 
-  // ── Trigger bulk upload when hasDrive first becomes true and there is a
-  //    freshly exported blob waiting (edge case: user signs in during review) ─
+  // ── When Drive first becomes available, upload any pending blob and refresh count ──
+  // This covers two cases:
+  //   1. User was already recording/reviewed before signing in (signs in during review).
+  //   2. User signs in fresh and Drive tokens arrive via SIGNED_IN event.
   const prevHasDriveRef = useRef(false);
   useEffect(() => {
     if (hasDrive && !prevHasDriveRef.current) {
       prevHasDriveRef.current = true;
-      // No local motion store in this version, but we do a Drive list refresh
-      listDriveMotions()
-        .then((files) => setLibraryMotionCount(files.length))
-        .catch(() => { });
+
+      const pending = latestPlaybackRef.current;
+      if (pending) {
+        // A recording was made before sign-in — upload it now.
+        setDriveUploadStatus("uploading");
+        uploadToDrive(pending.blob, pending.name)
+          .then(() => {
+            setDriveUploadStatus("done");
+            return listDriveMotions();
+          })
+          .then((files) => {
+            setLibraryMotionCount(files.length);
+            setLibraryOpen(true);
+          })
+          .catch((err) => {
+            console.warn("[app] Drive upload on sign-in failed:", err?.message);
+            setDriveUploadStatus("error");
+            // Still refresh the count in case prior files exist
+            listDriveMotions()
+              .then((files) => setLibraryMotionCount(files.length))
+              .catch(() => { });
+          });
+      } else {
+        // No pending blob — just refresh the library count from Drive.
+        listDriveMotions()
+          .then((files) => setLibraryMotionCount(files.length))
+          .catch(() => { });
+      }
     }
-    if (!hasDrive) prevHasDriveRef.current = false;
+    if (!hasDrive) {
+      prevHasDriveRef.current = false;
+      setDriveUploadStatus("idle");
+    }
   }, [hasDrive]);
 
   const isInPlayback = playbackBlob !== null;
@@ -277,6 +324,7 @@ function App() {
         onDoAnother={handleDoAnother}
         isLoggedInWithDrive={hasDrive}
         onDriveConnected={() => setHasDrive(hasDriveAccess())}
+        driveUploadStatus={driveUploadStatus}
         hideIdleWhenPlaying={isInPlayback}
       />
 
