@@ -63,10 +63,22 @@ function App() {
   // Poll for Drive access after component mounts (handles OAuth redirect case)
   useEffect(() => {
     const check = () => setHasDrive(hasDriveAccess());
-    // Check once on mount and again after a short delay (post-redirect token store)
+    // Check once on mount and again after short delays (post-redirect token store)
     check();
-    const t = setTimeout(check, 800);
-    return () => clearTimeout(t);
+    const t1 = setTimeout(check, 500);
+    const t2 = setTimeout(check, 1500);
+    const t3 = setTimeout(check, 3000);
+    // Also re-check whenever the tab regains focus (user completes OAuth in another tab)
+    window.addEventListener("focus", check);
+    // Re-check on sessionStorage changes (storeDriveTokens writes here)
+    window.addEventListener("storage", check);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      window.removeEventListener("focus", check);
+      window.removeEventListener("storage", check);
+    };
   }, []);
 
   // When Drive access becomes available, fetch motion count for the badge
@@ -297,12 +309,15 @@ function App() {
     setMediapipeReady(false);
   }, [recordingPhase, handlePhaseChange]);
 
-  // ── When library opens, stop recording gracefully ────────────────────────────
+  // ── When library opens, stop recording gracefully and re-check auth ─────────
   const handleOpenLibrary = useCallback(() => {
     if (recordingPhase === "recording") {
       discardRecording();
       handlePhaseChange("idle");
     }
+    // Re-check Drive access every time the panel opens so the logged-in state
+    // is never stale (covers OAuth redirect and tab-focus edge cases)
+    setHasDrive(hasDriveAccess());
     setLibraryOpen(prev => !prev);
   }, [recordingPhase, handlePhaseChange]);
 
