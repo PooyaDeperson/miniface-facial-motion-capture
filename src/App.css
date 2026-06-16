@@ -2076,3 +2076,7 @@ canvas:active {
     transform: translateX(-37px);
   }
 }
+
+.elevated-sharp {
+  box-shadow: 0px 7px 15px rgba(175, 175, 255, 0.5);
+}
