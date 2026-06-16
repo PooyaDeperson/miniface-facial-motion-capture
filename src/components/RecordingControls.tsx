@@ -1,11 +1,6 @@
 /*
  * Copyright (c) 2025 Pooya Moradi M. poamrd@gmail.com https://github.com/PooyaDeperson
  * Licensed under the MIT License with Attribution.
- *
- * Permission is hereby granted, free of charge, to use, copy, modify, merge,
- * publish, and distribute this software, provided that the following credit
- * is included in any derivative or distributed version:
- * "Created by Pooya Moradi M. poamrd@gmail.com https://github.com/PooyaDeperson"
  */
 
 /**
@@ -13,15 +8,18 @@
  *
  * Fixed bottom-center pill UI that drives the motion-capture recording flow.
  *
- * Three phases
- * ────────────
- * idle      → "Record" button (only shown when mediapipeReady && avatarReady)
+ * Phases
+ * ──────
+ * idle      → "Record" button (only when mediapipeReady && avatarReady)
  * recording → pulsing red dot + live MM:SS timer + frame counter + "Stop"
- * review    → frame/duration summary + "Save GLB" + "Discard"
+ * review    → floating popup shown ON TOP of playback (avatar already playing)
+ *             • "export .glb"  — downloads the blob
+ *             • "do another"   — clears playback, back to idle
+ *             • "save to cloud" (non-logged-in only) — opens AuthModal
+ * done      → (absorbed into review; review stays visible until "do another")
  *
- * The component subscribes to the module-level recorder singleton so it stays
- * in sync with Avatar.tsx's useFrame captures without any prop drilling through
- * the R3F Canvas boundary.
+ * The review popup is intentionally a floating overlay so the user can see
+ * the animation playing behind it. On click "do another" it disappears.
  */
 
 import React, {
@@ -38,6 +36,7 @@ import {
   discardRecording,
   buildAndExportGLB,
 } from "../useMotionRecorder";
+import AuthModal from "./AuthModal";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -54,30 +53,42 @@ interface RecordingControlsProps {
   mediapipeReady: boolean;
   avatarReady: boolean;
   onPhaseChange?: (phase: Phase) => void;
+  /** Called when the user clicks "do another" — lets App clear playback state */
+  onDoAnother?: () => void;
+  /** Whether the user is logged in with Drive access — controls "save to cloud" CTA */
+  isLoggedInWithDrive?: boolean;
+  /** Called after Drive scope is successfully obtained (for auth modal) */
+  onDriveConnected?: () => void;
+  /** When true, hides the idle "record" button (playback is already running) */
+  hideIdleWhenPlaying?: boolean;
 }
 
-// ─── component ────────────────────────────────────────────────────────────────
-
 type Phase = "idle" | "recording" | "review" | "done";
+
+// ─── component ────────────────────────────────────────────────────────────────
 
 const RecordingControls: React.FC<RecordingControlsProps> = ({
   mediapipeReady,
   avatarReady,
   onPhaseChange,
+  onDoAnother: onDoAnotherProp,
+  isLoggedInWithDrive = false,
+  onDriveConnected,
+  hideIdleWhenPlaying = false,
 }) => {
   const [phase, setPhase] = useState<Phase>("idle");
-
-  // Notify parent whenever phase changes
-  const setPhaseAndNotify = useCallback((newPhase: Phase) => {
-    setPhase(newPhase);
-    onPhaseChange?.(newPhase);
-  }, [onPhaseChange]);
   const [frameCount, setFrameCount] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
-  // Live interval for sub-second timer updates while recording
+  const setPhaseAndNotify = useCallback((newPhase: Phase) => {
+    setPhase(newPhase);
+    onPhaseChange?.(newPhase);
+  }, [onPhaseChange]);
+
+  // Live interval ref for timer
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── sync with recorder singleton ────────────────────────────────────────────
@@ -88,7 +99,12 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
         setPhaseAndNotify("recording");
         setFrameCount(state.frameCount);
       } else if (state.hasFrames) {
-        setPhaseAndNotify("review");
+        // Stay in review; don't reset if already in review/done
+        setPhase((prev) => {
+          const next = prev === "idle" ? "review" : prev;
+          onPhaseChange?.(next);
+          return next;
+        });
         setFrameCount(state.frameCount);
         setElapsed(state.duration);
       } else {
@@ -97,12 +113,10 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
         setElapsed(0);
       }
     };
-
-    const unsubscribe = subscribeRecorder(syncState);
-    // Run once immediately to pick up any state already set
+    const unsub = subscribeRecorder(syncState);
     syncState();
-    return unsubscribe;
-  }, [setPhaseAndNotify]);
+    return unsub;
+  }, [setPhaseAndNotify, onPhaseChange]);
 
   // ── live timer while recording ───────────────────────────────────────────────
   useEffect(() => {
@@ -111,7 +125,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
         const state = getRecorderState();
         setElapsed(state.duration);
         setFrameCount(state.frameCount);
-      }, 100); // 10 Hz is plenty for a display timer
+      }, 100);
     } else {
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -119,10 +133,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
       }
     }
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [phase]);
 
@@ -136,6 +147,8 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   }, [setPhaseAndNotify]);
 
   const handleStop = useCallback(() => {
+    // stopRecording() now also builds the GLB blob in memory and notifies
+    // subscribePlaybackReady — so playback starts automatically in App.tsx.
     stopRecording();
     const state = getRecorderState();
     setPhaseAndNotify("review");
@@ -143,19 +156,19 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
     setElapsed(state.duration);
   }, [setPhaseAndNotify]);
 
-  const handleSave = useCallback(async () => {
+  const handleExport = useCallback(async () => {
     setIsExporting(true);
     setExportError(null);
     try {
+      // buildAndExportGLB re-uses the cached blob from stopRecording — fast.
       await buildAndExportGLB();
-      // Move to done phase on first save; subsequent calls (re-download) stay in done
-      setPhaseAndNotify("done");
+      // Stay in review so user can still "do another" or see the stats.
     } catch (err: any) {
       setExportError(err?.message ?? "Export failed. Please try again.");
     } finally {
       setIsExporting(false);
     }
-  }, [setPhaseAndNotify]);
+  }, []);
 
   const handleDoAnother = useCallback(() => {
     discardRecording();
@@ -163,177 +176,142 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
     setFrameCount(0);
     setElapsed(0);
     setExportError(null);
-  }, [setPhaseAndNotify]);
-
-  const handleDiscard = useCallback(() => {
-    discardRecording();
-    setPhaseAndNotify("idle");
-    setFrameCount(0);
-    setElapsed(0);
-    setExportError(null);
-  }, [setPhaseAndNotify]);
+    // Notify App.tsx so it can clear playbackBlob and other state
+    onDoAnotherProp?.();
+  }, [setPhaseAndNotify, onDoAnotherProp]);
 
   // ── visibility guard ─────────────────────────────────────────────────────────
-  // Only render once both the avatar and MediaPipe are fully ready.
-  // During recording or review we keep controls visible even if mediapipe
-  // drops out (e.g. face leaves frame) so the user can still save their take.
-  const shouldShow =
-    avatarReady && mediapipeReady
-      ? true
-      : phase === "recording" || phase === "review" || phase === "done";
-
-  if (!shouldShow) return null;
+  // In review/done the overlay must always show (animation is playing behind it).
+  // In recording phase it must always show (can't lose the stop button).
+  // In idle we hide entirely if playback is active (record button would overlap scrubber).
+  const isActivePhase = phase === "recording" || phase === "review" || phase === "done";
+  const showIdle = phase === "idle" && !hideIdleWhenPlaying && (avatarReady && mediapipeReady);
+  if (!isActivePhase && !showIdle) return null;
 
   // ── render ───────────────────────────────────────────────────────────────────
   return (
-    <div
-      className="recording-controls reveal bottom-36 tb:bottom-50 fade pos-fixed z-rec"
-      role="region"
-      aria-label="Motion capture recording"
-    >
-      {/* ── IDLE ── */}
-      {phase === "idle" && (
-        <button
-          className="rec-btn pos-rel rec-btn-record pt-10 pb-10 pl-22 pr-22 outline-5 outline-soft gap-2"
-          onClick={handleRecord}
-          aria-label="Start recording motion"
-        >
-          <span className="rec-dot rec-dot-idle" aria-hidden="true" />
-          <span>record</span>
-        </button>
-      )}
-
-      {/* ── RECORDING ── */}
-      {phase === "recording" && (
+    <>
+      {/* ── IDLE: Record button (hidden while playback is active) ── */}
+      {showIdle && (
         <div
-          className="rec-bar rec-bar-live outline-5 outline-softdanger"
-          role="status"
-          aria-live="polite"
+          className="recording-controls reveal bottom-36 tb:bottom-50 fade pos-fixed z-rec"
+          role="region"
+          aria-label="Motion capture recording"
         >
-          {/* <span className="rec-dot rec-dot-pulse" aria-hidden="true" /> */}
           <button
-            className="rec-btn rec-btn-stop bg-danger gap-3 pl-22 pr-22 pt-10 pb-3"
-            onClick={handleStop}
-            aria-label="Stop recording"
+            className="rec-btn pos-rel rec-btn-record pt-10 pb-10 pl-22 pr-22 outline-5 outline-soft gap-2"
+            onClick={handleRecord}
+            aria-label="Start recording motion"
           >
-            <span className="rec-stop-icon" aria-hidden="true" />
-            stop
-            <span
-              className="rec-timer"
-              aria-label={`Recording time: ${formatTime(elapsed)}`}
-            >
-              {formatTime(elapsed)}
-            </span>
-            <span
-              className="rec-frames"
-              aria-label={`${frameCount} frames captured`}
-            >
-              {frameCount}&thinsp;f
-            </span>
-
+            <span className="rec-dot rec-dot-idle" aria-hidden="true" />
+            <span>record</span>
           </button>
         </div>
       )}
 
-      {/* ── REVIEW ── */}
-      {phase === "review" && (
-        <div className="rec-bar p-3 gap-12 rec-bar-review p-20 flex flex-col">
-          {/* Stats row */}
-          <div className="rec-stats" aria-label="Recording stats">
-            <span className="rec-stat-label">recorded</span>
-            <span className="rec-stat-item">{frameCount}&thinsp;frames</span>
-            <span className="rec-stat-divider" aria-hidden="true">
-              ·
-            </span>
-            <span className="rec-stat-item">{formatTime(elapsed)}</span>
-          </div>
-
-          {/* Error message */}
-          {exportError && (
-            <p className="rec-error" role="alert">
-              {exportError}
-            </p>
-          )}
-
-          {/* Actions */}
-          <div className="rec-actions flex flex-col">
+      {/* ── RECORDING: Stop button ── */}
+      {phase === "recording" && (
+        <div
+          className="recording-controls reveal bottom-36 tb:bottom-50 fade pos-fixed z-rec"
+          role="region"
+          aria-label="Motion capture recording"
+        >
+          <div
+            className="rec-bar rec-bar-live outline-5 outline-softdanger"
+            role="status"
+            aria-live="polite"
+          >
             <button
-              className="rec-btn gap-3 justify-center w-full rec-btn-save"
-              onClick={handleSave}
-              disabled={isExporting}
-              aria-label="Save recording as GLB file"
-              aria-busy={isExporting}
+              className="rec-btn rec-btn-stop bg-danger gap-3 pl-22 pr-22 pt-10 pb-3"
+              onClick={handleStop}
+              aria-label="Stop recording"
             >
-              {isExporting ? (
-                <>
-                  <span className="rec-spinner" aria-hidden="true" />
-                  Exporting&hellip;
-                </>
-              ) : (
-                <>
-                  {/* <span className="rec-save-icon" aria-hidden="true" /> */}
-                  save &nbsp;.glb
-                </>
-              )}
-            </button>
-
-            <button
-              className="rec-btn rec-btn-discard w-full justify-center border-3 border-inverse"
-              onClick={handleDiscard}
-              disabled={isExporting}
-              aria-label="Discard this recording"
-            >
-              another take
+              <span className="rec-stop-icon" aria-hidden="true" />
+              stop
+              <span className="rec-timer" aria-label={`Recording time: ${formatTime(elapsed)}`}>
+                {formatTime(elapsed)}
+              </span>
+              <span className="rec-frames" aria-label={`${frameCount} frames captured`}>
+                {frameCount}&thinsp;f
+              </span>
             </button>
           </div>
         </div>
       )}
 
-      {/* ── DONE ── */}
-      {phase === "done" && (
-        <div className="rec-bar p-20 gap-12 rec-bar-review p-20 flex flex-col">
-          <div className="rec-stats" aria-label="Recording stats">
-            <span className="rec-stat-label">recorded</span>
-            <span className="rec-stat-item">{frameCount}&thinsp;frames</span>
-            <span className="rec-stat-divider" aria-hidden="true">·</span>
-            <span className="rec-stat-item">{formatTime(elapsed)}</span>
-          </div>
-          {exportError && (
-            <p className="rec-error" role="alert">
-              {exportError}
-            </p>
-          )}
-          <div className="rec-actions flex flex-col">
-            <button
-              className="rec-btn gap-8 justify-center w-full rec-btn-save"
-              onClick={handleSave}
-              disabled={isExporting}
-              aria-label="Download GLB file"
-              aria-busy={isExporting}
-            >
-              {isExporting ? (
-                <>
-                  <span className="rec-spinner" aria-hidden="true" />
-                  Exporting&hellip;
-                </>
-              ) : (
-                <>
-                  {/* <span className="rec-save-icon" aria-hidden="true" /> */}
-                  save &nbsp;.glb
-                </>
+      {/* ── REVIEW / DONE: Floating overlay on top of playback ── */}
+      {(phase === "review" || phase === "done") && (
+        <div
+          className="rec-review-overlay pos-fixed z-9991"
+          role="region"
+          aria-label="Save recording"
+        >
+          <div className="rec-bar rec-bar-review p-20 flex flex-col">
+            {/* Stats */}
+            <div className="rec-stats" aria-label="Recording stats">
+              <span className="rec-stat-label">recorded</span>
+              <span className="rec-stat-item">{frameCount}&thinsp;frames</span>
+              <span className="rec-stat-divider" aria-hidden="true">·</span>
+              <span className="rec-stat-item">{formatTime(elapsed)}</span>
+            </div>
+
+            {exportError && (
+              <p className="rec-error" role="alert">{exportError}</p>
+            )}
+
+            <div className="rec-actions flex flex-col">
+              {/* Export .glb */}
+              <button
+                className="rec-btn gap-3 justify-center w-full rec-btn-save"
+                onClick={handleExport}
+                disabled={isExporting}
+                aria-label="Download as .glb file"
+                aria-busy={isExporting}
+              >
+                {isExporting ? (
+                  <><span className="rec-spinner" aria-hidden="true" />exporting&hellip;</>
+                ) : (
+                  <>export &nbsp;.glb</>
+                )}
+              </button>
+
+              {/* Save to Cloud (non-logged-in users only) */}
+              {!isLoggedInWithDrive && (
+                <button
+                  className="rec-btn rec-btn-cloud w-full justify-center gap-2"
+                  onClick={() => setShowAuthModal(true)}
+                  aria-label="Save to Google Drive"
+                >
+                  <span className="has-icon icon-size-16 cloud-check-icon" aria-hidden="true" />
+                  save to cloud
+                </button>
               )}
-            </button>
-            <button
-              className="rec-btn rec-btn-discard w-full justify-center border-3 border-inverse"
-              onClick={handleDoAnother}
-              aria-label="Start a new recording"
-            >
-              do another
-            </button>
+
+              {/* Do another */}
+              <button
+                className="rec-btn rec-btn-discard w-full justify-center border-3 border-inverse"
+                onClick={handleDoAnother}
+                disabled={isExporting}
+                aria-label="Start a new recording"
+              >
+                do another
+              </button>
+            </div>
           </div>
         </div>
       )}
-    </div>
+
+      {/* Auth modal triggered by "save to cloud" */}
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          onDriveConnected={() => {
+            setShowAuthModal(false);
+            onDriveConnected?.();
+          }}
+        />
+      )}
+    </>
   );
 };
 

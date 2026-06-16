@@ -21,9 +21,10 @@ interface AvatarCanvasProps {
   avatarKey: number;
   setAvatarReady: (ready: boolean) => void;
   isFlipped: boolean;
+  playbackBlob?: Blob | null;
 }
 
-const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarReady, isFlipped }) => {
+const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarReady, isFlipped, playbackBlob }) => {
   const [loading, setLoading] = useState(true);
 
   const cameraPosition = [-0.0, 1.62, 1.09] as [number, number, number];
@@ -78,6 +79,7 @@ const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarRe
                 setAvatarReady(true);
                 setLoading(false);
               }}
+              playbackBlob={playbackBlob}
             />
           </Suspense>
         )}
