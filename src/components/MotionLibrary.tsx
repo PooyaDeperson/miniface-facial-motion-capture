@@ -56,6 +56,11 @@ export interface MotionLibraryProps {
    * Once the re-fetch completes the real Drive entry replaces it.
    */
   pendingMotion?: DriveMotionFile | null;
+  /**
+   * Set to true when the last upload was rejected with a quota-exceeded error.
+   * Displays a prominent banner with clean-up instructions.
+   */
+  quotaReached?: boolean;
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -91,6 +96,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
   bulkProgress,
   refreshKey = 0,
   pendingMotion,
+  quotaReached = false,
 }) => {
   const [motions, setMotions] = useState<DriveMotionFile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -275,6 +281,26 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
           <p className="ml-error" role="alert">
             {loadError ?? downloadError}
           </p>
+        )}
+
+        {/* ── Drive quota full banner ── */}
+        {quotaReached && (
+          <div className="ml-quota-banner" role="alert">
+            <div className="ml-quota-icon" aria-hidden="true">&#9888;</div>
+            <div className="ml-quota-body">
+              <strong>Your Google Drive is full.</strong>
+              <p>
+                There is no space left to save your motion. To keep recording,
+                free up space by deleting unnecessary files in your Google Drive.
+              </p>
+              <p>
+                Need help?{" "}
+                <a href="mailto:arkitface@gmail.com" className="ml-quota-link">
+                  arkitface@gmail.com
+                </a>
+              </p>
+            </div>
+          </div>
         )}
 
         {/* ── List ── */}
