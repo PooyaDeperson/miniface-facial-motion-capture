@@ -295,8 +295,8 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
           </div>
         )}
 
-        {/* ── Live capture button (logged-in only) ── */}
-        {isLoggedIn && (
+        {/* ── Live capture button — only shown in playback mode ── */}
+        {isInPlayback && (
           <button
             className="rec-btn rec-btn-record ml-live-btn outline-5 outline-soft gap-2 live-capture-button"
             onClick={onStartLive}
@@ -304,18 +304,6 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
           >
             <span className="rec-dot rec-dot-idle" aria-hidden="true" />
             live motion capture
-          </button>
-        )}
-
-        {/* ── Live motion button (during playback for guests and logged-in users) ── */}
-        {isInPlayback && (
-          <button
-            className="rec-btn rec-btn-record ml-live-btn outline-5 outline-soft gap-2 playback-live-motion-button"
-            onClick={onStartLive}
-            aria-label="Start live motion capture"
-          >
-            <span className="rec-dot rec-dot-idle" aria-hidden="true" />
-            live motion
           </button>
         )}
 
@@ -361,6 +349,90 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
           </button>
         </div>
       )}
+
+        {/* ── Logged-in motion list (Drive motions + optimistic pending) ── */}
+        {isLoggedIn && (
+          <div className="ml-list motion-list-container" role="list">
+            {loading && displayMotions.length === 0 && (
+              <div className="ml-loading" aria-busy="true">
+                <span className="rec-spinner rec-spinner-xs" aria-hidden="true" />
+              </div>
+            )}
+            {!loading && displayMotions.length === 0 && !loadError && (
+              <p className="ml-empty">no motions yet</p>
+            )}
+            {displayMotions.map((file) => {
+              const hue = stringToHue(file.driveFileId);
+              const isActive = file.driveFileId === activeMotionId;
+              const isDownloading = downloadingId === file.driveFileId;
+              const isDeleting = deletingId === file.driveFileId;
+
+              return (
+                <div
+                  key={file.driveFileId}
+                  className={`ml-item ml-item-clickable motion-row${isActive ? " ml-item-active" : ""}${isDeleting ? " ml-item-deleting" : ""}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Play ${file.name.replace(/\.glb$/i, "")}`}
+                  onClick={() => !isDeleting && handleRowClick(file)}
+                  onKeyDown={(e) => e.key === "Enter" && !isDeleting && handleRowClick(file)}
+                >
+                  {/* Colour chip */}
+                  <div
+                    className="ml-item-chip motion-row-chip"
+                    style={{ background: `hsl(${hue}, 60%, 65%)` }}
+                    aria-hidden="true"
+                  />
+
+                  {/* Loading spinner overlay when downloading this row */}
+                  {isDownloading && (
+                    <span className="rec-spinner rec-spinner-xs ml-row-spinner" aria-hidden="true" />
+                  )}
+
+                  {/* Info */}
+                  <div className="ml-item-info motion-row-info">
+                    <span className="ml-item-name" title={file.name}>
+                      {file.name.replace(/\.glb$/i, "")}
+                    </span>
+                    <span className="ml-item-meta">
+                      {file.duration != null && (
+                        <>{formatDuration(file.duration)} &middot; </>
+                      )}
+                      {formatBytes(file.size)}
+                    </span>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="ml-item-actions motion-row-actions">
+                    {/* Download */}
+                    <button
+                      className="ml-action-btn"
+                      onClick={(e) => handleDownload(e, file)}
+                      disabled={isDownloading || isDeleting}
+                      aria-label={`Download ${file.name}`}
+                      title="Download .glb"
+                    >
+                      <span className="has-icon icon-size-14 download-icon" aria-hidden="true" />
+                    </button>
+                    {/* Delete (logged-in only) */}
+                    <button
+                      className="ml-action-btn ml-action-btn-delete"
+                      onClick={(e) => handleDeleteClick(e, file)}
+                      disabled={isDeleting || isDownloading}
+                      aria-label={`Delete ${file.name}`}
+                      title="Delete"
+                    >
+                      {isDeleting
+                        ? <span className="rec-spinner rec-spinner-xs" aria-hidden="true" />
+                        : <span className="has-icon icon-size-14 trash-icon" aria-hidden="true" />
+                      }
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* ── Guest with pending motion (during playback or after recording) ── */}
         {!isLoggedIn && pendingMotion && (
