@@ -63,10 +63,22 @@ function App() {
   // Poll for Drive access after component mounts (handles OAuth redirect case)
   useEffect(() => {
     const check = () => setHasDrive(hasDriveAccess());
-    // Check once on mount and again after a short delay (post-redirect token store)
+    // Check once on mount and again after short delays (post-redirect token store)
     check();
-    const t = setTimeout(check, 800);
-    return () => clearTimeout(t);
+    const t1 = setTimeout(check, 500);
+    const t2 = setTimeout(check, 1500);
+    const t3 = setTimeout(check, 3000);
+    // Also re-check whenever the tab regains focus (user completes OAuth in another tab)
+    window.addEventListener("focus", check);
+    // Re-check on sessionStorage changes (storeDriveTokens writes here)
+    window.addEventListener("storage", check);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      window.removeEventListener("focus", check);
+      window.removeEventListener("storage", check);
+    };
   }, []);
 
   // When Drive access becomes available, fetch motion count for the badge
@@ -125,10 +137,14 @@ function App() {
     };
   }, [avatarReady, videoStream, mediapipeReady]);
 
-  const handleAvatarChange = (newUrl: string) => {
+  const handleAvatarChange = (newUrl: string, keepPending = false) => {
     discardRecording();
-    // Clear any pending playback that was waiting for avatar to load
-    pendingPlaybackRef.current = null;
+    // Clear any pending playback unless this swap is itself triggered by a
+    // library selection (keepPending = true), in which case the ref was just
+    // set by handleSelectMotion and must survive into the avatarReady effect.
+    if (!keepPending) {
+      pendingPlaybackRef.current = null;
+    }
 
     useGLTF.clear(newUrl);
 
@@ -293,12 +309,15 @@ function App() {
     setMediapipeReady(false);
   }, [recordingPhase, handlePhaseChange]);
 
-  // ── When library opens, stop recording gracefully ────────────────────────────
+  // ── When library opens, stop recording gracefully and re-check auth ─────────
   const handleOpenLibrary = useCallback(() => {
     if (recordingPhase === "recording") {
       discardRecording();
       handlePhaseChange("idle");
     }
+    // Re-check Drive access every time the panel opens so the logged-in state
+    // is never stale (covers OAuth redirect and tab-focus edge cases)
+    setHasDrive(hasDriveAccess());
     setLibraryOpen(prev => !prev);
   }, [recordingPhase, handlePhaseChange]);
 
@@ -314,7 +333,8 @@ function App() {
       pendingPlaybackRef.current = { blob, file };
       // Clear current playback so the canvas shows the loader cleanly
       setPlaybackBlob(null);
-      handleAvatarChange(targetAvatarUrl);
+      // Pass keepPending=true so handleAvatarChange does NOT wipe the ref we just set
+      handleAvatarChange(targetAvatarUrl, true);
       setActiveMotionId(file.driveFileId);
       setActiveMotionName(file.name.replace(/\.glb$/i, ""));
       return;
@@ -401,6 +421,16 @@ function App() {
 
       {/* Top-right controls */}
       <div className="pos-fixed top-0 right-0 z-9992 m-3 flex flex-row items-center gap-2" style={{ pointerEvents: "auto" }}>
+        {isInPlayback && (
+          <button
+            className="rec-btn rec-btn-record outline-5 outline-soft gap-2 live-capture-button live-capture-topbar-btn reveal fade"
+            onClick={handleStartLive}
+            aria-label="Start live motion capture"
+          >
+            <span className="rec-dot rec-dot-idle" aria-hidden="true" />
+            live
+          </button>
+        )}
         <MotionLibraryButton
           onClick={handleOpenLibrary}
           motionCount={hasDrive ? libraryMotionCount : 0}
