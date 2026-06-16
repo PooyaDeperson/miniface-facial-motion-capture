@@ -58,15 +58,13 @@
   top: calc(100% + 14px);
   left: 50%;
   transform:
-    translateX(-50%)
-    translateY(-8px);
+    translateX(-50%) translateY(-8px);
 }
 
 .icon-button:hover .tooltip-container.pos-bottom,
 .button-sm-group:hover .tooltip-container.pos-bottom {
   transform:
-    translateX(-50%)
-    translateY(-4px);
+    translateX(-50%) translateY(-4px);
 }
 
 /* TRIANGLE */
@@ -79,8 +77,8 @@
   transform: translateX(-50%);
   width: 0;
   height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
   border-bottom: 6px solid var(--bg-primary);
 }
 
@@ -89,7 +87,7 @@
 ========================================= */
 
 .tooltip-container.pos-bottom-left {
-  top: calc(100% + 10px);
+  top: calc(100% + 14px);
   left: 0;
   transform: translateY(-8px);
 }
@@ -108,8 +106,8 @@
   left: 12px;
   width: 0;
   height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
   border-bottom: 6px solid var(--bg-primary);
 }
 
@@ -118,7 +116,7 @@
 ========================================= */
 
 .tooltip-container.pos-bottom-right {
-  top: calc(100% + 10px);
+  top: calc(100% + 14px);
   right: 0;
   transform: translateY(-8px);
 }
@@ -137,8 +135,8 @@
   right: 12px;
   width: 0;
   height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
   border-bottom: 6px solid var(--bg-primary);
 }
 
@@ -150,15 +148,13 @@
   bottom: calc(100% + 14px);
   left: 50%;
   transform:
-    translateX(-50%)
-    translateY(6px);
+    translateX(-50%) translateY(6px);
 }
 
 .icon-button:hover .tooltip-container.pos-top,
 .button-sm-group:hover .tooltip-container.pos-top {
   transform:
-    translateX(-50%)
-    translateY(0);
+    translateX(-50%) translateY(0);
 }
 
 /* TRIANGLE */
@@ -171,8 +167,8 @@
   transform: translateX(-50%);
   width: 0;
   height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
   border-top: 6px solid var(--bg-primary);
 }
 
@@ -181,7 +177,7 @@
 ========================================= */
 
 .tooltip-container.pos-top-left {
-  bottom: calc(100% + 10px);
+  bottom: calc(100% + 14px);
   left: 0;
   transform: translateY(6px);
 }
@@ -200,8 +196,8 @@
   left: 12px;
   width: 0;
   height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
   border-top: 6px solid var(--bg-primary);
 }
 
@@ -210,7 +206,7 @@
 ========================================= */
 
 .tooltip-container.pos-top-right {
-  bottom: calc(100% + 10px);
+  bottom: calc(100% + 14px);
   right: 0;
   transform: translateY(6px);
 }
@@ -229,8 +225,8 @@
   right: 12px;
   width: 0;
   height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
   border-top: 6px solid var(--bg-primary);
 }
 
@@ -239,18 +235,16 @@
 ========================================= */
 
 .tooltip-container.pos-left {
-  right: calc(100% + 10px);
+  right: calc(100% + 14px);
   top: 50%;
   transform:
-    translateY(-50%)
-    translateX(6px);
+    translateY(-50%) translateX(6px);
 }
 
 .icon-button:hover .tooltip-container.pos-left,
 .button-sm-group:hover .tooltip-container.pos-left {
   transform:
-    translateY(-50%)
-    translateX(0);
+    translateY(-50%) translateX(0);
 }
 
 /* TRIANGLE */
@@ -273,18 +267,16 @@
 ========================================= */
 
 .tooltip-container.pos-right {
-  left: calc(100% + 10px);
+  left: calc(100% + 14px);
   top: 50%;
   transform:
-    translateY(-50%)
-    translateX(-6px);
+    translateY(-50%) translateX(-6px);
 }
 
 .icon-button:hover .tooltip-container.pos-right,
 .button-sm-group:hover .tooltip-container.pos-right {
   transform:
-    translateY(-50%)
-    translateX(0);
+    translateY(-50%) translateX(0);
 }
 
 /* TRIANGLE */
