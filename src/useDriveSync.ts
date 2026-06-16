@@ -43,6 +43,24 @@ function _notifyUploaded(file: DriveMotionFile) {
   _uploadListeners.forEach((fn) => fn(file));
 }
 
+// ─── no-Drive-scope notification ─────────────────────────────────────────────
+// Fired by supabaseClient.ts when a SIGNED_IN event arrives but provider_token
+// is absent — meaning the user authenticated with Google but did NOT grant the
+// Drive appdata scope. App.tsx listens to re-open AuthModal so the user can
+// retry without losing their pending recording blob.
+
+type NoDriveScopeListener = () => void;
+const _noDriveScopeListeners = new Set<NoDriveScopeListener>();
+
+export function subscribeNoDriveScope(fn: NoDriveScopeListener): () => void {
+  _noDriveScopeListeners.add(fn);
+  return () => _noDriveScopeListeners.delete(fn);
+}
+
+export function notifyNoDriveScope(): void {
+  _noDriveScopeListeners.forEach((fn) => fn());
+}
+
 // ─── quota notification ───────────────────────────────────────────────────────
 // Fired when any uploadToDrive() call fails with DriveQuotaError so App.tsx
 // can update driveUploadStatus="quota" regardless of which call site triggered it.

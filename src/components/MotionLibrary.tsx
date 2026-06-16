@@ -52,6 +52,11 @@ export interface MotionLibraryProps {
   isLoggedIn?: boolean;
   /** Called when the guest-state login button is clicked */
   onLoginRequest?: () => void;
+  /**
+   * Called when the user clicks the retry CTA after signing in without
+   * granting Drive access. Reopens the auth flow so they can grant it.
+   */
+  onNoDriveAccessRetry?: () => void;
   /** Whether currently in playback mode */
   isInPlayback?: boolean;
   /** The playback blob for guest users (used to download guest recordings) */
@@ -95,6 +100,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
   quotaReached = false,
   isLoggedIn = false,
   onLoginRequest,
+  onNoDriveAccessRetry,
   isInPlayback = false,
   playbackBlob = null,
   isPendingUploading = false,
@@ -102,6 +108,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
   const [motions, setMotions] = useState<DriveMotionFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [noDriveAccess, setNoDriveAccess] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
@@ -114,9 +121,11 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
   // Load Drive motions
   const fetchMotions = useCallback(async (silent = false) => {
     if (!hasDriveAccess()) {
+      setNoDriveAccess(true);
       setLoading(false);
       return;
     }
+    setNoDriveAccess(false);
     if (!silent) setLoading(true);
     setLoadError(null);
     try {
@@ -295,6 +304,39 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
             >
               <span className="has-icon icon-size-12 refresh-icon" aria-hidden="true" />
             </button>
+          </div>
+        )}
+
+        {/* ── No Drive access banner (signed in but Drive scope missing) ── */}
+        {isLoggedIn && noDriveAccess && (
+          <div
+            className="ml-no-drive-banner"
+            role="alert"
+            style={{
+              margin: "12px 0",
+              padding: "14px 16px",
+              borderRadius: "10px",
+              background: "var(--bg-secondary, rgba(255,255,255,0.06))",
+              border: "1px solid var(--border-color, rgba(255,255,255,0.12))",
+            }}
+          >
+            <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
+              Google Drive access is needed
+            </p>
+            <p style={{ margin: "6px 0 10px", fontSize: "13px", lineHeight: 1.5, color: "var(--text-secondary)" }}>
+              It looks like Google Drive permission was not granted during sign-in. Your recorded motion is safe — click below to grant access and it will upload automatically.
+            </p>
+            {onNoDriveAccessRetry && (
+              <button
+                className="rec-btn rec-btn-record outline-5 outline-soft gap-2"
+                style={{ fontSize: "13px" }}
+                onClick={onNoDriveAccessRetry}
+                aria-label="Grant Google Drive access"
+              >
+                <span className="has-icon icon-size-14 google-icon" aria-hidden="true" />
+                grant Drive access
+              </button>
+            )}
           </div>
         )}
 
