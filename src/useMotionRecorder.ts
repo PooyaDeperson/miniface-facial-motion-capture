@@ -187,7 +187,7 @@ export function getRecorderState(): RecorderState {
   };
 }
 
-// ─── recording controls ───────────────────────────────────────────────────────
+// ─── recording controls ───────────────────────────────────────────────────���───
 
 export function startRecording(): void {
   if (_isRecording) return;
@@ -449,17 +449,23 @@ export async function buildGLBBlob(): Promise<{ blob: Blob; durationSeconds: num
   // ── GLTFExporter ────────────────────────────────────────────────────────────
   const exporter = new GLTFExporter();
 
-  // Embed avatarUrl in the GLB's asset.extras so playback can detect which
-  // avatar mesh was recorded and swap to it when a different motion is selected.
-  const extras = _avatarUrl ? { avatarUrl: _avatarUrl } : undefined;
+  // Embed avatarUrl into scene.userData so GLTFExporter writes it into
+  // asset.extras in the output GLB (userData is the supported mechanism —
+  // the 'extras' option key does not exist on GLTFExporterOptions).
+  const prevUserData = scene.userData ? { ...scene.userData } : {};
+  if (_avatarUrl) {
+    scene.userData = { ...prevUserData, avatarUrl: _avatarUrl };
+  }
 
   const result = await exporter.parseAsync(scene, {
     binary: true,
     animations: [clip],
     onlyVisible: false,
     embedImages: true,
-    extras,
   });
+
+  // Restore scene.userData so we don't pollute the live scene
+  scene.userData = prevUserData;
 
   const buffer = result as ArrayBuffer;
   const blob = new Blob([buffer], { type: "model/gltf-binary" });
