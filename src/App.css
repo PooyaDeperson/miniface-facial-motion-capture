@@ -2660,3 +2660,58 @@ canvas:active {
   border-radius: 8px;
 }
 
+/* =========================
+   DRIVE QUOTA FULL BANNER
+========================= */
+.ml-quota-banner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 10px 12px 0;
+  padding: 12px 14px;
+  background: #fff8e1;
+  border: 1.5px solid #f9a825;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.ml-quota-icon {
+  font-size: 20px;
+  line-height: 1;
+  color: #f9a825;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.ml-quota-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ml-quota-body strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: #5d4037;
+  display: block;
+}
+
+.ml-quota-body p {
+  font-size: 12px;
+  color: #6d5a4a;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.ml-quota-link {
+  color: var(--purple-900);
+  text-decoration: underline;
+  font-weight: 500;
+  word-break: break-all;
+}
+
+.ml-quota-link:hover {
+  opacity: 0.8;
+}
+

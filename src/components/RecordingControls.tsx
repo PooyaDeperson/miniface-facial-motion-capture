@@ -62,7 +62,7 @@ interface RecordingControlsProps {
   /** When true, hides the idle "record" button (playback is already running) */
   hideIdleWhenPlaying?: boolean;
   /** Drive upload status for the current take — shown in review overlay */
-  driveUploadStatus?: "idle" | "uploading" | "done" | "error";
+  driveUploadStatus?: "idle" | "uploading" | "done" | "error" | "quota";
 }
 
 type Phase = "idle" | "recording" | "review" | "done";
@@ -295,6 +295,9 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
                   )}
                   {driveUploadStatus === "error" && (
                     <span className="rec-drive-error">Drive upload failed — check connection</span>
+                  )}
+                  {driveUploadStatus === "quota" && (
+                    <span className="rec-drive-error">Drive is full — see the motion library for details</span>
                   )}
                 </div>
               ) : (

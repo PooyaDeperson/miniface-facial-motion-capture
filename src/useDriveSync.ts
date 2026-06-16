@@ -43,6 +43,22 @@ function _notifyUploaded(file: DriveMotionFile) {
   _uploadListeners.forEach((fn) => fn(file));
 }
 
+// ─── quota notification ───────────────────────────────────────────────────────
+// Fired when any uploadToDrive() call fails with DriveQuotaError so App.tsx
+// can update driveUploadStatus="quota" regardless of which call site triggered it.
+
+type QuotaListener = () => void;
+const _quotaListeners = new Set<QuotaListener>();
+
+export function subscribeQuotaExceeded(fn: QuotaListener): () => void {
+  _quotaListeners.add(fn);
+  return () => _quotaListeners.delete(fn);
+}
+
+function _notifyQuota() {
+  _quotaListeners.forEach((fn) => fn());
+}
+
 // ─── constants ────────────────────────────────────────────────────────────────
 
 const DRIVE_UPLOAD_URL =
@@ -215,6 +231,7 @@ export async function uploadToDrive(
   if (res.status === 403) {
     const body = await res.json().catch(() => ({}));
     if (body?.error?.errors?.[0]?.reason === "storageQuotaExceeded") {
+      _notifyQuota();
       throw new DriveQuotaError();
     }
     throw new Error(`Drive upload forbidden: ${body?.error?.message ?? res.statusText}`);

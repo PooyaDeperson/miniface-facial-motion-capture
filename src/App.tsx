@@ -22,7 +22,7 @@ import FaceTracking from "./FaceTracking";
 import AvatarCanvas from "./AvatarCanvas";
 import { discardRecording, subscribePlaybackReady } from "./useMotionRecorder";
 import AuthButton from "./components/AuthButton";
-import { hasDriveAccess, listDriveMotions, uploadToDrive, subscribeMotionUploaded, BulkSyncProgress } from "./useDriveSync";
+import { hasDriveAccess, listDriveMotions, uploadToDrive, subscribeMotionUploaded, subscribeQuotaExceeded, DriveQuotaError, BulkSyncProgress } from "./useDriveSync";
 import type { DriveMotionFile } from "./useDriveSync";
 
 function App() {
@@ -50,7 +50,7 @@ function App() {
 
   // ── Drive upload status — shown in RecordingControls review overlay ─────────
   const [driveUploadStatus, setDriveUploadStatus] = useState<
-    "idle" | "uploading" | "done" | "error"
+    "idle" | "uploading" | "done" | "error" | "quota"
   >("idle");
 
   // ── Drive scope state (drive token can appear after sign-in redirect) ─────
@@ -160,6 +160,16 @@ function App() {
     });
   }, []);
 
+  // ── Subscribe to Drive quota exceeded events ──────────────────────────────
+  // Fires from useDriveSync._notifyQuota() whenever any uploadToDrive() call
+  // fails with DriveQuotaError — even the one inside useMotionRecorder.
+  useEffect(() => {
+    return subscribeQuotaExceeded(() => {
+      setDriveUploadStatus("quota");
+      setLibraryOpen(true); // open the library so the banner is visible
+    });
+  }, []);
+
   // ── Subscribe to Drive upload completions ─────────────────────────────────
   // When uploadToDrive() succeeds (from any call site — stopRecording, the
   // hasDrive-transition effect, etc.) we get the DriveMotionFile back and:
@@ -265,7 +275,7 @@ function App() {
           })
           .catch((err) => {
             console.warn("[app] Drive upload on sign-in failed:", err?.message);
-            setDriveUploadStatus("error");
+            setDriveUploadStatus(err instanceof DriveQuotaError ? "quota" : "error");
           });
       } else {
         // No pending blob — just refresh the library count from Drive.
@@ -365,6 +375,7 @@ function App() {
           bulkProgress={bulkProgress}
           refreshKey={libraryRefreshKey}
           pendingMotion={pendingMotion}
+          quotaReached={driveUploadStatus === "quota"}
         />
       )}
     </div>
