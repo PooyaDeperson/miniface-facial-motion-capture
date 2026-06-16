@@ -421,6 +421,16 @@ function App() {
 
       {/* Top-right controls */}
       <div className="pos-fixed top-0 right-0 z-9992 m-3 flex flex-row items-center gap-2" style={{ pointerEvents: "auto" }}>
+        {isInPlayback && (
+          <button
+            className="rec-btn rec-btn-record outline-5 outline-soft gap-2 live-capture-button live-capture-topbar-btn reveal fade"
+            onClick={handleStartLive}
+            aria-label="Start live motion capture"
+          >
+            <span className="rec-dot rec-dot-idle" aria-hidden="true" />
+            live
+          </button>
+        )}
         <MotionLibraryButton
           onClick={handleOpenLibrary}
           motionCount={hasDrive ? libraryMotionCount : 0}

@@ -298,18 +298,6 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
           </div>
         )}
 
-        {/* ── Live capture button — only shown in playback mode ── */}
-        {isInPlayback && (
-          <button
-            className="rec-btn rec-btn-record ml-live-btn outline-5 outline-soft gap-2 live-capture-button"
-            onClick={onStartLive}
-            aria-label="Start live motion capture"
-          >
-            <span className="rec-dot rec-dot-idle" aria-hidden="true" />
-            live motion capture
-          </button>
-        )}
-
         {/* ── Error ── */}
         {(loadError || downloadError) && (
           <p className="ml-error" role="alert">
