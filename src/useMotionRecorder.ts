@@ -50,6 +50,8 @@ export interface PlaybackReadyPayload {
   motionId: string;
   name: string;
   durationSeconds: number;
+  /** The avatar URL that was active when this motion was recorded */
+  avatarUrl?: string;
 }
 
 type PlaybackListener = (payload: PlaybackReadyPayload) => void;
@@ -112,6 +114,8 @@ let _scene: Group | null = null;
 let _nodes: Record<string, any> | null = null;
 /** Meshes that carry morphTargetDictionary (Wolf3D_Head, Wolf3D_Teeth, etc.) */
 let _headMeshes: Mesh[] = [];
+/** The avatar URL that was active when setSceneForExport was last called */
+let _avatarUrl: string | null = null;
 /**
  * Optional secondary motion system. When set, its bone quaternions are
  * snapshotted every frame and baked into the exported AnimationClip.
@@ -143,15 +147,18 @@ export function subscribeRecorder(fn: Listener): () => void {
  * Avatar.tsx calls this in useEffect whenever the GLTF scene loads / reloads.
  * We store references to the live scene objects so the exporter can use them
  * without needing to traverse the R3F tree from outside the Canvas.
+ * avatarUrl is stored so it can be embedded in the exported GLB extras.
  */
 export function setSceneForExport(
   scene: Group,
   nodes: Record<string, any>,
-  meshes: Mesh[]
+  meshes: Mesh[],
+  avatarUrl?: string
 ): void {
   _scene = scene;
   _nodes = nodes;
   _headMeshes = [...meshes];
+  if (avatarUrl) _avatarUrl = avatarUrl;
 }
 
 /**
@@ -180,7 +187,7 @@ export function getRecorderState(): RecorderState {
   };
 }
 
-// ─── recording controls ───────────────────────────────────────────────────────
+// ─── recording controls ───────────────────────────────────────────────────���───
 
 export function startRecording(): void {
   if (_isRecording) return;
@@ -207,17 +214,18 @@ export function stopRecording(): void {
       .replace("T", "_")
       .replace(/:/g, "-");
     const fileName = `facial_capture_${timestamp}.glb`;
+    const snapshotAvatarUrl = _avatarUrl ?? undefined;
     buildGLBBlob()
       .then(({ blob, durationSeconds }) => {
         const motionId = _makeMotionId();
         _cachedBlob = { blob, name: fileName };
-        _notifyPlaybackReady({ blob, motionId, name: fileName, durationSeconds });
+        _notifyPlaybackReady({ blob, motionId, name: fileName, durationSeconds, avatarUrl: snapshotAvatarUrl });
 
         // Attempt Drive upload immediately if tokens are already present.
         // Import lazily to avoid circular deps at module load time.
         import("./useDriveSync").then(({ hasDriveAccess, uploadToDrive }) => {
           if (hasDriveAccess()) {
-            uploadToDrive(blob, fileName, durationSeconds).catch((err) => {
+            uploadToDrive(blob, fileName, durationSeconds, snapshotAvatarUrl).catch((err) => {
               console.warn("[recorder] Auto Drive upload failed:", err?.message);
             });
           }
@@ -441,12 +449,23 @@ export async function buildGLBBlob(): Promise<{ blob: Blob; durationSeconds: num
   // ── GLTFExporter ────────────────────────────────────────────────────────────
   const exporter = new GLTFExporter();
 
+  // Embed avatarUrl into scene.userData so GLTFExporter writes it into
+  // asset.extras in the output GLB (userData is the supported mechanism —
+  // the 'extras' option key does not exist on GLTFExporterOptions).
+  const prevUserData = scene.userData ? { ...scene.userData } : {};
+  if (_avatarUrl) {
+    scene.userData = { ...prevUserData, avatarUrl: _avatarUrl };
+  }
+
   const result = await exporter.parseAsync(scene, {
     binary: true,
     animations: [clip],
     onlyVisible: false,
     embedImages: true,
   });
+
+  // Restore scene.userData so we don't pollute the live scene
+  scene.userData = prevUserData;
 
   const buffer = result as ArrayBuffer;
   const blob = new Blob([buffer], { type: "model/gltf-binary" });

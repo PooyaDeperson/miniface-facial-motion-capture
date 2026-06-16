@@ -80,8 +80,11 @@ function App() {
       .catch(() => { /* graceful — badge stays 0 */ });
   }, [hasDrive]);
 
-  // Ref always holds the latest playback blob + name — used by Drive-connect
-  // effect so it can upload without a stale closure over playbackBlob state.
+  // ── Pending playback — used when avatar swap is required before playing ─────
+  // When the user selects a library motion recorded on a different avatar, we
+  // first swap the avatar (which triggers a load + skeleton loader), and once
+  // avatarReady fires we pick this up and start playback.
+  const pendingPlaybackRef = useRef<{ blob: Blob; file: DriveMotionFile } | null>(null);
   const latestPlaybackRef = useRef<{ blob: Blob; name: string } | null>(null);
 
   // Timeout fallback: if face detection never fires within 30s on mobile,
@@ -124,6 +127,8 @@ function App() {
 
   const handleAvatarChange = (newUrl: string) => {
     discardRecording();
+    // Clear any pending playback that was waiting for avatar to load
+    pendingPlaybackRef.current = null;
 
     useGLTF.clear(newUrl);
 
@@ -144,7 +149,7 @@ function App() {
 
   // ── Subscribe to playback-ready events from useMotionRecorder ────────────
   useEffect(() => {
-    return subscribePlaybackReady(({ blob, motionId, name, durationSeconds }) => {
+    return subscribePlaybackReady(({ blob, motionId, name, durationSeconds, avatarUrl }) => {
       setPlaybackBlob(blob);
       setActiveMotionId(motionId);
       setActiveMotionName(name.replace(/\.glb$/i, ""));
@@ -166,6 +171,7 @@ function App() {
         size: blob.size,
         modifiedTime: new Date().toISOString(),
         duration: durationSeconds,
+        avatarUrl: avatarUrl,
       };
       setPendingMotion(optimisticMotion);
 
@@ -243,12 +249,27 @@ function App() {
     getPlaybackControls()?.setLoop(loop);
   }, [getPlaybackControls]);
 
+  // ── Apply pending playback once the avatar finishes loading ──────────────
+  // When a library motion needs a different avatar, handleSelectMotion stores
+  // the blob in pendingPlaybackRef and triggers an avatar swap. This effect
+  // watches avatarReady and fires as soon as the new mesh is mounted.
+  useEffect(() => {
+    if (!avatarReady) return;
+    const pending = pendingPlaybackRef.current;
+    if (!pending) return;
+    pendingPlaybackRef.current = null;
+    setPlaybackBlob(pending.blob);
+    setActiveMotionId(pending.file.driveFileId);
+    setActiveMotionName(pending.file.name.replace(/\.glb$/i, ""));
+  }, [avatarReady]);
+
   // ── "Do another" → back to idle, clear playback ───────────────────────────
   // Called by BOTH PlaybackControls (scrubber bar) and RecordingControls.
   const handleDoAnother = useCallback(() => {
     setPlaybackBlob(null);
     setActiveMotionId(null);
     setActiveMotionName(undefined);
+    pendingPlaybackRef.current = null;
     discardRecording();
     handlePhaseChange("idle");
     // Reset mediapipe so "keep smiling" loader shows while it re-initialises
@@ -265,6 +286,7 @@ function App() {
     setPlaybackBlob(null);
     setActiveMotionId(null);
     setActiveMotionName(undefined);
+    pendingPlaybackRef.current = null;
     handlePhaseChange("idle");
     setLibraryOpen(false);
     // Reset mediapipe so the "keep smiling" loader shows while it re-initialises
@@ -282,11 +304,28 @@ function App() {
 
   // ── Select motion from library ────────────────────────────────────────────
   const handleSelectMotion = useCallback((blob: Blob, file: DriveMotionFile) => {
+    const targetAvatarUrl = file.avatarUrl ?? null;
+
+    // If the motion was recorded on a different avatar (or we know its avatar
+    // URL and it differs from current), swap the avatar first. The skeleton
+    // loader will show while the new mesh loads; once avatarReady fires the
+    // pendingPlaybackRef effect below will start playback automatically.
+    if (targetAvatarUrl && targetAvatarUrl !== url) {
+      pendingPlaybackRef.current = { blob, file };
+      // Clear current playback so the canvas shows the loader cleanly
+      setPlaybackBlob(null);
+      handleAvatarChange(targetAvatarUrl);
+      setActiveMotionId(file.driveFileId);
+      setActiveMotionName(file.name.replace(/\.glb$/i, ""));
+      return;
+    }
+
+    // Same avatar (or unknown avatar) — play immediately
     setPlaybackBlob(blob);
     setActiveMotionId(file.driveFileId);
     setActiveMotionName(file.name.replace(/\.glb$/i, ""));
     // Don't close the library on mobile — user might want to switch again
-  }, []);
+  }, [url, handleAvatarChange]);
 
   // ── When Drive first becomes available, upload any pending blob and refresh count ──
   // This covers two cases:
@@ -302,7 +341,7 @@ function App() {
         // A recording was made before sign-in — upload it now.
         // subscribeMotionUploaded will handle status + optimistic insert.
         setDriveUploadStatus("uploading");
-        uploadToDrive(pending.blob, pending.name)
+        uploadToDrive(pending.blob, pending.name, undefined, url ?? undefined)
           .then(() => {
             // subscribeMotionUploaded fires → sets "done" + pendingMotion + refreshKey
             setLibraryOpen(true);
