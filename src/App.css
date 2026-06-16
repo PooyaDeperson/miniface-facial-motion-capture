@@ -2534,13 +2534,13 @@ canvas:active {
 .rec-review-overlay {
   left: 50%;
   transform: translateX(-50%);
-  /* Sits above the PlaybackControls bar (~180px tall at bottom-36) */
-  bottom: 230px;
+  /* Sits above PlaybackControls bar: bar starts at bottom:36px, bar height ~165px */
+  bottom: 214px;
 }
 
 @media (max-width: 600px) {
   .rec-review-overlay {
-    bottom: 210px;
+    bottom: 206px;
     width: calc(100vw - 32px);
     max-width: 100%;
   }

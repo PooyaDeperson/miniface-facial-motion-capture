@@ -53,10 +53,14 @@ interface RecordingControlsProps {
   mediapipeReady: boolean;
   avatarReady: boolean;
   onPhaseChange?: (phase: Phase) => void;
+  /** Called when the user clicks "do another" — lets App clear playback state */
+  onDoAnother?: () => void;
   /** Whether the user is logged in with Drive access — controls "save to cloud" CTA */
   isLoggedInWithDrive?: boolean;
   /** Called after Drive scope is successfully obtained (for auth modal) */
   onDriveConnected?: () => void;
+  /** When true, hides the idle "record" button (playback is already running) */
+  hideIdleWhenPlaying?: boolean;
 }
 
 type Phase = "idle" | "recording" | "review" | "done";
@@ -67,8 +71,10 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   mediapipeReady,
   avatarReady,
   onPhaseChange,
+  onDoAnother: onDoAnotherProp,
   isLoggedInWithDrive = false,
   onDriveConnected,
+  hideIdleWhenPlaying = false,
 }) => {
   const [phase, setPhase] = useState<Phase>("idle");
   const [frameCount, setFrameCount] = useState(0);
@@ -170,22 +176,23 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
     setFrameCount(0);
     setElapsed(0);
     setExportError(null);
-    onPhaseChange?.("idle");
-  }, [setPhaseAndNotify, onPhaseChange]);
+    // Notify App.tsx so it can clear playbackBlob and other state
+    onDoAnotherProp?.();
+  }, [setPhaseAndNotify, onDoAnotherProp]);
 
   // ── visibility guard ─────────────────────────────────────────────────────────
-  const shouldShow =
-    avatarReady && mediapipeReady
-      ? true
-      : phase === "recording" || phase === "review" || phase === "done";
-
-  if (!shouldShow) return null;
+  // In review/done the overlay must always show (animation is playing behind it).
+  // In recording phase it must always show (can't lose the stop button).
+  // In idle we hide entirely if playback is active (record button would overlap scrubber).
+  const isActivePhase = phase === "recording" || phase === "review" || phase === "done";
+  const showIdle = phase === "idle" && !hideIdleWhenPlaying && (avatarReady && mediapipeReady);
+  if (!isActivePhase && !showIdle) return null;
 
   // ── render ───────────────────────────────────────────────────────────────────
   return (
     <>
-      {/* ── IDLE: Record button ── */}
-      {phase === "idle" && (
+      {/* ── IDLE: Record button (hidden while playback is active) ── */}
+      {showIdle && (
         <div
           className="recording-controls reveal bottom-36 tb:bottom-50 fade pos-fixed z-rec"
           role="region"

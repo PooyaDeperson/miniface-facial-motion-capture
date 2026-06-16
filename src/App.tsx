@@ -162,13 +162,15 @@ function App() {
   }, [getPlaybackControls]);
 
   // ── "Do another" → back to idle, clear playback ───────────────────────────
+  // Called by BOTH PlaybackControls (scrubber bar) and RecordingControls
+  // (review popup) — must clear everything in both cases.
   const handleDoAnother = useCallback(() => {
     setPlaybackBlob(null);
     setActiveMotionId(null);
     setActiveMotionName(undefined);
     discardRecording();
     handlePhaseChange("idle");
-    // Library stays open if it was open (user can pick another from library)
+    // Library stays open so logged-in users can browse their history
   }, [handlePhaseChange]);
 
   // ── Start live capture from inside library panel ──────────────────────────
@@ -184,7 +186,7 @@ function App() {
     setLibraryOpen(false);
   }, [recordingPhase, handlePhaseChange]);
 
-  // ── When library opens, stop recording gracefully ─────────────────────────
+  // ── When library opens, stop recording gracefully ──────────────��──────────
   const handleOpenLibrary = useCallback(() => {
     if (recordingPhase === "recording") {
       discardRecording();
@@ -265,15 +267,17 @@ function App() {
       <ColorSwitcher disabled={isSwitcherDisabled || isInPlayback} />
       <AvatarSwitcher activeUrl={url} onAvatarChange={handleAvatarChange} disabled={isSwitcherDisabled || isInPlayback} />
 
-      {/* Recording controls — shown in all phases except when explicitly in playback-only
-          (i.e. playing from the library). When recording phase is review/done, the
-          RecordingControls renders a floating overlay on top of the PlaybackControls. */}
+      {/* Recording controls — always rendered so the review overlay stays visible
+          while playback is active. In idle phase, the "record" button is hidden
+          when playback is already running (isInPlayback) so it doesn't overlap. */}
       <RecordingControls
         mediapipeReady={mediapipeReady}
         avatarReady={avatarReady}
         onPhaseChange={handlePhaseChange}
+        onDoAnother={handleDoAnother}
         isLoggedInWithDrive={hasDrive}
         onDriveConnected={() => setHasDrive(hasDriveAccess())}
+        hideIdleWhenPlaying={isInPlayback}
       />
 
       {/* Playback scrubber bar — shown whenever playback blob is active */}
