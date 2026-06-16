@@ -68,7 +68,7 @@ function Avatar({ url, onLoaded, playbackBlob }: AvatarProps) {
     if (nodes.Avatar) headMesh.push(nodes.Avatar);
     if (nodes.face) headMesh.push(nodes.face);
 
-    setSceneForExport(scene, nodes, headMesh as Mesh[]);
+    setSceneForExport(scene, nodes, headMesh as Mesh[], url);
 
     // Reset smoothers whenever the avatar reloads so we don't carry stale
     // state from a previous session into the new pose.

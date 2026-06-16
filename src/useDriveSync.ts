@@ -197,6 +197,8 @@ export interface DriveMotionFile {
   modifiedTime: string;
   /** duration in seconds stored as appProperty */
   duration?: number;
+  /** the avatar URL that was active when this motion was recorded */
+  avatarUrl?: string;
 }
 
 // ─── upload ───────────────────────────────────────────────────────────────────
@@ -208,15 +210,18 @@ export interface DriveMotionFile {
 export async function uploadToDrive(
   blob: Blob,
   fileName: string,
-  durationSeconds?: number
+  durationSeconds?: number,
+  avatarUrl?: string
 ): Promise<string> {
+  const appProperties: Record<string, string> = {};
+  if (durationSeconds != null) appProperties.duration = String(durationSeconds);
+  if (avatarUrl) appProperties.avatarUrl = avatarUrl;
+
   const metadata = {
     name: fileName,
     parents: ["appDataFolder"],
     mimeType: "model/gltf-binary",
-    appProperties: durationSeconds != null
-      ? { duration: String(durationSeconds) }
-      : undefined,
+    appProperties: Object.keys(appProperties).length > 0 ? appProperties : undefined,
   };
 
   const form = new FormData();
@@ -252,6 +257,7 @@ export async function uploadToDrive(
     size: blob.size,
     modifiedTime: new Date().toISOString(),
     duration: durationSeconds,
+    avatarUrl,
   };
   _notifyUploaded(motionFile);
 
@@ -289,6 +295,7 @@ export async function listDriveMotions(): Promise<DriveMotionFile[]> {
     duration: f.appProperties?.duration != null
       ? parseFloat(f.appProperties.duration)
       : undefined,
+    avatarUrl: f.appProperties?.avatarUrl ?? undefined,
   }));
 }
 
