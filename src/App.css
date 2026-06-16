@@ -2589,3 +2589,74 @@ canvas:active {
   font-size: 12px;
 }
 
+/* =========================
+   MOTION LIBRARY SKELETON
+========================= */
+@keyframes ml-shimmer {
+  0%   { background-position: -300px 0; }
+  100% { background-position:  300px 0; }
+}
+
+.ml-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--gray-200) 0px,
+    var(--gray-100) 80px,
+    var(--gray-200) 160px
+  );
+  background-size: 300px 100%;
+  animation: ml-shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+.ml-skeleton-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 10px 12px;
+  border-radius: 12px;
+  background: var(--white-color);
+  border: 1.5px solid var(--border-secondary);
+  min-height: 58px;
+}
+
+.ml-skeleton-chip {
+  width: 10px;
+  height: 38px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.ml-skeleton-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ml-skeleton-name {
+  height: 13px;
+  width: 70%;
+  border-radius: 4px;
+}
+
+.ml-skeleton-meta {
+  height: 11px;
+  width: 45%;
+  border-radius: 4px;
+}
+
+.ml-skeleton-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.ml-skeleton-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+
