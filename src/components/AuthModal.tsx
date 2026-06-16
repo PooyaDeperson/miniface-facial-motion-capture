@@ -76,7 +76,7 @@ export default function AuthModal({ onClose, onDriveConnected, hasPendingMotion 
     if (!supabase) return;
     setLoading(true);
     await supabase.auth.signOut();
-    setLoading(false);
+    window.location.reload();
   };
 
   if (user) {
