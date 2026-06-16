@@ -376,6 +376,16 @@ function App() {
           onSetLoop={handleSetLoop}
           onDoAnother={handleDoAnother}
           motionName={activeMotionName}
+          onDownload={playbackBlob ? () => {
+            const url = URL.createObjectURL(playbackBlob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = activeMotionName ? `${activeMotionName}.glb` : "motion.glb";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          } : undefined}
         />
       )}
 

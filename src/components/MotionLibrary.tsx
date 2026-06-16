@@ -346,8 +346,8 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
           </div>
         )}
 
-      {/* ── Guest empty state (only when not in playback with a pending motion) ── */}
-      {!isLoggedIn && !isInPlayback && (
+      {/* ── Guest empty state — always shown when not logged in ── */}
+      {!isLoggedIn && (
         <div className="ml-guest-empty guest-empty-state">
           <p className="ml-guest-headline">your motions will show up here</p>
           <p className="ml-guest-sub">connect to keep them forever</p>
@@ -426,7 +426,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
         )}
       </aside>
 
-      {/* ── Delete confirmation popup ── */}
+      {/* ��─ Delete confirmation popup ── */}
       {deleteConfirmFile && (
         <PermissionPopup
           variant="prompt"

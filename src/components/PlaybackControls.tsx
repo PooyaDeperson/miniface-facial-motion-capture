@@ -48,6 +48,8 @@ interface PlaybackControlsProps {
   onDoAnother: () => void;
   /** Optional: name of the motion being played (shown in the bar) */
   motionName?: string;
+  /** Optional: download the current motion */
+  onDownload?: () => void;
 }
 
 // ─── component ────────────────────────────────────────────────────────────────
@@ -58,6 +60,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
   onSetLoop,
   onDoAnother,
   motionName,
+  onDownload,
 }) => {
   const [state, setState] = useState(getPlaybackState);
   const scrubberRef = useRef<HTMLDivElement>(null);
@@ -187,6 +190,18 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
               <span className="playback-play-icon" aria-hidden="true" />
             )}
           </button>
+
+          {/* Download current motion */}
+          {onDownload && (
+            <button
+              className="playback-icon-btn playback-download-btn"
+              onClick={onDownload}
+              aria-label="Download motion as .glb"
+              title="Download .glb"
+            >
+              <span className="has-icon icon-size-16 download-icon" aria-hidden="true" />
+            </button>
+          )}
 
           {/* Do another */}
           <button
