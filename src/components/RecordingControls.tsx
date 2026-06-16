@@ -158,12 +158,12 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
       {/* ── IDLE: Record button (hidden while playback is active) ── */}
       {showIdle && (
         <div
-          className="recording-controls reveal bottom-36 tb:bottom-50 fade pos-fixed z-rec"
+          className="recording-controls reveal bottom-36 tb:bottom-50 fade pos-fixed z-rec recording-idle-container"
           role="region"
           aria-label="Motion capture recording"
         >
           <button
-            className="rec-btn pos-rel rec-btn-record pt-10 pb-10 pl-22 pr-22 outline-5 outline-soft gap-2"
+            className="rec-btn pos-rel rec-btn-record pt-10 pb-10 pl-22 pr-22 outline-5 outline-soft gap-2 record-button"
             onClick={handleRecord}
             aria-label="Start recording motion"
           >
@@ -176,17 +176,17 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
       {/* ── RECORDING: Stop button ── */}
       {phase === "recording" && (
         <div
-          className="recording-controls reveal bottom-36 tb:bottom-50 fade pos-fixed z-rec"
+          className="recording-controls reveal bottom-36 tb:bottom-50 fade pos-fixed z-rec recording-active-container"
           role="region"
           aria-label="Motion capture recording"
         >
           <div
-            className="rec-bar rec-bar-live outline-5 outline-softdanger"
+            className="rec-bar rec-bar-live outline-5 outline-softdanger recording-bar"
             role="status"
             aria-live="polite"
           >
             <button
-              className="rec-btn rec-btn-stop bg-danger gap-3 pl-22 pr-22 pt-10 pb-3"
+              className="rec-btn rec-btn-stop bg-danger gap-3 pl-22 pr-22 pt-10 pb-3 stop-button"
               onClick={handleStop}
               aria-label="Stop recording"
             >

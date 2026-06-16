@@ -209,7 +209,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
     <>
       {/* Mobile backdrop */}
       <div
-        className="ml-backdrop"
+        className="ml-backdrop motion-library-backdrop"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -272,7 +272,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
         {/* ── Live capture button (logged-in only) ── */}
         {isLoggedIn && (
           <button
-            className="rec-btn rec-btn-record ml-live-btn outline-5 outline-soft gap-2"
+            className="rec-btn rec-btn-record ml-live-btn outline-5 outline-soft gap-2 live-capture-button"
             onClick={onStartLive}
             aria-label="Start live motion capture"
           >
@@ -308,29 +308,29 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
           </div>
         )}
 
-        {/* ── Guest empty state ── */}
-        {!isLoggedIn && (
-          <div className="ml-guest-empty">
-            <p className="ml-guest-headline">your motions will show up here</p>
-            <p className="ml-guest-sub">connect to keep them forever</p>
-            <button
-              className="rec-btn rec-btn-record ml-live-btn outline-5 outline-soft gap-2 mt-8"
-              onClick={onLoginRequest}
-              aria-label="Sign in to save motions"
-            >
-              <span className="has-icon icon-size-16 login-icon" aria-hidden="true" />
-              connect
-            </button>
-          </div>
-        )}
+      {/* ── Guest empty state ── */}
+      {!isLoggedIn && (
+        <div className="ml-guest-empty guest-empty-state">
+          <p className="ml-guest-headline">your motions will show up here</p>
+          <p className="ml-guest-sub">connect to keep them forever</p>
+          <button
+            className="rec-btn rec-btn-record ml-live-btn outline-5 outline-soft gap-2 mt-8 guest-login-button"
+            onClick={onLoginRequest}
+            aria-label="Sign in to save motions"
+          >
+            <span className="has-icon icon-size-16 login-icon" aria-hidden="true" />
+            connect
+          </button>
+        </div>
+      )}
 
         {/* ── Logged-in motion list ── */}
         {isLoggedIn && (
-          <div className="ml-list" role="list">
+          <div className="ml-list motion-list-container" role="list">
             {loading && displayMotions.length === 0 && (
               <>
                 {[0, 1, 2].map((i) => (
-                  <div key={i} className="ml-skeleton-item" aria-hidden="true">
+                  <div key={i} className="ml-skeleton-item motion-skeleton-item" aria-hidden="true">
                     <div className="ml-skeleton ml-skeleton-chip" />
                     <div className="ml-skeleton-info">
                       <div className="ml-skeleton ml-skeleton-name" />
@@ -358,7 +358,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
               return (
                 <div
                   key={file.driveFileId}
-                  className={`ml-item ml-item-clickable${isActive ? " ml-item-active" : ""}`}
+                  className={`ml-item ml-item-clickable motion-row${isActive ? " ml-item-active" : ""}`}
                   role="button"
                   tabIndex={0}
                   aria-label={`Play ${file.name.replace(/\.glb$/i, "")}`}
@@ -367,7 +367,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
                 >
                   {/* Colour chip */}
                   <div
-                    className="ml-item-chip"
+                    className="ml-item-chip motion-row-chip"
                     style={{ background: `hsl(${hue}, 60%, 65%)` }}
                     aria-hidden="true"
                   />
@@ -378,7 +378,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
                   )}
 
                   {/* Info */}
-                  <div className="ml-item-info">
+                  <div className="ml-item-info motion-row-info">
                     <span className="ml-item-name" title={file.name}>
                       {file.name.replace(/\.glb$/i, "")}
                     </span>
@@ -391,7 +391,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
                   </div>
 
                   {/* Actions */}
-                  <div className="ml-item-actions">
+                  <div className="ml-item-actions motion-row-actions">
                     {/* Download */}
                     <button
                       className="ml-action-btn"
@@ -434,7 +434,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
           onBackdropClick={handleDeleteCancel}
           aria-label="Confirm delete"
           title={`delete "${deleteConfirmFile.name.replace(/\.glb$/i, "")}"?`}
-          className="ml-delete-popup"
+          className="ml-delete-popup motion-delete-confirmation"
         >
           <p className="subtitle prompt-subtitle">
             this cannot be undone.
