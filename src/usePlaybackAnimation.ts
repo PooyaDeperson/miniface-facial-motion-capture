@@ -191,12 +191,14 @@ export function usePlaybackAnimation({
     if (_playbackState.isPlaying) {
       mixer.update(delta);
 
-      const t = mixer.time % (clip.duration || 1);
+      // Read time from action.time (mod clip.duration for looping) — this
+      // stays correct after a seek because we set action.time directly.
+      const t = action.time % (clip.duration || 1);
       _playbackState.currentTime = t;
       _notifyPlayback();
 
       // If loop=false and we've reached the end, pause at last frame
-      if (!loopRef.current && mixer.time >= clip.duration) {
+      if (!loopRef.current && action.time >= clip.duration) {
         action.paused = true;
         _playbackState.isPlaying = false;
         _playbackState.currentTime = clip.duration;
@@ -234,16 +236,24 @@ export function usePlaybackAnimation({
     const action = actionRef.current;
     const clip = clipRef.current;
     if (!mixer || !action || !clip) return;
+
     const t = Math.max(0, Math.min(1, normalised)) * clip.duration;
-    action.time = t;
-    mixer.setTime(t);
-    // When the action is paused, Three.js skips mixer.update() entirely for
-    // that action. Temporarily un-pause, advance by zero, then re-pause so the
-    // bone/morph-target pose is applied and the frame is rendered immediately.
+
+    // Temporarily un-pause so mixer.update(0) actually evaluates this action
+    // (Three.js skips paused actions during update). We do NOT call
+    // mixer.setTime() because it internally calls update(0) while the action
+    // may still be paused, producing no pose change and corrupting mixer.time.
     const wasPaused = action.paused;
-    if (wasPaused) action.paused = false;
+    action.paused = false;
+
+    // Reset the action to the target time and flush — update(0) with a clean
+    // action time correctly repositions bones / morph-targets.
+    action.time = t;
     mixer.update(0);
-    if (wasPaused) action.paused = true;
+
+    // Re-apply paused state without moving time further.
+    action.paused = wasPaused;
+
     _playbackState = { ..._playbackState, currentTime: t };
     _notifyPlayback();
   }, []);
