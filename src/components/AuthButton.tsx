@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
 import type { User } from "@supabase/supabase-js";
 import AuthModal from "./AuthModal";
+import IconButton from "./IconButton";
 
 export default function AuthButton() {
   const [user, setUser] = useState<User | null>(null);
@@ -30,30 +31,29 @@ export default function AuthButton() {
 
   return (
     <>
-      <button
-        className="tab-button br-12 reveal fade anim-delay-1"
-        onClick={() => setShowModal(true)}
-        aria-label={user ? "Account" : "Sign in"}
-    
-      >
-        {user?.user_metadata?.avatar_url ? (
-          <>
-            <img
-              src={user.user_metadata.avatar_url}
-              alt={user.user_metadata?.full_name ?? "avatar"}
-              style={{ width: "22px", height: "22px", borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
-            />
-            {/* <span className="text sm">
-              {user.user_metadata?.given_name ?? user.user_metadata?.full_name ?? user.email ?? "Account"}
-            </span> */}
-          </>
-        ) : (
-          <>
-            <span className="has-icon icon-size-16 login-icon"></span>
-            <span className="text sm text-muted"></span>
-          </>
-        )}
-      </button>
+      {user?.user_metadata?.avatar_url ? (
+        <button
+          className="tab-button br-12 reveal fade anim-delay-1"
+          onClick={() => setShowModal(true)}
+          aria-label="Account"
+        >
+          <img
+            src={user.user_metadata.avatar_url}
+            alt={user.user_metadata?.full_name ?? "avatar"}
+            style={{ width: "22px", height: "22px", borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+          />
+        </button>
+      ) : (
+        <IconButton
+          icon="login-icon"
+          iconSize="icon-size-16"
+          className="icon-size-32 reveal fade anim-delay-1"
+          tooltip
+          tooltipText="Sign in"
+          tooltipPosition="pos-bottom"
+          onClick={() => setShowModal(true)}
+        />
+      )}
 
       {showModal && <AuthModal onClose={() => setShowModal(false)} />}
     </>
