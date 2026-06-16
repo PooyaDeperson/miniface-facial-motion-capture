@@ -40,6 +40,35 @@ import {
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter";
 import type { SecondaryMotionSystem } from "./SecondaryMotionSystem";
 
+// ─── playback notification (module-level) ─────────────────────────────────────
+// After a successful export App.tsx needs the GLB blob + a generated ID so it
+// can enter playback mode and open the motion library. We use a pub/sub pattern
+// identical to subscribeRecorder so nothing crosses the Canvas boundary.
+
+export interface PlaybackReadyPayload {
+  blob: Blob;
+  motionId: string;
+  name: string;
+  durationSeconds: number;
+}
+
+type PlaybackListener = (payload: PlaybackReadyPayload) => void;
+const _playbackListeners = new Set<PlaybackListener>();
+
+export function subscribePlaybackReady(fn: PlaybackListener): () => void {
+  _playbackListeners.add(fn);
+  return () => _playbackListeners.delete(fn);
+}
+
+function _notifyPlaybackReady(payload: PlaybackReadyPayload) {
+  _playbackListeners.forEach((fn) => fn(payload));
+}
+
+/** Generate a short unique ID for a motion. */
+function _makeMotionId(): string {
+  return `motion_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
 // ─── types ───────────────────────────────────────────────────────────────────
 
 export interface MotionFrame {
@@ -208,19 +237,10 @@ export function captureFrame(
 // ─── export ───────────────────────────────────────────────────────────────────
 
 /**
- * Builds an AnimationClip from the captured frames, attaches it to the live
- * GLTF scene, and exports everything as a binary .glb that is immediately
- * downloaded by the browser.
- *
- * Edge cases handled:
- * • Fewer than 2 frames → throws a descriptive error.
- * • Missing scene reference (avatar not loaded) → throws.
- * • Morph targets with all-zero scores → track omitted (saves file size).
- * • Missing bones (non-RPM rigs) → those bone tracks are simply skipped.
- * • Single-frame duration guard: if t[-1] === 0, clamps to a minimum 1/60 s.
- * • All TypedArray views passed to KeyframeTracks for efficient serialisation.
+ * Builds a GLB ArrayBuffer from the captured frames and returns it as a Blob.
+ * Does NOT download the file or notify listeners — useful for programmatic use.
  */
-export async function buildAndExportGLB(): Promise<void> {
+export async function buildGLBBlob(): Promise<{ blob: Blob; durationSeconds: number }> {
   // ── guards ──────────────────────────────────────────────────────────────────
   if (!_scene) {
     throw new Error(
@@ -380,6 +400,7 @@ export async function buildAndExportGLB(): Promise<void> {
 
   // ── build AnimationClip ─────────────────────────────────────────────────────
   const clip = new AnimationClip("FacialCapture", -1, tracks);
+  const durationSeconds = clip.duration;
 
   // ── GLTFExporter ────────────────────────────────────────────────────────────
   const exporter = new GLTFExporter();
@@ -387,30 +408,54 @@ export async function buildAndExportGLB(): Promise<void> {
   const result = await exporter.parseAsync(scene, {
     binary: true,
     animations: [clip],
-    // Export all nodes (including non-visible skeleton bones)
     onlyVisible: false,
-    // Embed all textures so the .glb is fully self-contained
     embedImages: true,
   });
 
-  // ── download ────────────────────────────────────────────────────────────────
   const buffer = result as ArrayBuffer;
   const blob = new Blob([buffer], { type: "model/gltf-binary" });
-  const objectUrl = URL.createObjectURL(blob);
+  return { blob, durationSeconds };
+}
 
+/**
+ * Builds a GLB, triggers a browser download, notifies playback subscribers,
+ * and (if Drive tokens are present) uploads to Google Drive in the background.
+ *
+ * This is the function called by RecordingControls on "save .glb".
+ */
+export async function buildAndExportGLB(): Promise<void> {
   const timestamp = new Date()
     .toISOString()
     .slice(0, 19)
     .replace("T", "_")
     .replace(/:/g, "-");
+  const fileName = `facial_capture_${timestamp}.glb`;
 
+  // Build the blob (throws on errors)
+  const { blob, durationSeconds } = await buildGLBBlob();
+
+  // ── browser download ───────────────────────────────────────────────────────
+  const objectUrl = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = objectUrl;
-  anchor.download = `facial_capture_${timestamp}.glb`;
+  anchor.download = fileName;
   document.body.appendChild(anchor);
   anchor.click();
   document.body.removeChild(anchor);
-
-  // Revoke after a tick so the browser has time to start the download
   setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+
+  // ── notify playback listeners ──────────────────────────────────────────────
+  const motionId = _makeMotionId();
+  _notifyPlaybackReady({ blob, motionId, name: fileName, durationSeconds });
+
+  // ── Drive upload (background, non-blocking) ─────────────────────────────────
+  // Import lazily to avoid circular deps; graceful fallback if Drive not ready.
+  try {
+    const { hasDriveAccess, uploadToDrive } = await import("./useDriveSync");
+    if (hasDriveAccess()) {
+      uploadToDrive(blob, fileName, durationSeconds).catch((err) => {
+        console.warn("[recorder] Background Drive upload failed:", err?.message);
+      });
+    }
+  } catch { /* useDriveSync not available */ }
 }

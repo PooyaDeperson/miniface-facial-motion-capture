@@ -9,7 +9,11 @@ import type { User } from "@supabase/supabase-js";
 import AuthModal from "./AuthModal";
 import IconButton from "./IconButton";
 
-export default function AuthButton() {
+interface AuthButtonProps {
+  onDriveConnected?: () => void;
+}
+
+export default function AuthButton({ onDriveConnected }: AuthButtonProps) {
   const [user, setUser] = useState<User | null>(null);
   const [showModal, setShowModal] = useState(false);
 
@@ -55,7 +59,7 @@ export default function AuthButton() {
         />
       )}
 
-      {showModal && <AuthModal onClose={() => setShowModal(false)} />}
+      {showModal && <AuthModal onClose={() => setShowModal(false)} onDriveConnected={onDriveConnected} />}
     </>
   );
 }
