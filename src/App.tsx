@@ -22,7 +22,7 @@ import FaceTracking from "./FaceTracking";
 import AvatarCanvas from "./AvatarCanvas";
 import { discardRecording, subscribePlaybackReady } from "./useMotionRecorder";
 import AuthButton from "./components/AuthButton";
-import { hasDriveAccess, listDriveMotions, uploadToDrive, BulkSyncProgress } from "./useDriveSync";
+import { hasDriveAccess, listDriveMotions, uploadToDrive, subscribeMotionUploaded, BulkSyncProgress } from "./useDriveSync";
 import type { DriveMotionFile } from "./useDriveSync";
 
 function App() {
@@ -43,6 +43,10 @@ function App() {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [libraryMotionCount, setLibraryMotionCount] = useState(0);
   const [bulkProgress] = useState<BulkSyncProgress | null>(null);
+  /** Incremented after a successful upload to trigger a background re-fetch */
+  const [libraryRefreshKey, setLibraryRefreshKey] = useState(0);
+  /** Optimistic motion shown immediately after upload, before Drive re-fetch */
+  const [pendingMotion, setPendingMotion] = useState<import("./useDriveSync").DriveMotionFile | null>(null);
 
   // ── Drive upload status — shown in RecordingControls review overlay ─────────
   const [driveUploadStatus, setDriveUploadStatus] = useState<
@@ -145,22 +149,41 @@ function App() {
       // Keep ref current so Drive-connect effect can upload if user signs in later
       latestPlaybackRef.current = { blob, name };
 
-      // If already signed in, Drive upload happens inside stopRecording() —
-      // show uploading status and refresh count after a short settle delay.
+      // If already signed in, the Drive upload fires inside stopRecording().
+      // Set uploading status immediately and wait for the upload to resolve
+      // via the uploadToDrive promise in useMotionRecorder (we listen in a
+      // separate effect below). Here we just show the spinner.
       if (hasDriveAccess()) {
         setDriveUploadStatus("uploading");
         setLibraryOpen(true);
-        setTimeout(() => {
-          listDriveMotions()
-            .then((files) => {
-              setLibraryMotionCount(files.length);
-              setDriveUploadStatus("done");
-            })
-            .catch(() => setDriveUploadStatus("error"));
-        }, 3000);
       }
     });
   }, []);
+
+  // ── Subscribe to Drive upload completions ─────────────────────────────────
+  // When uploadToDrive() succeeds (from any call site — stopRecording, the
+  // hasDrive-transition effect, etc.) we get the DriveMotionFile back and:
+  //  1. Set it as pendingMotion → renders immediately at the top of the library
+  //  2. Bump libraryRefreshKey → triggers a silent background re-fetch so the
+  //     list eventually reflects the canonical Drive order
+  //  3. Increment libraryMotionCount for the badge
+  //  4. Mark driveUploadStatus as "done"
+  useEffect(() => {
+    return subscribeMotionUploaded((file) => {
+      setPendingMotion(file);
+      setLibraryRefreshKey((k) => k + 1);
+      setLibraryMotionCount((c) => c + 1);
+      setDriveUploadStatus("done");
+    });
+  }, []);
+
+  // Clear the optimistic pending motion a short while after the refresh fires,
+  // giving the library re-fetch time to complete and replace it with real data.
+  useEffect(() => {
+    if (libraryRefreshKey === 0) return;
+    const t = setTimeout(() => setPendingMotion(null), 4000);
+    return () => clearTimeout(t);
+  }, [libraryRefreshKey]);
 
   // ── Playback controls (bridging out of R3F canvas) ────────────────────────
   const getPlaybackControls = useCallback(() =>
@@ -233,23 +256,16 @@ function App() {
       const pending = latestPlaybackRef.current;
       if (pending) {
         // A recording was made before sign-in — upload it now.
+        // subscribeMotionUploaded will handle status + optimistic insert.
         setDriveUploadStatus("uploading");
         uploadToDrive(pending.blob, pending.name)
           .then(() => {
-            setDriveUploadStatus("done");
-            return listDriveMotions();
-          })
-          .then((files) => {
-            setLibraryMotionCount(files.length);
+            // subscribeMotionUploaded fires → sets "done" + pendingMotion + refreshKey
             setLibraryOpen(true);
           })
           .catch((err) => {
             console.warn("[app] Drive upload on sign-in failed:", err?.message);
             setDriveUploadStatus("error");
-            // Still refresh the count in case prior files exist
-            listDriveMotions()
-              .then((files) => setLibraryMotionCount(files.length))
-              .catch(() => { });
           });
       } else {
         // No pending blob — just refresh the library count from Drive.
@@ -347,6 +363,8 @@ function App() {
           onSelectMotion={handleSelectMotion}
           onStartLive={handleStartLive}
           bulkProgress={bulkProgress}
+          refreshKey={libraryRefreshKey}
+          pendingMotion={pendingMotion}
         />
       )}
     </div>

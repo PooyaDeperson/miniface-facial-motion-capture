@@ -26,6 +26,23 @@
  * calls storeDriveTokens() right there so we never miss them.
  */
 
+// ─── upload notification (module-level pub/sub) ───────────────────────────────
+// After a successful uploadToDrive() call, we notify subscribers with the
+// resulting DriveMotionFile so App.tsx can optimistically update the library
+// without polling.
+
+type UploadedListener = (file: DriveMotionFile) => void;
+const _uploadListeners = new Set<UploadedListener>();
+
+export function subscribeMotionUploaded(fn: UploadedListener): () => void {
+  _uploadListeners.add(fn);
+  return () => _uploadListeners.delete(fn);
+}
+
+function _notifyUploaded(file: DriveMotionFile) {
+  _uploadListeners.forEach((fn) => fn(file));
+}
+
 // ─── constants ────────────────────────────────────────────────────────────────
 
 const DRIVE_UPLOAD_URL =
@@ -209,7 +226,19 @@ export async function uploadToDrive(
   }
 
   const json = await res.json();
-  return json.id as string;
+  const driveFileId = json.id as string;
+
+  // Notify subscribers so the library can update immediately without polling.
+  const motionFile: DriveMotionFile = {
+    driveFileId,
+    name: fileName,
+    size: blob.size,
+    modifiedTime: new Date().toISOString(),
+    duration: durationSeconds,
+  };
+  _notifyUploaded(motionFile);
+
+  return driveFileId;
 }
 
 // ─── list ─────────────────────────────────────────────────────────────────────

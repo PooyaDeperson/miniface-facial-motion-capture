@@ -45,6 +45,17 @@ export interface MotionLibraryProps {
   onStartLive: () => void;
   /** Optional bulk-sync progress (set externally by App.tsx) */
   bulkProgress?: BulkSyncProgress | null;
+  /**
+   * Incrementing this value triggers a background re-fetch of the Drive list.
+   * App.tsx bumps it after a successful upload to ensure the list is canonical.
+   */
+  refreshKey?: number;
+  /**
+   * A motion that was just uploaded — optimistically prepended to the list
+   * immediately so the user sees it without waiting for a Drive round-trip.
+   * Once the re-fetch completes the real Drive entry replaces it.
+   */
+  pendingMotion?: DriveMotionFile | null;
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -78,6 +89,8 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
   onSelectMotion,
   onStartLive,
   bulkProgress,
+  refreshKey = 0,
+  pendingMotion,
 }) => {
   const [motions, setMotions] = useState<DriveMotionFile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,15 +99,16 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const fetchedRef = useRef(false);
+  // Track which refreshKey value we last fetched for, so we refetch on change
+  const lastRefreshKey = useRef(-1);
 
-  // Load Drive motions on mount
-  const fetchMotions = useCallback(async () => {
+  // Load Drive motions
+  const fetchMotions = useCallback(async (silent = false) => {
     if (!hasDriveAccess()) {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!silent) setLoading(true);
     setLoadError(null);
     try {
       const files = await listDriveMotions();
@@ -107,17 +121,22 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
     }
   }, []);
 
+  // Initial fetch + re-fetch whenever refreshKey increments
   useEffect(() => {
-    if (!fetchedRef.current) {
-      fetchedRef.current = true;
-      fetchMotions();
+    if (lastRefreshKey.current !== refreshKey) {
+      lastRefreshKey.current = refreshKey;
+      // First open: show skeleton (loading=true). Subsequent refreshes: silent
+      // background fetch so existing rows stay visible while we update.
+      const isFirstFetch = motions.length === 0 && !lastSynced;
+      fetchMotions(!isFirstFetch);
     }
-  }, [fetchMotions]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey, fetchMotions]);
 
   // Reload when bulk sync finishes
   useEffect(() => {
     if (bulkProgress && bulkProgress.done === bulkProgress.total && bulkProgress.total > 0) {
-      fetchMotions();
+      fetchMotions(true); // silent refresh
     }
   }, [bulkProgress, fetchMotions]);
 
@@ -168,6 +187,14 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
   }, []);
 
   const isBulkSyncing = bulkProgress != null && bulkProgress.done < bulkProgress.total;
+
+  // Merge the pending motion (optimistic) at the top, deduped by driveFileId
+  const displayMotions: DriveMotionFile[] = pendingMotion
+    ? [
+        pendingMotion,
+        ...motions.filter((m) => m.driveFileId !== pendingMotion.driveFileId),
+      ]
+    : motions;
 
   return (
     <>
@@ -224,7 +251,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
             <span>synced to Google Drive</span>
             <button
               className="ml-refresh-btn"
-              onClick={fetchMotions}
+              onClick={() => fetchMotions(false)}
               aria-label="Refresh motion list"
               title="Refresh"
             >
@@ -252,18 +279,31 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
 
         {/* ── List ── */}
         <div className="ml-list" role="list">
-          {loading && (
-            <div className="ml-loading">
-              <span className="rec-spinner" aria-hidden="true" />
-              <span>loading motions&hellip;</span>
-            </div>
+          {/* Skeleton rows — shown while loading and no items exist yet */}
+          {loading && displayMotions.length === 0 && (
+            <>
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="ml-skeleton-item" aria-hidden="true">
+                  <div className="ml-skeleton ml-skeleton-chip" />
+                  <div className="ml-skeleton-info">
+                    <div className="ml-skeleton ml-skeleton-name" />
+                    <div className="ml-skeleton ml-skeleton-meta" />
+                  </div>
+                  <div className="ml-skeleton-actions">
+                    <div className="ml-skeleton ml-skeleton-btn" />
+                    <div className="ml-skeleton ml-skeleton-btn" />
+                    <div className="ml-skeleton ml-skeleton-btn" />
+                  </div>
+                </div>
+              ))}
+            </>
           )}
 
-          {!loading && motions.length === 0 && !loadError && (
+          {!loading && displayMotions.length === 0 && !loadError && (
             <p className="ml-empty">No motions saved yet.</p>
           )}
 
-          {motions.map((file) => {
+          {displayMotions.map((file) => {
             const hue = stringToHue(file.driveFileId);
             const isActive = file.driveFileId === activeMotionId;
             const isDownloading = downloadingId === file.driveFileId;
