@@ -243,13 +243,13 @@ function App() {
     setLibraryOpen(false);
   }, [recordingPhase, handlePhaseChange]);
 
-  // ── When library opens, stop recording gracefully ──────────────��──────────
+  // ── When library opens, stop recording gracefully ────────────────────────────
   const handleOpenLibrary = useCallback(() => {
     if (recordingPhase === "recording") {
       discardRecording();
       handlePhaseChange("idle");
     }
-    setLibraryOpen(true);
+    setLibraryOpen(prev => !prev);
   }, [recordingPhase, handlePhaseChange]);
 
   // ── Select motion from library ────────────────────────────────────────────
