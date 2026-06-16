@@ -50,7 +50,7 @@ export default function AuthButton() {
           className="icon-size-32 reveal fade anim-delay-1"
           tooltip={true}
           tooltipText="Sign in"
-          tooltipPosition="pos-bottom"
+          tooltipPosition="pos-bottom-right"
           onClick={() => setShowModal(true)}
         />
       )}

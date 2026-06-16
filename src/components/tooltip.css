@@ -55,7 +55,7 @@
 ========================================= */
 
 .tooltip-container.pos-bottom {
-  top: calc(100% + 10px);
+  top: calc(100% + 14px);
   left: 50%;
   transform:
     translateX(-50%)
