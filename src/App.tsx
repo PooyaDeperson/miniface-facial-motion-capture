@@ -168,7 +168,7 @@ function App() {
     setActiveMotionName(undefined);
     discardRecording();
     handlePhaseChange("idle");
-    // Library stays open if it was open
+    // Library stays open if it was open (user can pick another from library)
   }, [handlePhaseChange]);
 
   // ── Start live capture from inside library panel ──────────────────────────
@@ -265,20 +265,25 @@ function App() {
       <ColorSwitcher disabled={isSwitcherDisabled || isInPlayback} />
       <AvatarSwitcher activeUrl={url} onAvatarChange={handleAvatarChange} disabled={isSwitcherDisabled || isInPlayback} />
 
-      {/* Recording or Playback controls */}
-      {isInPlayback ? (
+      {/* Recording controls — shown in all phases except when explicitly in playback-only
+          (i.e. playing from the library). When recording phase is review/done, the
+          RecordingControls renders a floating overlay on top of the PlaybackControls. */}
+      <RecordingControls
+        mediapipeReady={mediapipeReady}
+        avatarReady={avatarReady}
+        onPhaseChange={handlePhaseChange}
+        isLoggedInWithDrive={hasDrive}
+        onDriveConnected={() => setHasDrive(hasDriveAccess())}
+      />
+
+      {/* Playback scrubber bar — shown whenever playback blob is active */}
+      {isInPlayback && (
         <PlaybackControls
           onTogglePlay={handleTogglePlay}
           onSeek={handleSeek}
           onSetLoop={handleSetLoop}
           onDoAnother={handleDoAnother}
           motionName={activeMotionName}
-        />
-      ) : (
-        <RecordingControls
-          mediapipeReady={mediapipeReady}
-          avatarReady={avatarReady}
-          onPhaseChange={handlePhaseChange}
         />
       )}
 

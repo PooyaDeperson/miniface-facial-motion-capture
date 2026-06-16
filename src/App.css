@@ -2525,3 +2525,46 @@ canvas:active {
   text-align: center;
   pointer-events: none;
 }
+
+/* =========================
+   REVIEW OVERLAY
+   Floats above the playback scrubber bar while the animation plays behind it.
+   Uses z-9991 to sit above the playback bar (z-rec = 100) but below auth modals.
+========================= */
+.rec-review-overlay {
+  left: 50%;
+  transform: translateX(-50%);
+  /* Sits above the PlaybackControls bar (~180px tall at bottom-36) */
+  bottom: 230px;
+}
+
+@media (max-width: 600px) {
+  .rec-review-overlay {
+    bottom: 210px;
+    width: calc(100vw - 32px);
+    max-width: 100%;
+  }
+}
+
+/* =========================
+   SAVE TO CLOUD BUTTON
+========================= */
+.rec-btn-cloud {
+  background: color-mix(in srgb, var(--purple-900) 10%, transparent);
+  color: var(--purple-900);
+  border: 1.5px solid color-mix(in srgb, var(--purple-900) 25%, transparent);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+}
+
+.rec-btn-cloud:hover {
+  background: color-mix(in srgb, var(--purple-900) 18%, transparent);
+  filter: none;
+}
+
+/* Keep the cloud icon in brand colour (not the default filter inversion) */
+.rec-btn-cloud .has-icon {
+  filter: none;
+}
+

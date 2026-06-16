@@ -102,6 +102,10 @@ let _frames: MotionFrame[] = [];
 let _startTime = 0;
 let _finalDuration = 0; // stored when recording stops
 
+/** Cached blob from the last stopRecording() build — reused by buildAndExportGLB */
+// eslint-disable-next-line prefer-const
+let _cachedBlob: { blob: Blob; name: string } | null = null;
+
 /** The GLTF scene Group set by Avatar.tsx so the exporter can walk it */
 let _scene: Group | null = null;
 /** All named nodes from useGraph, keyed by node.name */
@@ -192,12 +196,34 @@ export function stopRecording(): void {
   _isRecording = false;
   _finalDuration = (performance.now() - _startTime) / 1000;
   _notify();
+
+  // Immediately build the GLB blob in memory so playback can start right away,
+  // before the user clicks "save .glb". This is non-blocking — errors are
+  // swallowed silently here; the Save button will surface them if needed.
+  if (_frames.length >= 2) {
+    const timestamp = new Date()
+      .toISOString()
+      .slice(0, 19)
+      .replace("T", "_")
+      .replace(/:/g, "-");
+    const fileName = `facial_capture_${timestamp}.glb`;
+    buildGLBBlob()
+      .then(({ blob, durationSeconds }) => {
+        const motionId = _makeMotionId();
+        _cachedBlob = { blob, name: fileName };
+        _notifyPlaybackReady({ blob, motionId, name: fileName, durationSeconds });
+      })
+      .catch((err) => {
+        console.warn("[recorder] Playback blob build failed:", err?.message);
+      });
+  }
 }
 
 export function discardRecording(): void {
   _isRecording = false;
   _frames = [];
   _finalDuration = 0;
+  _cachedBlob = null;
   _notify();
 }
 
@@ -431,8 +457,24 @@ export async function buildAndExportGLB(): Promise<void> {
     .replace(/:/g, "-");
   const fileName = `facial_capture_${timestamp}.glb`;
 
-  // Build the blob (throws on errors)
-  const { blob, durationSeconds } = await buildGLBBlob();
+  // Re-use the blob already built by stopRecording() if available — avoids a
+  // second heavy GLTFExporter pass for the same take.
+  let blob: Blob;
+  let durationSeconds: number;
+  if (_cachedBlob) {
+    blob = _cachedBlob.blob;
+    durationSeconds = 0; // duration already notified; this path is download-only
+  } else {
+    const result = await buildGLBBlob();
+    blob = result.blob;
+    durationSeconds = result.durationSeconds;
+
+    // Notify playback if it hasn't been notified yet (edge case: user skips stop
+    // and goes straight to export without the stopRecording async completing)
+    const motionId = _makeMotionId();
+    _cachedBlob = { blob, name: fileName };
+    _notifyPlaybackReady({ blob, motionId, name: fileName, durationSeconds });
+  }
 
   // ── browser download ───────────────────────────────────────────────────────
   const objectUrl = URL.createObjectURL(blob);
