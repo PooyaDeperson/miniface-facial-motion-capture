@@ -61,6 +61,8 @@ interface RecordingControlsProps {
   onDriveConnected?: () => void;
   /** When true, hides the idle "record" button (playback is already running) */
   hideIdleWhenPlaying?: boolean;
+  /** Drive upload status for the current take — shown in review overlay */
+  driveUploadStatus?: "idle" | "uploading" | "done" | "error";
 }
 
 type Phase = "idle" | "recording" | "review" | "done";
@@ -75,6 +77,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   isLoggedInWithDrive = false,
   onDriveConnected,
   hideIdleWhenPlaying = false,
+  driveUploadStatus = "idle",
 }) => {
   const [phase, setPhase] = useState<Phase>("idle");
   const [frameCount, setFrameCount] = useState(0);
@@ -275,12 +278,31 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
                 )}
               </button>
 
-              {/* Save to Cloud (non-logged-in users only) */}
-              {!isLoggedInWithDrive && (
+              {/* Drive status row */}
+              {isLoggedInWithDrive ? (
+                <div className="rec-drive-status" aria-live="polite">
+                  {driveUploadStatus === "uploading" && (
+                    <>
+                      <span className="rec-spinner rec-spinner-xs" aria-hidden="true" />
+                      <span>saving to Drive&hellip;</span>
+                    </>
+                  )}
+                  {driveUploadStatus === "done" && (
+                    <>
+                      <span className="has-icon icon-size-14 cloud-check-icon" aria-hidden="true" />
+                      <span>saved to Drive</span>
+                    </>
+                  )}
+                  {driveUploadStatus === "error" && (
+                    <span className="rec-drive-error">Drive upload failed — check connection</span>
+                  )}
+                </div>
+              ) : (
+                /* Save to Cloud button (non-logged-in users only) */
                 <button
                   className="rec-btn rec-btn-cloud w-full justify-center gap-2"
                   onClick={() => setShowAuthModal(true)}
-                  aria-label="Save to Google Drive"
+                  aria-label="Sign in to save to Google Drive"
                 >
                   <span className="has-icon icon-size-16 cloud-check-icon" aria-hidden="true" />
                   save to cloud

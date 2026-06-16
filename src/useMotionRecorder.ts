@@ -212,6 +212,16 @@ export function stopRecording(): void {
         const motionId = _makeMotionId();
         _cachedBlob = { blob, name: fileName };
         _notifyPlaybackReady({ blob, motionId, name: fileName, durationSeconds });
+
+        // Attempt Drive upload immediately if tokens are already present.
+        // Import lazily to avoid circular deps at module load time.
+        import("./useDriveSync").then(({ hasDriveAccess, uploadToDrive }) => {
+          if (hasDriveAccess()) {
+            uploadToDrive(blob, fileName, durationSeconds).catch((err) => {
+              console.warn("[recorder] Auto Drive upload failed:", err?.message);
+            });
+          }
+        }).catch(() => { /* useDriveSync unavailable */ });
       })
       .catch((err) => {
         console.warn("[recorder] Playback blob build failed:", err?.message);
@@ -424,7 +434,7 @@ export async function buildGLBBlob(): Promise<{ blob: Blob; durationSeconds: num
     );
   }
 
-  // ── build AnimationClip ─────────────────────────────────────────────────────
+  // ── build AnimationClip ──────────────────────────────────────────────────��──
   const clip = new AnimationClip("FacialCapture", -1, tracks);
   const durationSeconds = clip.duration;
 
