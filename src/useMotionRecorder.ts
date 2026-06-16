@@ -187,7 +187,30 @@ export function getRecorderState(): RecorderState {
   };
 }
 
-// ─── recording controls ───────────────────────────────────────────────────���───
+// ─── recording controls ───────────────────────────────────────────────────�����───
+
+// ─── beforeunload guard ───────────────────────────────────────────────────────
+// Prevent the user from accidentally losing an in-progress recording by
+// refreshing (F5 / Ctrl+R), closing the tab, or navigating away. The native
+// browser dialog fires immediately — no custom message is shown in modern
+// browsers, but the prompt is enough to let the user cancel the action.
+
+function _onBeforeUnload(e: BeforeUnloadEvent) {
+  e.preventDefault();
+  // Setting returnValue is still required to trigger the dialog in some
+  // environments (older Chrome, Electron wrappers, etc.).
+  e.returnValue =
+    "A recording is in progress. Leaving now will discard it. Are you sure?";
+  return e.returnValue;
+}
+
+function _addUnloadGuard() {
+  window.addEventListener("beforeunload", _onBeforeUnload);
+}
+
+function _removeUnloadGuard() {
+  window.removeEventListener("beforeunload", _onBeforeUnload);
+}
 
 export function startRecording(): void {
   if (_isRecording) return;
@@ -195,12 +218,14 @@ export function startRecording(): void {
   _finalDuration = 0;
   _startTime = performance.now();
   _isRecording = true;
+  _addUnloadGuard();
   _notify();
 }
 
 export function stopRecording(): void {
   if (!_isRecording) return;
   _isRecording = false;
+  _removeUnloadGuard();
   _finalDuration = (performance.now() - _startTime) / 1000;
   _notify();
 
@@ -239,6 +264,7 @@ export function stopRecording(): void {
 
 export function discardRecording(): void {
   _isRecording = false;
+  _removeUnloadGuard();
   _frames = [];
   _finalDuration = 0;
   _cachedBlob = null;
