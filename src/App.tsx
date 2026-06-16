@@ -22,6 +22,7 @@ import FaceTracking from "./FaceTracking";
 import AvatarCanvas from "./AvatarCanvas";
 import { discardRecording, subscribePlaybackReady } from "./useMotionRecorder";
 import AuthButton from "./components/AuthButton";
+import AuthModal from "./components/AuthModal";
 import { hasDriveAccess, listDriveMotions, uploadToDrive, subscribeMotionUploaded, subscribeQuotaExceeded, DriveQuotaError, BulkSyncProgress } from "./useDriveSync";
 import type { DriveMotionFile } from "./useDriveSync";
 
@@ -52,6 +53,9 @@ function App() {
   const [driveUploadStatus, setDriveUploadStatus] = useState<
     "idle" | "uploading" | "done" | "error" | "quota"
   >("idle");
+
+  // ── Auth modal trigger — can be fired from MotionLibrary when not logged in ──
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // ── Drive scope state (drive token can appear after sign-in redirect) ─────
   const [hasDrive, setHasDrive] = useState(() => hasDriveAccess());
@@ -149,13 +153,15 @@ function App() {
       // Keep ref current so Drive-connect effect can upload if user signs in later
       latestPlaybackRef.current = { blob, name };
 
+      // Always open the library when a motion is saved so the user sees it placed there
+      setLibraryOpen(true);
+
       // If already signed in, the Drive upload fires inside stopRecording().
       // Set uploading status immediately and wait for the upload to resolve
       // via the uploadToDrive promise in useMotionRecorder (we listen in a
       // separate effect below). Here we just show the spinner.
       if (hasDriveAccess()) {
         setDriveUploadStatus("uploading");
-        setLibraryOpen(true);
       }
     });
   }, []);
@@ -328,12 +334,10 @@ function App() {
 
       {/* Top-right controls */}
       <div className="pos-fixed top-0 right-0 z-9992 m-3 flex flex-row items-center gap-2" style={{ pointerEvents: "auto" }}>
-        {hasDrive && (
-          <MotionLibraryButton
-            onClick={handleOpenLibrary}
-            motionCount={libraryMotionCount}
-          />
-        )}
+        <MotionLibraryButton
+          onClick={handleOpenLibrary}
+          motionCount={hasDrive ? libraryMotionCount : 0}
+        />
         <AuthButton onDriveConnected={() => setHasDrive(hasDriveAccess())} />
       </div>
 
@@ -348,9 +352,6 @@ function App() {
         avatarReady={avatarReady}
         onPhaseChange={handlePhaseChange}
         onDoAnother={handleDoAnother}
-        isLoggedInWithDrive={hasDrive}
-        onDriveConnected={() => setHasDrive(hasDriveAccess())}
-        driveUploadStatus={driveUploadStatus}
         hideIdleWhenPlaying={isInPlayback}
       />
 
@@ -365,8 +366,8 @@ function App() {
         />
       )}
 
-      {/* Motion Library panel (logged-in users only) */}
-      {hasDrive && libraryOpen && (
+      {/* Motion Library panel — always rendered when open, works for both logged-in and guest */}
+      {libraryOpen && (
         <MotionLibrary
           onClose={() => setLibraryOpen(false)}
           activeMotionId={activeMotionId}
@@ -376,6 +377,19 @@ function App() {
           refreshKey={libraryRefreshKey}
           pendingMotion={pendingMotion}
           quotaReached={driveUploadStatus === "quota"}
+          isLoggedIn={hasDrive}
+          onLoginRequest={() => setShowAuthModal(true)}
+        />
+      )}
+
+      {/* Auth modal — triggered from library empty state or other call sites */}
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          onDriveConnected={() => {
+            setShowAuthModal(false);
+            setHasDrive(hasDriveAccess());
+          }}
         />
       )}
     </div>

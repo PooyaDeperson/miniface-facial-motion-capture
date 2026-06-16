@@ -2661,8 +2661,50 @@ canvas:active {
 }
 
 /* =========================
-   DRIVE QUOTA FULL BANNER
+   MOTION LIBRARY — GUEST EMPTY STATE
 ========================= */
+.ml-guest-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px 24px;
+  flex: 1;
+  text-align: center;
+  gap: 6px;
+}
+
+.ml-guest-headline {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.ml-guest-sub {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* click-to-play cursor on rows */
+.ml-item-clickable {
+  cursor: var(--cursor-pointer), pointer;
+}
+
+/* spinner centred inside a row while it loads */
+.ml-row-spinner {
+  flex-shrink: 0;
+}
+
+/* =========================
+   MOTION LIBRARY — DELETE POPUP
+========================= */
+.ml-delete-popup {
+  max-width: 320px !important;
+}
+
+
 .ml-quota-banner {
   display: flex;
   gap: 10px;
