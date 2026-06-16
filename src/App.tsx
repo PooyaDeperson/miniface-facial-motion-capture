@@ -156,6 +156,19 @@ function App() {
       // Always open the library when a motion is saved so the user sees it placed there
       setLibraryOpen(true);
 
+      // For guest users (not logged in), create a local pending motion so they can
+      // see and download the motion they just recorded
+      if (!hasDriveAccess()) {
+        const localMotion: DriveMotionFile = {
+          driveFileId: motionId,
+          name: name,
+          size: blob.size,
+          modifiedTime: new Date().toISOString(),
+          duration: undefined,
+        };
+        setPendingMotion(localMotion);
+      }
+
       // If already signed in, the Drive upload fires inside stopRecording().
       // Set uploading status immediately and wait for the upload to resolve
       // via the uploadToDrive promise in useMotionRecorder (we listen in a
@@ -379,6 +392,8 @@ function App() {
           quotaReached={driveUploadStatus === "quota"}
           isLoggedIn={hasDrive}
           onLoginRequest={() => setShowAuthModal(true)}
+          isInPlayback={isInPlayback}
+          playbackBlob={playbackBlob}
         />
       )}
 

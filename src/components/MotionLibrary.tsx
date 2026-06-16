@@ -52,6 +52,10 @@ export interface MotionLibraryProps {
   isLoggedIn?: boolean;
   /** Called when the guest-state login button is clicked */
   onLoginRequest?: () => void;
+  /** Whether currently in playback mode */
+  isInPlayback?: boolean;
+  /** The playback blob for guest users (used to download guest recordings) */
+  playbackBlob?: Blob | null;
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -89,6 +93,8 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
   quotaReached = false,
   isLoggedIn = false,
   onLoginRequest,
+  isInPlayback = false,
+  playbackBlob = null,
 }) => {
   const [motions, setMotions] = useState<DriveMotionFile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,21 +148,41 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
     setDownloadingId(file.driveFileId);
     setDownloadError(null);
     try {
-      const blob = await downloadFromDrive(file.driveFileId);
-      onSelectMotion(blob, file);
+      // For guest users with pending motion, if it's already active/in playback,
+      // just call onSelectMotion with empty blob (App will use existing playbackBlob)
+      if (!isLoggedIn && file.driveFileId === pendingMotion?.driveFileId) {
+        onSelectMotion(new Blob(), file);
+      } else {
+        // For Drive motions, download from Drive
+        const blob = await downloadFromDrive(file.driveFileId);
+        onSelectMotion(blob, file);
+      }
     } catch (err: any) {
       setDownloadError(err?.message ?? "Download failed");
     } finally {
       setDownloadingId(null);
     }
-  }, [onSelectMotion, deletingId]);
+  }, [onSelectMotion, deletingId, isLoggedIn, pendingMotion]);
 
   const handleDownload = useCallback(async (e: React.MouseEvent, file: DriveMotionFile) => {
     e.stopPropagation();
     setDownloadingId(file.driveFileId);
     setDownloadError(null);
     try {
-      const blob = await downloadFromDrive(file.driveFileId);
+      let blob: Blob;
+      
+      // For guest users with pending motion, use the playbackBlob
+      if (!isLoggedIn && file.driveFileId === pendingMotion?.driveFileId && playbackBlob) {
+        blob = playbackBlob;
+      } else if (!isLoggedIn && file.driveFileId === pendingMotion?.driveFileId) {
+        // Guest motion without playback blob available
+        setDownloadError("Motion data not available for download");
+        return;
+      } else {
+        // For Drive motions, download from Drive
+        blob = await downloadFromDrive(file.driveFileId);
+      }
+      
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -170,7 +196,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
     } finally {
       setDownloadingId(null);
     }
-  }, []);
+  }, [isLoggedIn, pendingMotion, playbackBlob]);
 
   const handleDeleteClick = useCallback((e: React.MouseEvent, file: DriveMotionFile) => {
     e.stopPropagation();
@@ -281,6 +307,18 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
           </button>
         )}
 
+        {/* ── Live motion button (during playback for guests and logged-in users) ── */}
+        {isInPlayback && (
+          <button
+            className="rec-btn rec-btn-record ml-live-btn outline-5 outline-soft gap-2 playback-live-motion-button"
+            onClick={onStartLive}
+            aria-label="Start live motion capture"
+          >
+            <span className="rec-dot rec-dot-idle" aria-hidden="true" />
+            live motion
+          </button>
+        )}
+
         {/* ── Error ── */}
         {(loadError || downloadError) && (
           <p className="ml-error" role="alert">
@@ -308,8 +346,8 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
           </div>
         )}
 
-      {/* ── Guest empty state ── */}
-      {!isLoggedIn && (
+      {/* ── Guest empty state (only when not in playback with a pending motion) ── */}
+      {!isLoggedIn && !isInPlayback && (
         <div className="ml-guest-empty guest-empty-state">
           <p className="ml-guest-headline">your motions will show up here</p>
           <p className="ml-guest-sub">connect to keep them forever</p>
@@ -324,36 +362,14 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
         </div>
       )}
 
-        {/* ── Logged-in motion list ── */}
-        {isLoggedIn && (
-          <div className="ml-list motion-list-container" role="list">
-            {loading && displayMotions.length === 0 && (
-              <>
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className="ml-skeleton-item motion-skeleton-item" aria-hidden="true">
-                    <div className="ml-skeleton ml-skeleton-chip" />
-                    <div className="ml-skeleton-info">
-                      <div className="ml-skeleton ml-skeleton-name" />
-                      <div className="ml-skeleton ml-skeleton-meta" />
-                    </div>
-                    <div className="ml-skeleton-actions">
-                      <div className="ml-skeleton ml-skeleton-btn" />
-                      <div className="ml-skeleton ml-skeleton-btn" />
-                    </div>
-                  </div>
-                ))}
-              </>
-            )}
-
-            {!loading && displayMotions.length === 0 && !loadError && (
-              <p className="ml-empty">No motions saved yet.</p>
-            )}
-
-            {displayMotions.map((file) => {
+        {/* ── Guest with pending motion (during playback or after recording) ── */}
+        {!isLoggedIn && pendingMotion && (
+          <div className="ml-list motion-list-container guest-motion-list" role="list">
+            {(() => {
+              const file = pendingMotion;
               const hue = stringToHue(file.driveFileId);
               const isActive = file.driveFileId === activeMotionId;
               const isDownloading = downloadingId === file.driveFileId;
-              const isDeleting = deletingId === file.driveFileId;
 
               return (
                 <div
@@ -396,31 +412,16 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
                     <button
                       className="ml-action-btn"
                       onClick={(e) => handleDownload(e, file)}
-                      disabled={isDownloading || isDeleting}
+                      disabled={isDownloading}
                       aria-label={`Download ${file.name}`}
                       title="Download .glb"
                     >
                       <span className="has-icon icon-size-14 download-icon" aria-hidden="true" />
                     </button>
-
-                    {/* Delete */}
-                    <button
-                      className="ml-action-btn ml-action-btn-danger"
-                      onClick={(e) => handleDeleteClick(e, file)}
-                      disabled={isDownloading || isDeleting}
-                      aria-label={`Delete ${file.name}`}
-                      title="Delete"
-                    >
-                      {isDeleting ? (
-                        <span className="rec-spinner rec-spinner-xs" aria-hidden="true" />
-                      ) : (
-                        <span className="has-icon icon-size-14 trash-icon" aria-hidden="true" />
-                      )}
-                    </button>
                   </div>
                 </div>
               );
-            })}
+            })()}
           </div>
         )}
       </aside>
