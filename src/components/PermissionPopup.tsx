@@ -72,7 +72,7 @@ export default function PermissionPopup({
     <>
       {backdrop && (
         <div
-          className="backdrop-overlay"
+          className="backdrop-overlay reveal fade"
           onClick={onBackdropClick}
           aria-hidden="true"
         />
