@@ -127,7 +127,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
       aria-label="Animation playback"
     >
       {/* pill: flex-row items-center gap-2 p-2 br-8 — all utility classes */}
-      <div className="player-controls-wrapper flex-row items-center gap-2 p-2 br-100">
+      <div className="player-controls-wrapper flex-row items-center gap-2 p-2 pl-16 pr-16 br-100">
 
         {/* ── Play / Pause ── */}
         <IconButton
