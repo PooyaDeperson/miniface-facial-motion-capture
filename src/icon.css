@@ -87,7 +87,7 @@
   background: no-repeat center / contain var(--login-icon);
 }
 
-.has-icon.library-icon {
+.has-icon.motionlibrary-icon {
   background: no-repeat center / contain var(--motionlibrary-icon);
 }
 
