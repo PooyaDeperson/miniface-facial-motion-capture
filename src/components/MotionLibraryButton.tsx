@@ -30,8 +30,8 @@ const MotionLibraryButton: React.FC<MotionLibraryButtonProps> = ({
         iconSize="icon-size-16"
         className="icon-size-32 reveal fade anim-delay-1"
         tooltip={true}
-        tooltipText="Motion library"
-        tooltipPosition="pos-bottom-right"
+        tooltipText="motion library"
+        tooltipPosition="pos-bottom"
         onClick={onClick}
       />
       {motionCount != null && motionCount > 0 && (
