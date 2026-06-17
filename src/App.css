@@ -1860,6 +1860,31 @@ canvas:active {
 }
 
 /* =========================
+   NO DRIVE ACCESS POPUP
+   Shown persistently top-center when user is signed in but
+   has not granted Google Drive permission.
+   No overlay, no close button — stays until access is granted.
+========================= */
+.no-drive-access-popup {
+  position: fixed !important;
+  top: 16px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: min(380px, calc(100vw - 40px)) !important;
+  max-width: none !important;
+  max-height: none !important;
+  animation-name: slide-down !important;
+  margin: 0 !important;
+  z-index: 9999 !important;
+}
+
+@media (max-width: 768px) {
+  .no-drive-access-popup {
+    top: 12px !important;
+  }
+}
+
+/* =========================
    UTILITY: Avatar circle
 ========================= */
 .avatar-circle-img {
