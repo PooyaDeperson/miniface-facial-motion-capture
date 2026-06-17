@@ -25,7 +25,11 @@
   --play-icon: url('../public/images/app/icons/icon_play.svg');
   --pause-icon: url('../public/images/app/icons/icon_pause.svg');
   --live-icon: url('../public/images/app/icons/icon_live.svg');
-  --live-icon: url('../public/images/app/icons/icon_live.svg');
+  --record-icon: url('../public/images/app/icons/icon_record.svg');
+  --recording-icon: url('../public/images/app/icons/icon_recording.svg');
+  --download-icon: url('../public/images/app/icons/icon_download.svg');
+  --recording-icon: url('../public/images/app/icons/icon_recording.svg');
+
 
   /* Motion Library / Playback icons (inline SVG data URIs — no extra files needed) */
   --library-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23272939' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='1' y='2' width='4' height='12' rx='1'/%3E%3Crect x='7' y='2' width='4' height='12' rx='1'/%3E%3Crect x='13' y='4' width='2' height='9' rx='1'/%3E%3C/svg%3E");
