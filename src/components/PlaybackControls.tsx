@@ -137,6 +137,9 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
           className="icon-size-32"
           iconSize="icon-size-24"
           aria-label={state.isPlaying ? "Pause playback" : "Play animation"}
+          tooltip={true}
+          tooltipPosition="pos-top"
+          tooltipText={state.isPlaying ? "pause" : "play"}
         />
 
         {/* ── Timeline ── flex-1 pos-rel overflow-hidden br-8 from utilities */}
@@ -188,6 +191,9 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
             className="icon-size-32"
             iconSize="icon-size-24"
             aria-label="Download motion as .glb"
+            tooltip={true}
+            tooltipPosition="pos-top"
+            tooltipText="download .glb"
           />
         )}
 
@@ -199,6 +205,9 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
           className="icon-size-32"
           iconSize="icon-size-24"
           aria-label="Record new motion"
+          tooltip={true}
+          tooltipPosition="pos-top"
+          tooltipText="back to live"
         />
       </div>
     </div>

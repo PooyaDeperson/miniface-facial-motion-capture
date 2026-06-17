@@ -533,6 +533,9 @@ function App() {
             title="Start live motion capture"
             className="icon-size-32"
             iconSize="icon-size-16"
+            tooltip={true}
+            tooltipPosition="pos-bottom"
+            tooltipText="back to live"
           />
         )}
         <MotionLibraryButton
