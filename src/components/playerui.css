@@ -87,13 +87,13 @@
   background-color: var(--purple-100);
   transition: none;
 }
-.player-progress::-webkit-progress-value:hover {
+.player-progress:hover ::-webkit-progress-value{
   background-color: var(--purple-300);
   transition: none;
 }
 
 /* Firefox */
-.player-progress::-moz-progress-bar:hover {
+.player-progress:hover::-moz-progress-bar {
   background-color: var(--purple-300);
   transition: none;
 }
