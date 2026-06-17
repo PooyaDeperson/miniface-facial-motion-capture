@@ -96,7 +96,7 @@ export default function PermissionPopup({
               onClick={closeButton}
               title="Close"
               tooltipText="Close"
-              className="icon-size-25 pos-abs top-0 right-0"
+              className="icon-size-25 pos-abs top-2 right-2"
               iconSize="icon-size-16"
             />
           )}
