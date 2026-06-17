@@ -1818,6 +1818,49 @@ canvas:active {
 }
 
 /* =========================
+   UTILITY: Top-center fixed popup
+   Used by PostRecordAuthPopup and similar notifications
+   that should appear at the top without covering the avatar.
+========================= */
+.popup-top-center {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(360px, calc(100vw - 40px));
+  max-height: none;
+  animation-name: slide-down;
+}
+
+@media (max-width: 768px) {
+  .popup-top-center {
+    top: 12px;
+  }
+}
+
+/* =========================
+   POST-RECORD AUTH POPUP
+   Positioned top-center, overrides PermissionPopup default pos.
+========================= */
+.post-record-auth-popup {
+  position: fixed !important;
+  top: 16px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: min(360px, calc(100vw - 40px)) !important;
+  max-width: none !important;
+  max-height: none !important;
+  animation-name: slide-down !important;
+  margin: 0 !important;
+}
+
+@media (max-width: 768px) {
+  .post-record-auth-popup {
+    top: 12px !important;
+  }
+}
+
+/* =========================
    UTILITY: Avatar circle
 ========================= */
 .avatar-circle-img {
