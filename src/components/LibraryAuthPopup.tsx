@@ -97,7 +97,7 @@ export default function LibraryAuthPopup({
       </p>
 
       {!isSupabaseAvailable() && (
-        <p className="subtitle denied-subtitle error-banner" role="status">
+        <p className="subtitle denied-subtitle error-banner mt-3" role="status">
           auth not configured — set Supabase env vars to enable sign in
         </p>
       )}
