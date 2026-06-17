@@ -8,8 +8,9 @@
 ========================================= */
 
 .motion-library-panel {
+
   position: fixed;
-  top: 0;
+  top: calc(42px + 13px);
   right: 0;
   height: 100%;
   width: 90px;
@@ -20,22 +21,22 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  z-index: 9990;
+  z-index: 99;
   animation: slide-in-right 220ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
   overflow: visible;
+  margin-right: 12px;
+
 }
 
 /* Mobile: full-screen */
 @media (max-width: 768px) {
   .motion-library-panel {
-    width: 90px;
-    max-width: 90px;
-    min-width: 90px;
-    border-left: none;
-    border-top: none;
-    top: 0;
-    bottom: 0;
     height: 100%;
+    bottom: 0;
+  }
+  .ml-list.motion-list-container {
+
+    padding-bottom: 120px;
   }
 }
 
@@ -274,7 +275,7 @@
 }
 
 .ml-motion-card:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--gray-300);
 }
 
 /* Active / selected state */
