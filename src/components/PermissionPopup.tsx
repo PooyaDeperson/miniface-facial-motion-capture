@@ -42,6 +42,8 @@ export type PermissionPopupProps = PermissionPopupMedia & {
   /** ARIA role — defaults to "dialog" when centered, otherwise none */
   role?: string;
   "aria-label"?: string;
+  /** Whether clicking the overlay backdrop closes the popup. @default true */
+  overlayClosesPopup?: boolean;
 };
 
 export default function PermissionPopup({
@@ -63,6 +65,7 @@ export default function PermissionPopup({
   video,
   role,
   "aria-label": ariaLabel,
+  overlayClosesPopup = true,
 }: PermissionPopupProps) {
   const positionClass = centered
     ? "popup-centered popup-width-auth"
@@ -73,7 +76,7 @@ export default function PermissionPopup({
       {backdrop && (
         <div
           className="backdrop-overlay reveal fade"
-          onClick={onBackdropClick}
+          onClick={overlayClosesPopup ? onBackdropClick : undefined}
           aria-hidden="true"
         />
       )}

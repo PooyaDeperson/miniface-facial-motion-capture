@@ -612,6 +612,8 @@ function App() {
           aria-label="Google Drive access required"
           title="Google Drive permission is missing"
           className="no-drive-access-popup"
+          backdrop={true}
+          overlayClosesPopup={false}
         >
           <p className="subtitle prompt-subtitle" style={{ marginTop: "8px" }}>
             It looks like Drive access was not granted when you signed in. Sign in again and make sure to allow Drive — your motion will upload automatically once access is granted.
