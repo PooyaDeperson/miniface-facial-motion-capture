@@ -69,6 +69,7 @@ export default function PostRecordAuthPopup({
   return (
     <PermissionPopup
       variant="prompt"
+      image="/images/app/explainers/motionlibrary.webp"
       closeButton={onClose}
       aria-label="Save your recording"
       title="nice. Keep your motions forever, in the motion library"
