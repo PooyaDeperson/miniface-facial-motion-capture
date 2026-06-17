@@ -139,7 +139,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
       const isFirstFetch = motions.length === 0 && !lastSynced;
       fetchMotions(!isFirstFetch);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey, fetchMotions]);
 
   useEffect(() => {
@@ -229,9 +229,9 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
 
   const displayMotions: DriveMotionFile[] = pendingMotion
     ? [
-        pendingMotion,
-        ...motions.filter((m) => m.driveFileId !== pendingMotion.driveFileId),
-      ]
+      pendingMotion,
+      ...motions.filter((m) => m.driveFileId !== pendingMotion.driveFileId),
+    ]
     : motions;
 
   // ─── render a single motion card ──────────────────────────────────────────
@@ -251,7 +251,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
     return (
       <div key={file.driveFileId} className="pos-rel">
         {/* Always-visible tooltip to the left */}
-        <div className="ml-card-tooltip" aria-hidden="true">
+        <div className="ml-card-tooltip hidden" aria-hidden="true">
           <div className="ml-card-tooltip-inner">
             <div className="ml-card-tooltip-content">
               <span className="ml-card-tooltip-name">{displayName}</span>

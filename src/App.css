@@ -24,51 +24,64 @@
 
 /* ── Track container ─────────────────────────────────── */
 ::-webkit-scrollbar {
-  width:  1px;   /* ← vertical bar width   — change to e.g. 6px to make it visible */
-  height: 1px;   /* ← horizontal bar height — change to e.g. 6px to make it visible */
-  background: transparent; /* ← track background color (idle) */
+  width: 1px;
+  /* ← vertical bar width   — change to e.g. 6px to make it visible */
+  height: 1px;
+  /* ← horizontal bar height — change to e.g. 6px to make it visible */
+  background: transparent;
+  /* ← track background color (idle) */
 }
 
 /* ── Track (the gutter behind the thumb) ────────────── */
 ::-webkit-scrollbar-track {
-  background:    transparent; /* ← track background — try: rgba(0,0,0,0.05) for subtle */
-  border-radius: 999px;       /* ← track corner rounding */
+  background: transparent;
+  /* ← track background — try: rgba(0,0,0,0.05) for subtle */
+  border-radius: 999px;
+  /* ← track corner rounding */
   /* border: 1px solid transparent; ← optional track border */
 }
 
 /* ── Track piece above/below the thumb ──────────────── */
 ::-webkit-scrollbar-track-piece {
-  background: transparent; /* ← same as track but split into pieces */
+  background: transparent;
+  /* ← same as track but split into pieces */
 }
 
 /* ── Thumb (the draggable bar) ───────────────────────── */
 ::-webkit-scrollbar-thumb {
-  background:    transparent; /* ← thumb idle color — try: rgba(120,120,120,0.4) */
-  border-radius: 999px;       /* ← thumb corner rounding — try: 4px for square ends */
-  border:        1px solid transparent; /* ← inner padding via transparent border trick */
+  background: transparent;
+  /* ← thumb idle color — try: rgba(120,120,120,0.4) */
+  border-radius: 999px;
+  /* ← thumb corner rounding — try: 4px for square ends */
+  border: 1px solid transparent;
+  /* ← inner padding via transparent border trick */
   /* min-height: 40px; ← minimum thumb height so it stays grippable */
   /* min-width:  40px; ← minimum thumb width  (horizontal scroll) */
 }
 
 /* ── Thumb on hover ──────────────────────────────────── */
 ::-webkit-scrollbar-thumb:hover {
-  background: transparent; /* ← hover color — try: rgba(100,100,100,0.6) */
+  background: transparent;
+  /* ← hover color — try: rgba(100,100,100,0.6) */
   /* cursor: grab; ← not always respected but worth adding */
 }
 
 /* ── Thumb while being dragged / active ─────────────── */
 ::-webkit-scrollbar-thumb:active {
-  background: transparent; /* ← active/drag color — try: rgba(80,80,80,0.8) */
+  background: transparent;
+  /* ← active/drag color — try: rgba(80,80,80,0.8) */
 }
 
 /* ── Corner piece (where x and y bars meet) ──────────── */
 ::-webkit-scrollbar-corner {
-  background: transparent; /* ← corner fill color */
+  background: transparent;
+  /* ← corner fill color */
 }
 
 /* ── Resize handle (textarea corner drag) ───────────── */
 ::-webkit-scrollbar-button {
-  display: none; /* ← hide arrows at each end — remove to show them */
+  display: none;
+  /* ← hide arrows at each end — remove to show them */
   /* width:  0;    ← alternative: collapse instead of display:none */
   /* height: 0; */
   /* background: transparent; ← arrow button color */
@@ -89,8 +102,10 @@
    scrollbar-color: <thumb-color> <track-color>
    ------------------------------------------------------- */
 * {
-  scrollbar-width:  thin;                        /* ← width: thin | auto | none */
-  scrollbar-color:  transparent transparent;     /* ← thumb color  track color  */
+  scrollbar-width: thin;
+  /* ← width: thin | auto | none */
+  scrollbar-color: transparent transparent;
+  /* ← thumb color  track color  */
   /* scrollbar-color: rgba(120,120,120,0.4) transparent; ← example visible thumb */
 }
 
@@ -99,7 +114,8 @@
    These props are ignored by modern browsers; safe to keep.
    ------------------------------------------------------- */
 * {
-  -ms-overflow-style: none; /* ← none | auto | scrollbar | -ms-autohiding-scrollbar */
+  -ms-overflow-style: none;
+  /* ← none | auto | scrollbar | -ms-autohiding-scrollbar */
   /* scrollbar-face-color:       #888;        ← thumb face */
   /* scrollbar-shadow-color:     #888;        ← thumb shadow */
   /* scrollbar-highlight-color:  #aaa;        ← thumb highlight */
@@ -685,6 +701,7 @@ button {
 .pl-10 {
   padding-left: 10px;
 }
+
 .pl-16 {
   padding-left: 16px;
 }
@@ -708,9 +725,11 @@ button {
 .pr-10 {
   padding-right: 10px;
 }
+
 .pr-16 {
   padding-right: 16px;
 }
+
 .pr-22 {
   padding-right: 22px;
 }
@@ -984,6 +1003,10 @@ button {
 
 .flipped-x {
   scale: -1 1 1;
+}
+
+.hidden {
+  opacity: 0;
 }
 
 /* =========================
@@ -2415,8 +2438,15 @@ canvas:active {
    → styles moved to components/motionlibrary.css
 ========================= */
 @keyframes slide-in-right {
-  0%  { transform: translateX(100%); opacity: 0; }
-  100% { transform: translateX(0);   opacity: 1; }
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 .motion-library-panel {
@@ -2435,6 +2465,7 @@ canvas:active {
   z-index: 9990;
   animation: slide-in-right 220ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
   overflow: visible;
+  margin-right: 30px;
 }
 
 /* =========================
