@@ -51,7 +51,7 @@
 
 
 /* icon setup */
-.has-icon,
+.icon,
 .cd-icon {
   display: inline-block;
 }
@@ -71,53 +71,70 @@
   min-height: 32px;
 }
 
-.has-icon.dropdown-icon {
+.icon.dropdown-icon {
   background: no-repeat center / contain var(--dropdown-icon);
 }
 
-.has-icon.camera-icon {
+.icon.camera-icon {
   background: no-repeat center / contain var(--camera-icon);
 }
 
-.has-icon.google-icon {
+.icon.google-icon {
   background: no-repeat center / contain var(--google-icon);
 }
 
-.has-icon.login-icon {
+.icon.login-icon {
   background: no-repeat center / contain var(--login-icon);
 }
 
-.has-icon.motionlibrary-icon {
+.icon.motionlibrary-icon {
   background: no-repeat center / contain var(--motionlibrary-icon);
 }
 
-.has-icon.loop-icon {
+.icon.loop-icon {
   background: no-repeat center / contain var(--loop-icon);
 }
 
-.has-icon.record-icon {
+.icon.record-icon {
   background: no-repeat center / contain var(--record-icon);
 }
 
-.has-icon.download-icon {
+.icon.download-icon {
   background: no-repeat center / contain var(--download-icon);
 }
 
-.has-icon.trash-icon {
+.icon.trash-icon {
   background: no-repeat center / contain var(--trash-icon);
 }
 
-.has-icon.close-icon {
+.icon.close-icon {
   background: no-repeat center / contain var(--close-icon);
 }
 
-.has-icon.refresh-icon {
+.icon.refresh-icon {
   background: no-repeat center / contain var(--refresh-icon);
 }
 
-.has-icon.cloud-check-icon {
+.icon.cloud-check-icon {
   background: no-repeat center / contain var(--cloud-check-icon);
 }
+
+.icon-button .icon.login-icon {
+  background-image: var(--login-icon);
+}
+
+.icon-button .icon.google-icon {
+  background-image: var(--google-icon);
+}
+
+.icon-button .icon.camera-icon {
+  background-image: var(--camera-icon);
+}
+
+.icon-button .icon.dropdown-icon {
+  background-image: var(--dropdown-icon);
+}
+
 
 .icon-size-12 {
   min-width: 12px;
