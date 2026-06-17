@@ -51,71 +51,71 @@
 
 
 /* icon setup */
-.icon,
+,
 .cd-icon {
   display: inline-block;
 }
 
-.icon-size-16 {
+-size-16 {
   min-width: 16px;
   min-height: 16px;
 }
 
-.icon-size-18 {
+-size-18 {
   min-width: 18px;
   min-height: 18px;
 }
 
-.icon-size-32 {
+-size-32 {
   min-width: 32px;
   min-height: 32px;
 }
 
-.icon.dropdown-icon {
+.dropdown-icon {
   background: no-repeat center / contain var(--dropdown-icon);
 }
 
-.icon.camera-icon {
+.camera-icon {
   background: no-repeat center / contain var(--camera-icon);
 }
 
-.icon.google-icon {
+.google-icon {
   background: no-repeat center / contain var(--google-icon);
 }
 
-.icon.login-icon {
+.login-icon {
   background: no-repeat center / contain var(--login-icon);
 }
 
-.icon.motionlibrary-icon {
+.motionlibrary-icon {
   background: no-repeat center / contain var(--motionlibrary-icon);
 }
 
-.icon.loop-icon {
+.loop-icon {
   background: no-repeat center / contain var(--loop-icon);
 }
 
-.icon.record-icon {
+.record-icon {
   background: no-repeat center / contain var(--record-icon);
 }
 
-.icon.download-icon {
+.download-icon {
   background: no-repeat center / contain var(--download-icon);
 }
 
-.icon.trash-icon {
+.trash-icon {
   background: no-repeat center / contain var(--trash-icon);
 }
 
-.icon.close-icon {
+.close-icon {
   background: no-repeat center / contain var(--close-icon);
 }
 
-.icon.refresh-icon {
+.refresh-icon {
   background: no-repeat center / contain var(--refresh-icon);
 }
 
-.icon.cloud-check-icon {
+.cloud-check-icon {
   background: no-repeat center / contain var(--cloud-check-icon);
 }
 
