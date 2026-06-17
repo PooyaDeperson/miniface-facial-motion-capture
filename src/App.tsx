@@ -23,6 +23,8 @@ import AvatarCanvas from "./AvatarCanvas";
 import { discardRecording, subscribePlaybackReady } from "./useMotionRecorder";
 import AuthButton from "./components/AuthButton";
 import AuthModal from "./components/AuthModal";
+import PostRecordAuthPopup from "./components/PostRecordAuthPopup";
+import LibraryAuthPopup from "./components/LibraryAuthPopup";
 import { hasDriveAccess, listDriveMotions, uploadToDrive, subscribeMotionUploaded, subscribeQuotaExceeded, subscribeNoDriveScope, DriveQuotaError, BulkSyncProgress } from "./useDriveSync";
 import type { DriveMotionFile } from "./useDriveSync";
 
@@ -56,6 +58,12 @@ function App() {
 
   // ── Auth modal trigger — can be fired from MotionLibrary when not logged in ──
   const [showAuthModal, setShowAuthModal] = useState(false);
+
+  // ── Post-record auth popup — shown to guests after a recording stops ──────
+  const [showPostRecordAuthPopup, setShowPostRecordAuthPopup] = useState(false);
+
+  // ── Library auth popup — shown to guests when they click the library button ──
+  const [showLibraryAuthPopup, setShowLibraryAuthPopup] = useState(false);
 
   // ── Drive scope state (drive token can appear after sign-in redirect) ─────
   const [hasDrive, setHasDrive] = useState(() => hasDriveAccess());
@@ -174,8 +182,14 @@ function App() {
       // Keep ref current so Drive-connect effect can upload if user signs in later
       latestPlaybackRef.current = { blob, name };
 
-      // Always open the library when a motion is saved so the user sees it placed there
-      setLibraryOpen(true);
+      // For logged-in users open the library so they see the motion placed there.
+      // For guests, show the post-record auth popup instead (they can open the
+      // library manually later via the library button).
+      if (hasDriveAccess()) {
+        setLibraryOpen(true);
+      } else {
+        setShowPostRecordAuthPopup(true);
+      }
 
       // Immediately create an optimistic pending motion for ALL users (guest and
       // logged-in) so the row appears in the library without any delay.
@@ -329,7 +343,15 @@ function App() {
     }
     // Re-check Drive access every time the panel opens so the logged-in state
     // is never stale (covers OAuth redirect and tab-focus edge cases)
-    setHasDrive(hasDriveAccess());
+    const currentlyHasDrive = hasDriveAccess();
+    setHasDrive(currentlyHasDrive);
+
+    // Guests see the auth popup instead of the library panel
+    if (!currentlyHasDrive) {
+      setShowLibraryAuthPopup(true);
+      return;
+    }
+
     setLibraryOpen(prev => !prev);
   }, [recordingPhase, handlePhaseChange]);
 
@@ -501,6 +523,30 @@ function App() {
           isInPlayback={isInPlayback}
           playbackBlob={playbackBlob}
           isPendingUploading={driveUploadStatus === "uploading"}
+        />
+      )}
+
+      {/* Library auth popup — shown to guests when they click the library button */}
+      {showLibraryAuthPopup && !hasDrive && (
+        <LibraryAuthPopup
+          onClose={() => setShowLibraryAuthPopup(false)}
+          onDriveConnected={() => {
+            setShowLibraryAuthPopup(false);
+            setHasDrive(hasDriveAccess());
+          }}
+          /* Replace with your image URL when ready — e.g. imgSrc="/images/library-preview.png" */
+          imgSrc={undefined}
+        />
+      )}
+
+      {/* Post-record auth popup — shown to guests after recording stops */}
+      {showPostRecordAuthPopup && !hasDrive && (
+        <PostRecordAuthPopup
+          onClose={() => setShowPostRecordAuthPopup(false)}
+          onDriveConnected={() => {
+            setShowPostRecordAuthPopup(false);
+            setHasDrive(hasDriveAccess());
+          }}
         />
       )}
 

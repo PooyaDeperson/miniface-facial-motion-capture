@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import IconButton from "./IconButton";
 
 type PermissionPopupMedia =
   | { image: string; imagAlt?: string; video?: never }
@@ -33,6 +34,11 @@ export type PermissionPopupProps = PermissionPopupMedia & {
   children?: ReactNode;
   /** Extra classes for the outer popup-container wrapper */
   className?: string;
+  /**
+   * When provided, a close IconButton is rendered in the top-right corner of
+   * the card. If omitted no close button is shown (backdrop click still works).
+   */
+  closeButton?: () => void;
   /** ARIA role — defaults to "dialog" when centered, otherwise none */
   role?: string;
   "aria-label"?: string;
@@ -51,6 +57,7 @@ export default function PermissionPopup({
   avatar,
   children,
   className = "",
+  closeButton,
   image,
   imagAlt,
   video,
@@ -65,7 +72,7 @@ export default function PermissionPopup({
     <>
       {backdrop && (
         <div
-          className="backdrop-overlay"
+          className="backdrop-overlay reveal fade"
           onClick={onBackdropClick}
           aria-hidden="true"
         />
@@ -77,7 +84,19 @@ export default function PermissionPopup({
         aria-modal={centered ? true : undefined}
         aria-label={ariaLabel}
       >
-        <div className="inner-container p-5 flex-col br-16">
+        <div className="inner-container p-5 flex-col br-16 pos-rel">
+
+          {/* Optional close button */}
+          {closeButton && (
+            <IconButton
+              icon="close-icon"
+              onClick={closeButton}
+              title="Close"
+              tooltipText="Close"
+              className="icon-size-25 pos-abs top-0 right-0"
+              iconSize="icon-size-16"
+            />
+          )}
 
           {/* Avatar */}
           {avatar && (
@@ -98,7 +117,7 @@ export default function PermissionPopup({
 
           {/* Media */}
           {(image || video) && (
-            <div className={`media-container media ${variant}-media-container br-2 overflow-hidden mb-3`}>
+            <div className={`media-container media ${variant}-media-container br-12 overflow-hidden mb-3`}>
               {image && (
                 <img src={image} alt={imagAlt ?? ""} className={`media ${variant}-media`} />
               )}
