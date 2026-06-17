@@ -80,17 +80,19 @@
 .player-progress::-webkit-progress-value {
   background-color: var(--purple-100);
 }
+
 /* firefox */
 .player-progress::-moz-progress-bar {
   background-color: var(--purple-100);
 }
 
 .player-progress:hover::-webkit-progress-value {
-  background-color: var(--purple-300);
+  background-color: var(--purple-200);
 }
+
 /* firefox */
 .player-progress:hover::-moz-progress-bar {
-  background-color: var(--purple-300);
+  background-color: var(--purple-200);
 }
 
 /* ===========================
