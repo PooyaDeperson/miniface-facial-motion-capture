@@ -141,18 +141,16 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
         <div
           className="player-timeline-container"
           ref={scrubberRef}
-          role="slider"
-          aria-label="Playback position"
-          aria-valuenow={Math.round(progress * 100)}
-          aria-valuemin={0}
-          aria-valuemax={100}
           onMouseDown={(e) => handleScrubStart(e.clientX)}
           onTouchStart={(e) => handleScrubStart(e.touches[0].clientX)}
         >
-          {/* Progress Bar */}
-          <div
-            className="player-timeline-progress"
-            style={{ width: `${progress * 100}%` }}
+          {/* Native progress bar — browser-painted, no JS transition lag */}
+          <progress
+            className="player-progress"
+            value={progress}
+            max={1}
+            aria-label="Playback position"
+            aria-valuenow={Math.round(progress * 100)}
           />
 
           {/* Playhead */}
@@ -177,9 +175,6 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
               {motionName}
             </span>
           )}
-
-          {/* Scrubber Interactive Area */}
-          <div className="player-timeline-scrubber" />
         </div>
 
         {/* ── Download Button ── */}

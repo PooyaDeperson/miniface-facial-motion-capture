@@ -1,32 +1,36 @@
 /*
- * Player UI Styles
- * Redesigned playback controls with modern timeline and icon buttons
+ * playerui.css
+ * Player controls — native <progress> bar, no JS transitions
  */
 
 /* ===========================
-   PLAYBACK CONTROLS CONTAINER
+   OUTER CONTAINER
+   (pos-fixed positioning comes from App.css utilities)
    =========================== */
 
 .playback-controls {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background-color: rgba(255, 255, 255, 0.95);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  /* stretch to fill the fixed slot so the wrapper can flex properly */
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 32px);
 }
 
 /* ===========================
-   PLAY BUTTON
+   INNER WRAPPER  — the visible pill
    =========================== */
 
-.player-play-btn {
-  flex-shrink: 0;
+.player-controls-wrapper {
   display: flex;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background-color: rgba(255, 255, 255, 0.95);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* ===========================
@@ -34,78 +38,89 @@
    =========================== */
 
 .player-timeline-container {
-  flex: 1;
+  /* take all remaining space between the icon buttons */
+  flex: 1 1 0;
+  min-width: 120px;
   position: relative;
   height: 42px;
-  background-color: #f5f5f5;
   border-radius: 6px;
   overflow: hidden;
-  display: flex;
-  align-items: center;
+  cursor: pointer;
+  background-color: #f0eef6; /* pale lavender track */
 }
 
 /* ===========================
-   TIMELINE PROGRESS BAR
+   NATIVE PROGRESS BAR
+   Reset all UA styles, then paint it ourselves.
+   The browser updates the fill natively — zero JS lag.
    =========================== */
 
-.player-timeline-progress {
+.player-progress {
+  /* fill the whole container */
   position: absolute;
-  top: 0;
-  left: 0;
+  inset: 0;
+  width: 100%;
   height: 100%;
+  display: block;
+
+  /* kill default appearance on every engine */
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+/* WebKit / Blink (Chrome, Safari, Edge) */
+.player-progress::-webkit-progress-bar {
+  background: transparent;
+}
+.player-progress::-webkit-progress-value {
   background-color: #EAE4F7;
-  border-radius: 6px;
-  transition: width 0.1s linear;
-  pointer-events: none;
+  border-radius: 0;
+  transition: none; /* browser paints natively — no extra transition needed */
+}
+
+/* Firefox */
+.player-progress::-moz-progress-bar {
+  background-color: #EAE4F7;
+  transition: none;
 }
 
 /* ===========================
-   TIMELINE PLAYHEAD
+   PLAYHEAD (8 × 8 dot)
    =========================== */
 
 .player-timeline-playhead {
   position: absolute;
   top: 50%;
-  left: 0;
   transform: translate(-50%, -50%);
   width: 8px;
   height: 8px;
-  background-color: #5b4a8e;
+  background-color: #7c6aa6;
   border-radius: 50%;
   pointer-events: none;
   z-index: 10;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
 /* ===========================
-   TIMELINE SCRUBBER (INTERACTIVE AREA)
-   =========================== */
-
-.player-timeline-scrubber {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  cursor: pointer;
-  z-index: 5;
-}
-
-/* ===========================
-   TIMELINE TIME/NAME LABELS
+   TIME / NAME LABELS (pos-abs inside container)
    =========================== */
 
 .player-timeline-label {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
-  color: #333;
+  color: #444;
   white-space: nowrap;
   pointer-events: none;
   z-index: 15;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
+  line-height: 1;
 }
 
 .player-timeline-label.start-time {
@@ -119,53 +134,25 @@
 .player-timeline-label.file-name {
   left: 50%;
   transform: translate(-50%, -50%);
-  max-width: 200px;
+  max-width: 40%;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  color: #4a4a4a;
+  color: #3d3357;
 }
 
 /* ===========================
-   DOWNLOAD BUTTON
+   ICON BUTTON SIZE OVERRIDES
    =========================== */
-
-.player-download-btn {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* ===========================
-   LIVE BUTTON
-   =========================== */
-
-.player-live-btn {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* ===========================
-   UTILITY CLASSES
-   =========================== */
-
-.player-controls-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
 
 .player-icon-size-32 {
-  width: 32px;
-  height: 32px;
+  width: 32px !important;
+  height: 32px !important;
+  flex-shrink: 0;
 }
 
 .player-icon-size-24 {
-  width: 24px;
-  height: 24px;
+  width: 24px !important;
+  height: 24px !important;
 }
