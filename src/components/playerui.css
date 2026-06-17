@@ -20,6 +20,7 @@
   transform: translateX(-50%);
   width: max-content;
   max-width: calc(100vw - 32px);
+  min-width: 320px;
 }
 
 /* ===========================
@@ -43,7 +44,7 @@
 .player-timeline-container {
   height: 42px;
   min-width: 120px;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   background-color: var(--purple-100);
 }
 
@@ -70,6 +71,7 @@
 .player-progress::-webkit-progress-bar {
   background: transparent;
 }
+
 .player-progress::-webkit-progress-value {
   background-color: #EAE4F7;
   transition: none;
