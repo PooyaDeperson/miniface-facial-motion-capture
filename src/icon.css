@@ -1,4 +1,3 @@
-
 /* ==========================================================================
    ICON TOKENS
    ========================================================================== */
@@ -21,16 +20,19 @@
   --pattern-icon: url('../public/images/app/icons/icon_pattern.svg');
   --notallowed-icon: url('../public/images/app/icons/icon_notallowed.svg');
   --flip-icon: url('../public/images/app/icons/icon_flip.svg');
+  --motionlibrary-icon: url('../public/images/app/icons/icon_motionlibrary.svg');
+  --play-icon: url('../public/images/app/icons/icon_play.svg');
+  --pause-icon: url('../public/images/app/icons/icon_pause.svg');
+  --live-icon: url('../public/images/app/icons/icon_live.svg');
+  --record-icon: url('../public/images/app/icons/icon_record.svg');
+  --recording-icon: url('../public/images/app/icons/icon_recording.svg');
+  --download-icon: url('../public/images/app/icons/icon_download.svg');
+  --close-icon: url('../public/images/app/icons/icon_close.svg');
+  --trash-icon: url('../public/images/app/icons/icon_trash.svg');
+  --refresh-icon: url("../public/images/app/icons/icon_refresh.svg");
+  --cloudcheck-icon: url("../public/images/app/icons/icon_cloudcheck.svg");
 
-  /* Motion Library / Playback icons (inline SVG data URIs — no extra files needed) */
-  --library-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23272939' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='1' y='2' width='4' height='12' rx='1'/%3E%3Crect x='7' y='2' width='4' height='12' rx='1'/%3E%3Crect x='13' y='4' width='2' height='9' rx='1'/%3E%3C/svg%3E");
-  --loop-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23272939' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 9a6 6 0 1 0 1.5-3.9'/%3E%3Cpolyline points='2 3 2 9 8 9'/%3E%3C/svg%3E");
-  --record-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='5' fill='%23C0137B'/%3E%3C/svg%3E");
-  --download-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23272939' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 2v8M5 7l3 3 3-3M3 13h10'/%3E%3C/svg%3E");
-  --trash-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23272939' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9'/%3E%3C/svg%3E");
-  --close-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23272939' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M3 3l10 10M13 3L3 13'/%3E%3C/svg%3E");
-  --refresh-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23272939' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 8a6 6 0 1 1 1 3.4'/%3E%3Cpolyline points='2 13 2 8 7 8'/%3E%3C/svg%3E");
-  --cloud-check-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%234A13C0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 11a3 3 0 0 0-2.4-4.8A5 5 0 1 0 3 11'/%3E%3Cpolyline points='6 11 8 13 11 9'/%3E%3C/svg%3E");
+
 
   --icon-size-12: 12px;
   --icon-size-14: 14px;
@@ -48,71 +50,94 @@
 
 
 /* icon setup */
-.has-icon,
+,
 .cd-icon {
   display: inline-block;
 }
 
-.icon-size-16 {
+-size-16 {
   min-width: 16px;
   min-height: 16px;
 }
 
-.icon-size-18 {
+-size-18 {
   min-width: 18px;
   min-height: 18px;
 }
 
-.icon-size-32 {
+-size-32 {
   min-width: 32px;
   min-height: 32px;
 }
 
-.has-icon.dropdown-icon {
+.dropdown-icon {
   background: no-repeat center / contain var(--dropdown-icon);
 }
 
-.has-icon.camera-icon {
+.camera-icon {
   background: no-repeat center / contain var(--camera-icon);
 }
-.has-icon.google-icon {
+
+.google-icon {
   background: no-repeat center / contain var(--google-icon);
 }
-.has-icon.login-icon {
+
+.login-icon {
   background: no-repeat center / contain var(--login-icon);
 }
 
-.has-icon.library-icon {
-  background: no-repeat center / contain var(--library-icon);
+.motionlibrary-icon {
+  background: no-repeat center / contain var(--motionlibrary-icon);
 }
 
-.has-icon.loop-icon {
+.loop-icon {
   background: no-repeat center / contain var(--loop-icon);
 }
+.live-icon {
+  background: no-repeat center / contain var(--live-icon);
+}
 
-.has-icon.record-icon {
+.record-icon {
   background: no-repeat center / contain var(--record-icon);
 }
 
-.has-icon.download-icon {
+.download-icon {
   background: no-repeat center / contain var(--download-icon);
 }
 
-.has-icon.trash-icon {
+.trash-icon {
   background: no-repeat center / contain var(--trash-icon);
 }
 
-.has-icon.close-icon {
+.close-icon {
   background: no-repeat center / contain var(--close-icon);
 }
 
-.has-icon.refresh-icon {
+.refresh-icon {
   background: no-repeat center / contain var(--refresh-icon);
 }
 
-.has-icon.cloud-check-icon {
+.cloud-check-icon {
   background: no-repeat center / contain var(--cloud-check-icon);
 }
+.play-icon {
+  background: no-repeat center / contain var(--play-icon);
+}
+.pause-icon {
+  background: no-repeat center / contain var(--pause-icon);
+}
+.record-icon {
+  background: no-repeat center / contain var(--record-icon);
+}
+.recording-icon {
+  background: no-repeat center / contain var(--recording-icon);
+}
+.download-icon {
+  background: no-repeat center / contain var(--download-icon);
+}
+
+
+
 
 .icon-size-12 {
   min-width: 12px;
@@ -129,9 +154,9 @@
 
 
 
-   .tb\:icon-size-32 {
-    width: 32px!important;
-    height: 32px!important;
+  .tb\:icon-size-32 {
+    width: 32px !important;
+    height: 32px !important;
   }
 
 

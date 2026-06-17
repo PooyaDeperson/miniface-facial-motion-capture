@@ -146,26 +146,6 @@
 }
 
 /* =========================================
-   NAMED ICON VARIANTS (mapped to icon.css tokens)
-========================================= */
-
-.icon-button .icon.login-icon {
-  background-image: var(--login-icon);
-}
-
-.icon-button .icon.google-icon {
-  background-image: var(--google-icon);
-}
-
-.icon-button .icon.camera-icon {
-  background-image: var(--camera-icon);
-}
-
-.icon-button .icon.dropdown-icon {
-  background-image: var(--dropdown-icon);
-}
-
-/* =========================================
    TOOLTIP WRAPPER (for disabled state)
 ========================================= */
 

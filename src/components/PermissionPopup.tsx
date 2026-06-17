@@ -96,7 +96,7 @@ export default function PermissionPopup({
               onClick={closeButton}
               title="Close"
               tooltipText="Close"
-              className="icon-size-25 pos-abs top-0 right-0"
+              className="icon-size-25 pos-abs top-2 right-2"
               iconSize="icon-size-16"
             />
           )}
@@ -131,7 +131,7 @@ export default function PermissionPopup({
           )}
 
           {/* Text */}
-          <div className="text-container flex-col gap-2">
+          <div className="text-container flex-col gap-3">
             <h1 className={`title ${variant}-title`}>{title}</h1>
             {subtitle && (
               <p className={`subtitle ${variant}-subtitle`}>{subtitle}</p>

@@ -26,6 +26,7 @@ import AuthModal from "./components/AuthModal";
 import PostRecordAuthPopup from "./components/PostRecordAuthPopup";
 import LibraryAuthPopup from "./components/LibraryAuthPopup";
 import PermissionPopup from "./components/PermissionPopup";
+import IconButton from "./components/IconButton";
 import { supabase } from "./supabaseClient";
 import { hasDriveAccess, clearDriveTokens, listDriveMotions, uploadToDrive, subscribeMotionUploaded, subscribeQuotaExceeded, subscribeNoDriveScope, DriveQuotaError, BulkSyncProgress, DRIVE_SCOPE } from "./useDriveSync";
 import type { DriveMotionFile } from "./useDriveSync";
@@ -256,7 +257,12 @@ function App() {
       if (hasDriveAccess()) {
         setLibraryOpen(true);
       } else {
-        setShowPostRecordAuthPopup(true);
+        // Only show once per browser session — if the user already dismissed it
+        // this session, don't show it again until they reopen the tab.
+        const dismissed = sessionStorage.getItem("postRecordAuthPopup_dismissed");
+        if (!dismissed) {
+          setShowPostRecordAuthPopup(true);
+        }
       }
 
       // Immediately create an optimistic pending motion for ALL users (guest and
@@ -347,7 +353,7 @@ function App() {
   // ── Playback controls (bridging out of R3F canvas) ────────────────────────
   const getPlaybackControls = useCallback(() =>
     (window as any).__playbackControls ?? null,
-  []);
+    []);
 
   const handleTogglePlay = useCallback(() => {
     getPlaybackControls()?.togglePlay();
@@ -524,22 +530,36 @@ function App() {
       />
 
       {/* Top-right controls */}
-      <div className="pos-fixed top-0 right-0 z-9992 m-3 flex flex-row items-center gap-2" style={{ pointerEvents: "auto" }}>
+      <div className="top-right-menu-bar-container pos-fixed top-0 right-0 z-9992 m-3 flex flex-row items-center gap-2" style={{ pointerEvents: "auto" }}>
         {isInPlayback && (
-          <button
-            className="rec-btn rec-btn-record outline-5 outline-soft gap-2 live-capture-button live-capture-topbar-btn reveal fade"
+          <IconButton
+            icon="live-icon"
             onClick={handleStartLive}
-            aria-label="Start live motion capture"
-          >
-            <span className="rec-dot rec-dot-idle" aria-hidden="true" />
-            live
-          </button>
+            title="Start live motion capture"
+            className="icon-size-32"
+            iconSize="icon-size-16"
+            tooltip={true}
+            tooltipPosition="pos-bottom"
+            tooltipText="back to live"
+          />
         )}
         <MotionLibraryButton
           onClick={handleOpenLibrary}
           motionCount={hasDrive ? libraryMotionCount : 0}
         />
         <AuthButton onDriveConnected={() => setHasDrive(hasDriveAccess())} />
+        {/* Library auth popup — shown to guests when they click the library button */}
+        {showLibraryAuthPopup && !hasDrive && (
+          <LibraryAuthPopup
+            onClose={() => setShowLibraryAuthPopup(false)}
+            onDriveConnected={() => {
+              setShowLibraryAuthPopup(false);
+              setHasDrive(hasDriveAccess());
+            }}
+            /* Replace with your image URL when ready — e.g. imgSrc="/images/library-preview.png" */
+            imgSrc={undefined}
+          />
+        )}
       </div>
 
       <ColorSwitcher disabled={isSwitcherDisabled || isInPlayback} />
@@ -629,23 +649,13 @@ function App() {
         </PermissionPopup>
       )}
 
-      {/* Library auth popup — shown to guests when they click the library button */}
-      {showLibraryAuthPopup && !hasDrive && (
-        <LibraryAuthPopup
-          onClose={() => setShowLibraryAuthPopup(false)}
-          onDriveConnected={() => {
-            setShowLibraryAuthPopup(false);
-            setHasDrive(hasDriveAccess());
-          }}
-          /* Replace with your image URL when ready — e.g. imgSrc="/images/library-preview.png" */
-          imgSrc={undefined}
-        />
-      )}
-
       {/* Post-record auth popup — shown to guests after recording stops */}
       {showPostRecordAuthPopup && !hasDrive && (
         <PostRecordAuthPopup
-          onClose={() => setShowPostRecordAuthPopup(false)}
+          onClose={() => {
+            sessionStorage.setItem("postRecordAuthPopup_dismissed", "1");
+            setShowPostRecordAuthPopup(false);
+          }}
           onDriveConnected={() => {
             setShowPostRecordAuthPopup(false);
             setHasDrive(hasDriveAccess());

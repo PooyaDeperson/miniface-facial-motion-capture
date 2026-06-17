@@ -587,6 +587,9 @@ button {
 .pl-10 {
   padding-left: 10px;
 }
+.pl-16 {
+  padding-left: 16px;
+}
 
 .pl-22 {
   padding-left: 22px;
@@ -607,7 +610,9 @@ button {
 .pr-10 {
   padding-right: 10px;
 }
-
+.pr-16 {
+  padding-right: 16px;
+}
 .pr-22 {
   padding-right: 22px;
 }

@@ -89,7 +89,7 @@ export default function LibraryAuthPopup({
       {...mediaProps}
       className="auth-popup library-auth-popup"
     >
-      <p className="subtitle prompt-subtitle">
+      <p className="subtitle prompt-subtitle mt-2">
         just use your Google account, by continuing you agree to{" "}
         <a href="/terms" target="_blank" rel="noreferrer">Terms</a>{" "}
         and{" "}
@@ -97,7 +97,7 @@ export default function LibraryAuthPopup({
       </p>
 
       {!isSupabaseAvailable() && (
-        <p className="subtitle denied-subtitle error-banner" role="status">
+        <p className="subtitle denied-subtitle error-banner mt-4" role="status">
           auth not configured — set Supabase env vars to enable sign in
         </p>
       )}
