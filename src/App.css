@@ -1200,9 +1200,6 @@ p.subtitle.refresh-subtitle {
   background-image: url("../public/images/app/avatar/avatar5.webp");
 }
 
-.avatar-switcher {
-  gap: 16px;
-}
 
 .avatar-switcher button {
   transform-origin: center center;
