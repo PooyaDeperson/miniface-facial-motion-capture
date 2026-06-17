@@ -1,4 +1,3 @@
-
 /* ==========================================================================
    ICON TOKENS
    ========================================================================== */
@@ -79,15 +78,17 @@
 .has-icon.camera-icon {
   background: no-repeat center / contain var(--camera-icon);
 }
+
 .has-icon.google-icon {
   background: no-repeat center / contain var(--google-icon);
 }
+
 .has-icon.login-icon {
   background: no-repeat center / contain var(--login-icon);
 }
 
 .has-icon.library-icon {
-  background: no-repeat center / contain var(--library-icon);
+  background: no-repeat center / contain var(--motionlibrary-icon);
 }
 
 .has-icon.loop-icon {
@@ -133,9 +134,9 @@
 
 
 
-   .tb\:icon-size-32 {
-    width: 32px!important;
-    height: 32px!important;
+  .tb\:icon-size-32 {
+    width: 32px !important;
+    height: 32px !important;
   }
 
 
