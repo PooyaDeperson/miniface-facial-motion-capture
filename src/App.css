@@ -1444,7 +1444,6 @@ button.cd-selected>.has-icon.selected-icon {
   min-height: 72px;
   min-width: 128px;
   max-width: 360px;
-  max-height: 330px;
 }
 
 .popup-container>.inner-container {
