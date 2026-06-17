@@ -332,7 +332,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
         aria-label="Motion library"
       >
         {/* ── Header: only refresh icon-button ── */}
-        <div className="ml-header">
+        <div className="ml-header display-none">
           {isLoggedIn ? (
             <IconButton
               icon="refresh-icon"
