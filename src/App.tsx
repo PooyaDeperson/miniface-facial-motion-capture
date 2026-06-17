@@ -113,6 +113,36 @@ function App() {
     };
   }, []);
 
+  // ── Immediately detect missing Drive scope after login ───────────────────
+  // Check on mount and on every auth state change: if Supabase has a session
+  // but no Drive token was stored, surface the persistent popup right away
+  // without waiting for the library panel to open.
+  useEffect(() => {
+    if (!supabase) return;
+
+    const checkDriveScope = async () => {
+      const { data } = await supabase!.auth.getSession();
+      const loggedIn = !!data.session?.user;
+      const hasToken = hasDriveAccess();
+      setNoDriveAccessDetected(loggedIn && !hasToken);
+    };
+
+    checkDriveScope();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      // Short delay to let storeDriveTokens run first (it fires synchronously
+      // inside the same auth event in supabaseClient.ts)
+      setTimeout(checkDriveScope, 300);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // When Drive access is confirmed, clear the no-drive popup
+  useEffect(() => {
+    if (hasDrive) setNoDriveAccessDetected(false);
+  }, [hasDrive]);
+
   // When Drive access becomes available, fetch motion count for the badge
   useEffect(() => {
     if (!hasDrive) {
@@ -553,7 +583,7 @@ function App() {
 
       {/* No Drive access popup — shown persistently when signed in but Drive scope missing.
           Rendered at App root so it is always visible regardless of library open state. */}
-      {hasDrive && noDriveAccessDetected && (
+      {!hasDrive && noDriveAccessDetected && (
         <PermissionPopup
           variant="prompt"
           aria-label="Google Drive access required"
