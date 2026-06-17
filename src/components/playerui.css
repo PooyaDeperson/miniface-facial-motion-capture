@@ -87,6 +87,16 @@
   background-color: var(--purple-100);
   transition: none;
 }
+.player-progress::-webkit-progress-value:hover {
+  background-color: var(--purple-300);
+  transition: none;
+}
+
+/* Firefox */
+.player-progress::-moz-progress-bar:hover {
+  background-color: var(--purple-300);
+  transition: none;
+}
 
 /* ===========================
    PLAYHEAD — 8 × 8 dot
