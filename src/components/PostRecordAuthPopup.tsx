@@ -70,7 +70,7 @@ export default function PostRecordAuthPopup({
     <PermissionPopup
       variant="prompt"
       // backdrop
-      onBackdropClick={onClose}
+      // onBackdropClick={onClose}
       aria-label="Save your recording"
       title="nice. Keep your motions forever, in the motion library"
       className="auth-popup post-record-auth-popup"
