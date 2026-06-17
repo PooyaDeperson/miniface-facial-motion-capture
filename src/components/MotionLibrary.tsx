@@ -307,38 +307,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
           </div>
         )}
 
-        {/* ── No Drive access banner (signed in but Drive scope missing) ── */}
-        {isLoggedIn && noDriveAccess && (
-          <div
-            className="ml-no-drive-banner"
-            role="alert"
-            style={{
-              margin: "12px 0",
-              padding: "14px 16px",
-              borderRadius: "10px",
-              background: "var(--bg-secondary, rgba(255,255,255,0.06))",
-              border: "1px solid var(--border-color, rgba(255,255,255,0.12))",
-            }}
-          >
-            <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
-              Google Drive access is needed
-            </p>
-            <p style={{ margin: "6px 0 10px", fontSize: "13px", lineHeight: 1.5, color: "var(--text-secondary)" }}>
-              It looks like Google Drive permission was not granted during sign-in. Your recorded motion is safe — click below to grant access and it will upload automatically.
-            </p>
-            {onNoDriveAccessRetry && (
-              <button
-                className="rec-btn rec-btn-record outline-5 outline-soft gap-2"
-                style={{ fontSize: "13px" }}
-                onClick={onNoDriveAccessRetry}
-                aria-label="Grant Google Drive access"
-              >
-                <span className="has-icon icon-size-14 google-icon" aria-hidden="true" />
-                grant Drive access
-              </button>
-            )}
-          </div>
-        )}
+        {/* No Drive access — handled by the popup rendered outside the panel below */}
 
         {/* ── Error ── */}
         {(loadError || downloadError) && (
@@ -543,7 +512,32 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
         )}
       </aside>
 
-      {/* ��─ Delete confirmation popup ── */}
+      {/* ── No Drive access popup (signed in but Drive scope missing) ── */}
+      {/* Shown persistently — no close button, no overlay — until access is granted */}
+      {isLoggedIn && noDriveAccess && (
+        <PermissionPopup
+          variant="prompt"
+          aria-label="Google Drive access required"
+          title="Google Drive permission is missing"
+          className="no-drive-access-popup"
+        >
+          <p className="subtitle prompt-subtitle" style={{ marginTop: "8px" }}>
+            It looks like Drive access was not granted when you signed in. Sign in again and make sure to allow Drive — your motion will upload automatically once access is granted.
+          </p>
+          {onNoDriveAccessRetry && (
+            <button
+              className="button primary w-full mt-8"
+              onClick={onNoDriveAccessRetry}
+              aria-label="Sign in again to grant Google Drive access"
+            >
+              <span className="has-icon icon-size-14 google-icon" aria-hidden="true" />
+              continue with Google
+            </button>
+          )}
+        </PermissionPopup>
+      )}
+
+      {/* ── Delete confirmation popup ── */}
       {deleteConfirmFile && (
         <PermissionPopup
           variant="prompt"
