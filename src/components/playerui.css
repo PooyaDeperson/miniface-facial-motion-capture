@@ -78,13 +78,13 @@
 }
 
 .player-progress::-webkit-progress-value {
-  background-color: var(--puruple-100);
+  background-color: var(--purple-100);
   transition: none;
 }
 
 /* Firefox */
 .player-progress::-moz-progress-bar {
-  background-color: var(--puruple-100);
+  background-color: var(--purple-100);
   transition: none;
 }
 
