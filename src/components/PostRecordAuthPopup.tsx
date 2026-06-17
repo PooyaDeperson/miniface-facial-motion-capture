@@ -72,7 +72,7 @@ export default function PostRecordAuthPopup({
       // backdrop
       onBackdropClick={onClose}
       aria-label="Save your recording"
-      title="Nice, keep this recorded motion forever yours"
+      title="Nice. Keep your motions forever, yours in the cloud."
       className="auth-popup post-record-auth-popup"
     >
       <p className="subtitle prompt-subtitle">
