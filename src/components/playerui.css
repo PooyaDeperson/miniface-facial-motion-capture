@@ -23,7 +23,15 @@
   min-width: 320px;
   backdrop-filter: blur(3px);
 }
+/* Mobile: full-screen */
+@media (max-width: 768px) {
+.playback-controls {
+    
+  min-width: calc(100vw - 32px);
+  max-width: calc(100vw - 32px);
 
+}
+}
 /* ===========================
    INNER PILL WRAPPER
    display/flex-direction/align-items/gap/padding/border-radius all covered
