@@ -68,7 +68,9 @@ export default function PostRecordAuthPopup({
 
   return (
     <PermissionPopup
+    
       variant="prompt"
+      onClose
       // backdrop
       // onBackdropClick={onClose}
       aria-label="Save your recording"
