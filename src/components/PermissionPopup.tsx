@@ -117,7 +117,7 @@ export default function PermissionPopup({
 
           {/* Media */}
           {(image || video) && (
-            <div className={`media-container media ${variant}-media-container br-2 overflow-hidden mb-3`}>
+            <div className={`media-container media ${variant}-media-container br-12 overflow-hidden mb-3`}>
               {image && (
                 <img src={image} alt={imagAlt ?? ""} className={`media ${variant}-media`} />
               )}
