@@ -2251,6 +2251,9 @@ canvas:active {
   .tb\:br-24 {
     border-radius: 24px;
   }
+  .tb\:mb-6 {
+    margin: 24px;
+  }
 }
 
 /* =========================
