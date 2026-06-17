@@ -2451,6 +2451,17 @@ canvas:active {
   flex-shrink: 0;
 }
 
+/* Tiny 2-word no-drive hint inside the library panel */
+.ml-no-drive-label {
+  margin: 4px 16px 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-danger, #e05c5c);
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+
 .ml-list {
   flex: 1;
   overflow-y: auto;
