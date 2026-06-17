@@ -34,7 +34,7 @@ interface CameraPermissionsProps {
 }
 
 export default function CameraPermissions({ onStreamReady, disabled, isFlipped, setIsFlipped }: CameraPermissionsProps) {
-  const [permissionState, setPermissionState] = useState<"prompt" | "denied" | "granted">("prompt");
+  const [permissionState, setPermissionState] = useState<"prompt" | "denied" | "granted" | "inuse">("prompt");
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string | null>(null);
   const activeStreamRef = useRef<MediaStream | null>(null);
@@ -69,7 +69,14 @@ export default function CameraPermissions({ onStreamReady, disabled, isFlipped, 
 
       onStreamReady(stream);
     } catch (err: any) {
-      setPermissionState("denied");
+      // NotReadableError / AbortError → hardware is locked by another app or tab
+      // NotAllowedError / PermissionDeniedError → user blocked access in the browser
+      const name: string = err?.name ?? "";
+      if (name === "NotReadableError" || name === "AbortError") {
+        setPermissionState("inuse");
+      } else {
+        setPermissionState("denied");
+      }
     }
   };
 
@@ -102,7 +109,12 @@ export default function CameraPermissions({ onStreamReady, disabled, isFlipped, 
         if (result.state === "granted") loadCameras();
 
         result.onchange = () => {
-          setPermissionState(result.state as any);
+          // Only update if we're not already showing the "in use" error —
+          // a permission change event should not stomp over the hardware-busy state.
+          setPermissionState((prev) => {
+            if (prev === "inuse") return prev;
+            return result.state as any;
+          });
           if (result.state === "granted") loadCameras();
         };
       });
@@ -151,6 +163,17 @@ export default function CameraPermissions({ onStreamReady, disabled, isFlipped, 
           />
         );
       })()}
+
+      {permissionState === "inuse" && (
+        <PermissionPopup
+          variant="denied"
+          title="your camera is being used by another app."
+          subtitle="looks like Zoom, Teams, or another tab has your camera open. close it, then come back here and we'll get you set up!"
+          buttonText="try again"
+          onClick={() => requestCamera(selectedCamera || undefined)}
+          showButton
+        />
+      )}
 
       {/* Main control div */}
       <div className={`flex flex-row flex-start gap-1 pos-abs reveal fade scaleIn top-0 left-0 z-9991 m-1 tb:m-6`}>
