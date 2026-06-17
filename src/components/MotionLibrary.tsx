@@ -6,26 +6,19 @@
 /**
  * MotionLibrary.tsx
  *
- * A slide-in panel that shows the user's motions.
+ * Redesigned as a narrow 90px transparent column on the right edge.
  *
- * - When not logged in: shows an empty-state CTA with a login button.
- * - When logged in: shows motions from Google Drive.
- *
- * Clicking a motion row plays it (no separate play button).
- * Delete uses a PermissionPopup confirmation instead of window.confirm.
- *
- * Layout (top → bottom)
- * ─────────────────────
- * 1. Header: "motion library" + close button
- * 2. Cloud sync status / bulk progress
- * 3. "live motion capture" button (logged-in only)
- * 4. Scrollable motion list OR unauthenticated empty state
- *
- * On desktop: fixed right-edge column.
- * On mobile:  full-screen overlay; tapping backdrop closes it.
+ * Each motion is a 57×72 card with:
+ *   - motionlibrary-icon (idle) → download-icon (active)
+ *   - transparent 2px border → purple-800 when active
+ *   - always-visible tooltip to the left showing filename + duration + size
+ *   - tooltips completely hidden on mobile
+ *   - trash-icon appears below download-icon on active card (flex-col gap-1)
+ *   - saving/downloading dims the card
  */
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import clsx from "clsx";
 import {
   listDriveMotions,
   downloadFromDrive,
@@ -36,6 +29,7 @@ import {
 } from "../useDriveSync";
 import IconButton from "./IconButton";
 import PermissionPopup from "./PermissionPopup";
+import "./motionlibrary.css";
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -48,30 +42,13 @@ export interface MotionLibraryProps {
   refreshKey?: number;
   pendingMotion?: DriveMotionFile | null;
   quotaReached?: boolean;
-  /** Whether the user is logged in with Drive access */
   isLoggedIn?: boolean;
-  /** Called when the guest-state login button is clicked */
   onLoginRequest?: () => void;
-  /**
-   * Called when the user clicks the retry CTA after signing in without
-   * granting Drive access. Reopens the auth flow so they can grant it.
-   */
   onNoDriveAccessRetry?: () => void;
-  /**
-   * Called when the library detects noDriveAccess=true so App can lift this
-   * state up and show the persistent popup outside the library panel.
-   */
   onNoDriveAccess?: (detected: boolean) => void;
-  /**
-   * Called when a 403 Drive permission error is caught during a fetch, so
-   * App.tsx can clear stale tokens and update its hasDrive state immediately.
-   */
   onDrivePermissionError?: () => void;
-  /** Whether currently in playback mode */
   isInPlayback?: boolean;
-  /** The playback blob for guest users (used to download guest recordings) */
   playbackBlob?: Blob | null;
-  /** Whether the pending motion is currently being uploaded to Drive */
   isPendingUploading?: boolean;
 }
 
@@ -86,15 +63,9 @@ function formatDuration(seconds?: number): string {
 }
 
 function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function stringToHue(str: string): number {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) & 0xffffffff;
-  return Math.abs(h) % 360;
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
 // ─── component ────────────────────────────────────────────────────────────────
@@ -126,7 +97,6 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const lastRefreshKey = useRef(-1);
 
-  /** The file currently pending delete confirmation (null = no confirm shown) */
   const [deleteConfirmFile, setDeleteConfirmFile] = useState<DriveMotionFile | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -146,9 +116,6 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
       setLastSynced(new Date());
     } catch (err: any) {
       const msg: string = err?.message ?? "";
-      // A 403 with insufficient scopes means the user signed in but did not
-      // grant Drive access. Route it to the persistent no-drive popup instead
-      // of showing the raw JSON error inside the library panel.
       const isDrivePermissionError =
         msg.includes("403") ||
         msg.toLowerCase().includes("insufficient") ||
@@ -157,7 +124,6 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
       if (isDrivePermissionError) {
         setNoDriveAccess(true);
         setLoadError(null);
-        // Notify App so it can clear stale tokens and update hasDrive immediately
         onDrivePermissionError?.();
       } else {
         setLoadError(msg || "Failed to load motions");
@@ -182,23 +148,19 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
     }
   }, [bulkProgress, fetchMotions]);
 
-  // Lift noDriveAccess up to App so the popup can be shown at the root level
   useEffect(() => {
     onNoDriveAccess?.(noDriveAccess);
   }, [noDriveAccess, onNoDriveAccess]);
 
-  // Click on a row → play it
-  const handleRowClick = useCallback(async (file: DriveMotionFile) => {
+  // Click on a card → select / activate it (no download yet)
+  const handleCardClick = useCallback(async (file: DriveMotionFile) => {
     if (deletingId === file.driveFileId) return;
     setDownloadingId(file.driveFileId);
     setDownloadError(null);
     try {
-      // For guest users with pending motion, if it's already active/in playback,
-      // just call onSelectMotion with empty blob (App will use existing playbackBlob)
       if (!isLoggedIn && file.driveFileId === pendingMotion?.driveFileId) {
         onSelectMotion(new Blob(), file);
       } else {
-        // For Drive motions, download from Drive
         const blob = await downloadFromDrive(file.driveFileId);
         onSelectMotion(blob, file);
       }
@@ -209,25 +171,21 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
     }
   }, [onSelectMotion, deletingId, isLoggedIn, pendingMotion]);
 
+  // Download button on active card
   const handleDownload = useCallback(async (e: React.MouseEvent, file: DriveMotionFile) => {
     e.stopPropagation();
     setDownloadingId(file.driveFileId);
     setDownloadError(null);
     try {
       let blob: Blob;
-      
-      // For guest users with pending motion, use the playbackBlob
       if (!isLoggedIn && file.driveFileId === pendingMotion?.driveFileId && playbackBlob) {
         blob = playbackBlob;
       } else if (!isLoggedIn && file.driveFileId === pendingMotion?.driveFileId) {
-        // Guest motion without playback blob available
         setDownloadError("Motion data not available for download");
         return;
       } else {
-        // For Drive motions, download from Drive
         blob = await downloadFromDrive(file.driveFileId);
       }
-      
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -276,9 +234,92 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
       ]
     : motions;
 
+  // ─── render a single motion card ──────────────────────────────────────────
+
+  const renderMotionCard = (file: DriveMotionFile) => {
+    const isActive = file.driveFileId === activeMotionId;
+    const isDownloading = downloadingId === file.driveFileId;
+    const isDeleting = deletingId === file.driveFileId;
+    const isThisPending = pendingMotion?.driveFileId === file.driveFileId;
+    const isSaving = isThisPending && isPendingUploading;
+    const isDim = isDownloading || isSaving;
+
+    const displayName = file.name.replace(/\.glb$/i, "");
+    const durationStr = file.duration != null ? formatDuration(file.duration) : null;
+    const sizeStr = formatBytes(file.size);
+
+    return (
+      <div key={file.driveFileId} className="pos-rel">
+        {/* Always-visible tooltip to the left */}
+        <div className="ml-card-tooltip" aria-hidden="true">
+          <div className="ml-card-tooltip-inner">
+            <div className="ml-card-tooltip-content">
+              <span className="ml-card-tooltip-name">{displayName}</span>
+              {(durationStr || sizeStr) && (
+                <span className="ml-card-tooltip-meta">
+                  {durationStr ? `${durationStr} · ${sizeStr}` : sizeStr}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Card button */}
+        <button
+          className={clsx(
+            "ml-motion-card",
+            isActive && "ml-motion-card-active",
+            isDim && "ml-motion-card-dim",
+            isDeleting && "ml-motion-card-deleting"
+          )}
+          onClick={() => !isDeleting && !isDim && handleCardClick(file)}
+          aria-label={isActive ? `Download ${displayName}` : `Select ${displayName}`}
+          aria-pressed={isActive}
+          disabled={isDeleting || isDim}
+        >
+          {isActive ? (
+            /* Active card: flex-col with download + trash */
+            <div className="ml-card-actions">
+              {/* Download icon button */}
+              <IconButton
+                icon="download-icon"
+                iconSize="icon-size-20"
+                className="icon-size-32"
+                tooltip={false}
+                onClick={(e) => handleDownload(e, file)}
+                disabled={isDownloading || isSaving}
+                aria-label={`Download ${displayName}`}
+              />
+              {/* Trash icon button */}
+              {isLoggedIn && (
+                <IconButton
+                  icon="trash-icon"
+                  iconSize="icon-size-20"
+                  className="icon-size-32"
+                  tooltip={false}
+                  onClick={(e) => handleDeleteClick(e, file)}
+                  disabled={isDeleting || isDownloading || isSaving}
+                  aria-label={`Delete ${displayName}`}
+                />
+              )}
+            </div>
+          ) : (
+            /* Idle: motion library icon */
+            <span
+              className="has-icon motionlibrary-icon icon-size-20"
+              aria-hidden="true"
+            />
+          )}
+        </button>
+      </div>
+    );
+  };
+
+  // ─── JSX ──────────────────────────────────────────────────────────────────
+
   return (
     <>
-      {/* Mobile backdrop */}
+      {/* Mobile backdrop — hidden by CSS since panel is narrow */}
       <div
         className="ml-backdrop motion-library-backdrop"
         onClick={onClose}
@@ -290,18 +331,30 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
         className="motion-library-panel reveal slide-left"
         aria-label="Motion library"
       >
-        {/* ── Header ── */}
+        {/* ── Header: only refresh icon-button ── */}
         <div className="ml-header">
-          <h2 className="ml-title">motion library</h2>
-          <IconButton
-            icon="close-icon"
-            iconSize="icon-size-16"
-            className="icon-size-32"
-            tooltip={true}
-            tooltipText="Close"
-            tooltipPosition="pos-bottom-right"
-            onClick={onClose}
-          />
+          {isLoggedIn ? (
+            <IconButton
+              icon="refresh-icon"
+              iconSize="icon-size-20"
+              className="icon-size-32"
+              tooltip={true}
+              tooltipText="Refresh Google Drive"
+              tooltipPosition="pos-left"
+              onClick={() => fetchMotions(false)}
+              aria-label="Refresh motion list"
+            />
+          ) : (
+            <IconButton
+              icon="close-icon"
+              iconSize="icon-size-16"
+              className="icon-size-32"
+              tooltip={true}
+              tooltipText="Close"
+              tooltipPosition="pos-left"
+              onClick={onClose}
+            />
+          )}
         </div>
 
         {/* ── Bulk sync progress ── */}
@@ -316,34 +369,16 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
               />
             </div>
             <p className="ml-sync-label">
-              {bulkProgress.current
-                ? `syncing: ${bulkProgress.current}`
-                : `synced ${bulkProgress.done} / ${bulkProgress.total}`}
-              {bulkProgress.failed > 0 && ` · ${bulkProgress.failed} failed`}
+              {bulkProgress.done}/{bulkProgress.total}
+              {bulkProgress.failed > 0 && ` · ${bulkProgress.failed}✗`}
             </p>
           </div>
         )}
 
-        {/* ── Sync status (logged-in only) ── */}
-        {isLoggedIn && lastSynced && !isBulkSyncing && (
-          <div className="ml-sync-status">
-            <span className="has-icon icon-size-12 cloud-check-icon" aria-hidden="true" />
-            <span>synced to Google Drive</span>
-            <button
-              className="ml-refresh-btn"
-              onClick={() => fetchMotions(false)}
-              aria-label="Refresh motion list"
-              title="Refresh"
-            >
-              <span className="has-icon icon-size-12 refresh-icon" aria-hidden="true" />
-            </button>
-          </div>
-        )}
-
-        {/* Minimal no-drive label inside the panel — 2 words, no CTA */}
+        {/* ── No Drive access ── */}
         {isLoggedIn && noDriveAccess && (
           <p className="ml-no-drive-label" role="status" aria-live="polite">
-            drive missing
+            no drive
           </p>
         )}
 
@@ -359,38 +394,35 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
           <div className="ml-quota-banner" role="alert">
             <div className="ml-quota-icon" aria-hidden="true">&#9888;</div>
             <div className="ml-quota-body">
-              <strong>Your Google Drive is full.</strong>
+              <strong>Drive full.</strong>
               <p>
-                There is no space left to save your motion. To keep recording,
-                free up space by deleting unnecessary files in your Google Drive.
-              </p>
-              <p>
-                Need help?{" "}
+                Free up space in{" "}
                 <a href="mailto:arkitface@gmail.com" className="ml-quota-link">
-                  arkitface@gmail.com
+                  Google Drive
                 </a>
+                .
               </p>
             </div>
           </div>
         )}
 
-      {/* ── Guest empty state — always shown when not logged in ── */}
-      {!isLoggedIn && (
-        <div className="ml-guest-empty guest-empty-state">
-          <p className="ml-guest-headline">your motions will show up here</p>
-          <p className="ml-guest-sub">connect to keep them forever</p>
-          <button
-            className="rec-btn rec-btn-record ml-live-btn outline-5 outline-soft gap-2 mt-8 guest-login-button"
-            onClick={onLoginRequest}
-            aria-label="Sign in to save motions"
-          >
-            <span className="has-icon icon-size-16 login-icon" aria-hidden="true" />
-            connect
-          </button>
-        </div>
-      )}
+        {/* ── Guest empty state ── */}
+        {!isLoggedIn && (
+          <div className="ml-guest-empty guest-empty-state">
+            <p className="ml-guest-headline">your motions</p>
+            <p className="ml-guest-sub">connect to keep them</p>
+            <button
+              className="rec-btn rec-btn-record ml-live-btn outline-5 outline-soft gap-2 mt-8 guest-login-button"
+              onClick={onLoginRequest}
+              aria-label="Sign in to save motions"
+            >
+              <span className="has-icon icon-size-16 login-icon" aria-hidden="true" />
+              connect
+            </button>
+          </div>
+        )}
 
-        {/* ── Logged-in motion list (Drive motions + optimistic pending) ── */}
+        {/* ── Logged-in motion list ── */}
         {isLoggedIn && (
           <div className="ml-list motion-list-container" role="list">
             {loading && displayMotions.length === 0 && (
@@ -399,153 +431,16 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
               </div>
             )}
             {!loading && displayMotions.length === 0 && !loadError && (
-              <p className="ml-empty">no motions yet</p>
+              <p className="ml-empty">no motions</p>
             )}
-            {displayMotions.map((file) => {
-              const hue = stringToHue(file.driveFileId);
-              const isActive = file.driveFileId === activeMotionId;
-              const isDownloading = downloadingId === file.driveFileId;
-              const isDeleting = deletingId === file.driveFileId;
-              // Pending motion is still uploading to Drive
-              const isThisPending = pendingMotion?.driveFileId === file.driveFileId;
-              const isSaving = isThisPending && isPendingUploading;
-
-              return (
-                <div
-                  key={file.driveFileId}
-                  className={`ml-item ml-item-clickable motion-row${isActive ? " ml-item-active" : ""}${isDeleting ? " ml-item-deleting" : ""}`}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Play ${file.name.replace(/\.glb$/i, "")}`}
-                  onClick={() => !isDeleting && handleRowClick(file)}
-                  onKeyDown={(e) => e.key === "Enter" && !isDeleting && handleRowClick(file)}
-                >
-                  {/* Colour chip */}
-                  <div
-                    className="ml-item-chip motion-row-chip"
-                    style={{ background: `hsl(${hue}, 60%, 65%)` }}
-                    aria-hidden="true"
-                  />
-
-                  {/* Loading spinner overlay when downloading this row */}
-                  {isDownloading && (
-                    <span className="rec-spinner rec-spinner-xs ml-row-spinner" aria-hidden="true" />
-                  )}
-
-                  {/* Info */}
-                  <div className="ml-item-info motion-row-info">
-                    <span className="ml-item-name" title={file.name}>
-                      {file.name.replace(/\.glb$/i, "")}
-                    </span>
-                    <span className="ml-item-meta">
-                      {isSaving ? (
-                        <span className="ml-item-saving">
-                          <span className="rec-spinner rec-spinner-xs" aria-hidden="true" />
-                          saving...
-                        </span>
-                      ) : (
-                        <>
-                          {file.duration != null && (
-                            <>{formatDuration(file.duration)} &middot; </>
-                          )}
-                          {formatBytes(file.size)}
-                        </>
-                      )}
-                    </span>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="ml-item-actions motion-row-actions">
-                    {/* Download */}
-                    <button
-                      className="ml-action-btn"
-                      onClick={(e) => handleDownload(e, file)}
-                      disabled={isDownloading || isDeleting || isSaving}
-                      aria-label={`Download ${file.name}`}
-                      title="Download .glb"
-                    >
-                      <span className="has-icon icon-size-14 download-icon" aria-hidden="true" />
-                    </button>
-                    {/* Delete (logged-in only) */}
-                    <button
-                      className="ml-action-btn ml-action-btn-delete"
-                      onClick={(e) => handleDeleteClick(e, file)}
-                      disabled={isDeleting || isDownloading || isSaving}
-                      aria-label={`Delete ${file.name}`}
-                      title="Delete"
-                    >
-                      {isDeleting
-                        ? <span className="rec-spinner rec-spinner-xs" aria-hidden="true" />
-                        : <span className="has-icon icon-size-14 trash-icon" aria-hidden="true" />
-                      }
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+            {displayMotions.map((file) => renderMotionCard(file))}
           </div>
         )}
 
-        {/* ── Guest with pending motion (during playback or after recording) ── */}
+        {/* ── Guest with pending motion ── */}
         {!isLoggedIn && pendingMotion && (
           <div className="ml-list motion-list-container guest-motion-list" role="list">
-            {(() => {
-              const file = pendingMotion;
-              const hue = stringToHue(file.driveFileId);
-              const isActive = file.driveFileId === activeMotionId;
-              const isDownloading = downloadingId === file.driveFileId;
-
-              return (
-                <div
-                  key={file.driveFileId}
-                  className={`ml-item ml-item-clickable motion-row${isActive ? " ml-item-active" : ""}`}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Play ${file.name.replace(/\.glb$/i, "")}`}
-                  onClick={() => handleRowClick(file)}
-                  onKeyDown={(e) => e.key === "Enter" && handleRowClick(file)}
-                >
-                  {/* Colour chip */}
-                  <div
-                    className="ml-item-chip motion-row-chip"
-                    style={{ background: `hsl(${hue}, 60%, 65%)` }}
-                    aria-hidden="true"
-                  />
-
-                  {/* Loading spinner overlay when downloading this row */}
-                  {isDownloading && (
-                    <span className="rec-spinner rec-spinner-xs ml-row-spinner" aria-hidden="true" />
-                  )}
-
-                  {/* Info */}
-                  <div className="ml-item-info motion-row-info">
-                    <span className="ml-item-name" title={file.name}>
-                      {file.name.replace(/\.glb$/i, "")}
-                    </span>
-                    <span className="ml-item-meta">
-                      {file.duration != null && (
-                        <>{formatDuration(file.duration)} &middot; </>
-                      )}
-                      {formatBytes(file.size)}
-                    </span>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="ml-item-actions motion-row-actions">
-                    {/* Download */}
-                    <button
-                      className="ml-action-btn"
-                      onClick={(e) => handleDownload(e, file)}
-                      disabled={isDownloading}
-                      aria-label={`Download ${file.name}`}
-                      title="Download .glb"
-                    >
-                      <span className="has-icon icon-size-14 download-icon" aria-hidden="true" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })()}
+            {renderMotionCard(pendingMotion)}
           </div>
         )}
       </aside>
