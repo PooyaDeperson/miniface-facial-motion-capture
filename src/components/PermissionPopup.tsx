@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import IconButton from "./IconButton";
 
 type PermissionPopupMedia =
   | { image: string; imagAlt?: string; video?: never }
@@ -33,6 +34,11 @@ export type PermissionPopupProps = PermissionPopupMedia & {
   children?: ReactNode;
   /** Extra classes for the outer popup-container wrapper */
   className?: string;
+  /**
+   * When provided, a close IconButton is rendered in the top-right corner of
+   * the card. If omitted no close button is shown (backdrop click still works).
+   */
+  onClose?: () => void;
   /** ARIA role — defaults to "dialog" when centered, otherwise none */
   role?: string;
   "aria-label"?: string;
@@ -51,6 +57,7 @@ export default function PermissionPopup({
   avatar,
   children,
   className = "",
+  onClose,
   image,
   imagAlt,
   video,
@@ -77,7 +84,20 @@ export default function PermissionPopup({
         aria-modal={centered ? true : undefined}
         aria-label={ariaLabel}
       >
-        <div className="inner-container p-5 flex-col br-16">
+        <div className="inner-container p-5 flex-col br-16 pos-rel">
+
+          {/* Optional close button */}
+          {onClose && (
+            <IconButton
+              icon="close-icon"
+              onClick={onClose}
+              title="Close"
+              tooltipText="Close"
+              className="icon-size-25 pos-abs"
+              iconSize="icon-size-16"
+              style={{ top: 0, right: 0 }}
+            />
+          )}
 
           {/* Avatar */}
           {avatar && (
