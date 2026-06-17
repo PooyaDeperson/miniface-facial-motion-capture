@@ -540,6 +540,18 @@ function App() {
           motionCount={hasDrive ? libraryMotionCount : 0}
         />
         <AuthButton onDriveConnected={() => setHasDrive(hasDriveAccess())} />
+        {/* Library auth popup — shown to guests when they click the library button */}
+        {showLibraryAuthPopup && !hasDrive && (
+          <LibraryAuthPopup
+            onClose={() => setShowLibraryAuthPopup(false)}
+            onDriveConnected={() => {
+              setShowLibraryAuthPopup(false);
+              setHasDrive(hasDriveAccess());
+            }}
+            /* Replace with your image URL when ready — e.g. imgSrc="/images/library-preview.png" */
+            imgSrc={undefined}
+          />
+        )}
       </div>
 
       <ColorSwitcher disabled={isSwitcherDisabled || isInPlayback} />
@@ -627,19 +639,6 @@ function App() {
             continue with Google
           </button>
         </PermissionPopup>
-      )}
-
-      {/* Library auth popup — shown to guests when they click the library button */}
-      {showLibraryAuthPopup && !hasDrive && (
-        <LibraryAuthPopup
-          onClose={() => setShowLibraryAuthPopup(false)}
-          onDriveConnected={() => {
-            setShowLibraryAuthPopup(false);
-            setHasDrive(hasDriveAccess());
-          }}
-          /* Replace with your image URL when ready — e.g. imgSrc="/images/library-preview.png" */
-          imgSrc={undefined}
-        />
       )}
 
       {/* Post-record auth popup — shown to guests after recording stops */}
