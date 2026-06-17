@@ -57,6 +57,9 @@
   justify-content: center;
   padding: 8px 0 4px;
   flex-shrink: 0;
+  position: relative;
+    right: -41px;
+    top: 40px;
 }
 
 /* =========================================
@@ -317,7 +320,7 @@
   z-index: 9999;
   /* always visible */
   opacity: 1;
-  visibility: visible;
+  visibility: hidden;
   pointer-events: none;
   max-width: 70px;
   overflow: hidden;

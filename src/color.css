@@ -379,6 +379,9 @@
 .bg-danger-soft-hover {
    background-color: var(--bg-danger-soft-hover);
 }
+.bg-soft-light {
+   background-color: var(--overlay-light);
+}
 
 /* ==========================================================================
    BORDER UTILITIES
