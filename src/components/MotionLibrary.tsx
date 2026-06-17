@@ -133,7 +133,21 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
       setMotions(files);
       setLastSynced(new Date());
     } catch (err: any) {
-      setLoadError(err?.message ?? "Failed to load motions");
+      const msg: string = err?.message ?? "";
+      // A 403 with insufficient scopes means the user signed in but did not
+      // grant Drive access. Route it to the persistent no-drive popup instead
+      // of showing the raw JSON error inside the library panel.
+      const isDrivePermissionError =
+        msg.includes("403") ||
+        msg.toLowerCase().includes("insufficient") ||
+        msg.toLowerCase().includes("permission_denied") ||
+        msg.toLowerCase().includes("insufficientpermissions");
+      if (isDrivePermissionError) {
+        setNoDriveAccess(true);
+        setLoadError(null);
+      } else {
+        setLoadError(msg || "Failed to load motions");
+      }
     } finally {
       setLoading(false);
     }
