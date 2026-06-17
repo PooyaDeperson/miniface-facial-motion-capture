@@ -45,7 +45,7 @@
   height: 42px;
   min-width: 120px;
   cursor: var(--cursor-drag);
-  background-color: var(--purple-100);
+  background-color: var(--gray-100);
 }
 
 /* ===========================
@@ -78,13 +78,13 @@
 }
 
 .player-progress::-webkit-progress-value {
-  background-color: #EAE4F7;
+  background-color: var(--puruple-100);
   transition: none;
 }
 
 /* Firefox */
 .player-progress::-moz-progress-bar {
-  background-color: #EAE4F7;
+  background-color: var(--puruple-100);
   transition: none;
 }
 
