@@ -26,7 +26,8 @@ import AuthModal from "./components/AuthModal";
 import PostRecordAuthPopup from "./components/PostRecordAuthPopup";
 import LibraryAuthPopup from "./components/LibraryAuthPopup";
 import PermissionPopup from "./components/PermissionPopup";
-import { hasDriveAccess, listDriveMotions, uploadToDrive, subscribeMotionUploaded, subscribeQuotaExceeded, subscribeNoDriveScope, DriveQuotaError, BulkSyncProgress } from "./useDriveSync";
+import { supabase } from "./supabaseClient";
+import { hasDriveAccess, listDriveMotions, uploadToDrive, subscribeMotionUploaded, subscribeQuotaExceeded, subscribeNoDriveScope, DriveQuotaError, BulkSyncProgress, DRIVE_SCOPE } from "./useDriveSync";
 import type { DriveMotionFile } from "./useDriveSync";
 
 function App() {
@@ -70,6 +71,23 @@ function App() {
   // Lifted from MotionLibrary so the popup is always visible, even when the
   // library panel is closed.
   const [noDriveAccessDetected, setNoDriveAccessDetected] = useState(false);
+
+  /** Directly triggers Google OAuth with Drive scope — skips the AuthModal. */
+  const handleGoogleReAuth = useCallback(async () => {
+    if (!supabase) return;
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin,
+        skipBrowserRedirect: false,
+        scopes: DRIVE_SCOPE,
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+        },
+      },
+    });
+  }, []);
 
   // ── Drive scope state (drive token can appear after sign-in redirect) ─────
   const [hasDrive, setHasDrive] = useState(() => hasDriveAccess());
@@ -525,7 +543,7 @@ function App() {
           quotaReached={driveUploadStatus === "quota"}
           isLoggedIn={hasDrive}
           onLoginRequest={() => setShowAuthModal(true)}
-          onNoDriveAccessRetry={() => setShowAuthModal(true)}
+          onNoDriveAccessRetry={handleGoogleReAuth}
           onNoDriveAccess={setNoDriveAccessDetected}
           isInPlayback={isInPlayback}
           playbackBlob={playbackBlob}
@@ -547,7 +565,7 @@ function App() {
           </p>
           <button
             className="button primary w-full mt-8"
-            onClick={() => setShowAuthModal(true)}
+            onClick={handleGoogleReAuth}
             aria-label="Sign in again to grant Google Drive access"
           >
             <span className="has-icon icon-size-14 google-icon" aria-hidden="true" />
