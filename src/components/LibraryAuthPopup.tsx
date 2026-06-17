@@ -79,6 +79,7 @@ export default function LibraryAuthPopup({
   return (
     <PermissionPopup
       variant="prompt"
+      closeButton={onClose}
       centered
       backdrop
       onBackdropClick={onClose}

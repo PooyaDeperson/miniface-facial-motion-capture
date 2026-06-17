@@ -38,7 +38,7 @@ export type PermissionPopupProps = PermissionPopupMedia & {
    * When provided, a close IconButton is rendered in the top-right corner of
    * the card. If omitted no close button is shown (backdrop click still works).
    */
-  onClose?: () => void;
+  closeButton?: () => void;
   /** ARIA role — defaults to "dialog" when centered, otherwise none */
   role?: string;
   "aria-label"?: string;
@@ -57,7 +57,7 @@ export default function PermissionPopup({
   avatar,
   children,
   className = "",
-  onClose,
+  closeButton,
   image,
   imagAlt,
   video,
@@ -87,10 +87,10 @@ export default function PermissionPopup({
         <div className="inner-container p-5 flex-col br-16 pos-rel">
 
           {/* Optional close button */}
-          {onClose && (
+          {closeButton && (
             <IconButton
               icon="close-icon"
-              onClick={onClose}
+              onClick={closeButton}
               title="Close"
               tooltipText="Close"
               className="icon-size-25 pos-abs top-0 right-0"
