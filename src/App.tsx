@@ -612,6 +612,7 @@ function App() {
           aria-label="Google Drive access required"
           title="Google Drive permission is missing"
           className="no-drive-access-popup"
+          backdrop={true}
           overlayClosesPopup={false}
         >
           <p className="subtitle prompt-subtitle" style={{ marginTop: "8px" }}>
