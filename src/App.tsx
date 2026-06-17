@@ -25,7 +25,9 @@ import AuthButton from "./components/AuthButton";
 import AuthModal from "./components/AuthModal";
 import PostRecordAuthPopup from "./components/PostRecordAuthPopup";
 import LibraryAuthPopup from "./components/LibraryAuthPopup";
-import { hasDriveAccess, listDriveMotions, uploadToDrive, subscribeMotionUploaded, subscribeQuotaExceeded, subscribeNoDriveScope, DriveQuotaError, BulkSyncProgress } from "./useDriveSync";
+import PermissionPopup from "./components/PermissionPopup";
+import { supabase } from "./supabaseClient";
+import { hasDriveAccess, listDriveMotions, uploadToDrive, subscribeMotionUploaded, subscribeQuotaExceeded, subscribeNoDriveScope, DriveQuotaError, BulkSyncProgress, DRIVE_SCOPE } from "./useDriveSync";
 import type { DriveMotionFile } from "./useDriveSync";
 
 function App() {
@@ -64,6 +66,28 @@ function App() {
 
   // ── Library auth popup — shown to guests when they click the library button ──
   const [showLibraryAuthPopup, setShowLibraryAuthPopup] = useState(false);
+
+  // ── No Drive access — signed in but Drive scope missing ──────────────────
+  // Lifted from MotionLibrary so the popup is always visible, even when the
+  // library panel is closed.
+  const [noDriveAccessDetected, setNoDriveAccessDetected] = useState(false);
+
+  /** Directly triggers Google OAuth with Drive scope — skips the AuthModal. */
+  const handleGoogleReAuth = useCallback(async () => {
+    if (!supabase) return;
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin,
+        skipBrowserRedirect: false,
+        scopes: DRIVE_SCOPE,
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+        },
+      },
+    });
+  }, []);
 
   // ── Drive scope state (drive token can appear after sign-in redirect) ─────
   const [hasDrive, setHasDrive] = useState(() => hasDriveAccess());
@@ -519,11 +543,35 @@ function App() {
           quotaReached={driveUploadStatus === "quota"}
           isLoggedIn={hasDrive}
           onLoginRequest={() => setShowAuthModal(true)}
-          onNoDriveAccessRetry={() => setShowAuthModal(true)}
+          onNoDriveAccessRetry={handleGoogleReAuth}
+          onNoDriveAccess={setNoDriveAccessDetected}
           isInPlayback={isInPlayback}
           playbackBlob={playbackBlob}
           isPendingUploading={driveUploadStatus === "uploading"}
         />
+      )}
+
+      {/* No Drive access popup — shown persistently when signed in but Drive scope missing.
+          Rendered at App root so it is always visible regardless of library open state. */}
+      {hasDrive && noDriveAccessDetected && (
+        <PermissionPopup
+          variant="prompt"
+          aria-label="Google Drive access required"
+          title="Google Drive permission is missing"
+          className="no-drive-access-popup"
+        >
+          <p className="subtitle prompt-subtitle" style={{ marginTop: "8px" }}>
+            It looks like Drive access was not granted when you signed in. Sign in again and make sure to allow Drive — your motion will upload automatically once access is granted.
+          </p>
+          <button
+            className="button primary w-full mt-8"
+            onClick={handleGoogleReAuth}
+            aria-label="Sign in again to grant Google Drive access"
+          >
+            <span className="has-icon icon-size-14 google-icon" aria-hidden="true" />
+            continue with Google
+          </button>
+        </PermissionPopup>
       )}
 
       {/* Library auth popup — shown to guests when they click the library button */}

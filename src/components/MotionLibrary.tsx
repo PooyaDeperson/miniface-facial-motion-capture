@@ -57,6 +57,11 @@ export interface MotionLibraryProps {
    * granting Drive access. Reopens the auth flow so they can grant it.
    */
   onNoDriveAccessRetry?: () => void;
+  /**
+   * Called when the library detects noDriveAccess=true so App can lift this
+   * state up and show the persistent popup outside the library panel.
+   */
+  onNoDriveAccess?: (detected: boolean) => void;
   /** Whether currently in playback mode */
   isInPlayback?: boolean;
   /** The playback blob for guest users (used to download guest recordings) */
@@ -101,6 +106,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
   isLoggedIn = false,
   onLoginRequest,
   onNoDriveAccessRetry,
+  onNoDriveAccess,
   isInPlayback = false,
   playbackBlob = null,
   isPendingUploading = false,
@@ -167,6 +173,11 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
       fetchMotions(true);
     }
   }, [bulkProgress, fetchMotions]);
+
+  // Lift noDriveAccess up to App so the popup can be shown at the root level
+  useEffect(() => {
+    onNoDriveAccess?.(noDriveAccess);
+  }, [noDriveAccess, onNoDriveAccess]);
 
   // Click on a row → play it
   const handleRowClick = useCallback(async (file: DriveMotionFile) => {
@@ -321,7 +332,12 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
           </div>
         )}
 
-        {/* No Drive access — handled by the popup rendered outside the panel below */}
+        {/* Minimal no-drive label inside the panel — 2 words, no CTA */}
+        {isLoggedIn && noDriveAccess && (
+          <p className="ml-no-drive-label" role="status" aria-live="polite">
+            drive missing
+          </p>
+        )}
 
         {/* ── Error ── */}
         {(loadError || downloadError) && (
@@ -525,31 +541,6 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
           </div>
         )}
       </aside>
-
-      {/* ── No Drive access popup (signed in but Drive scope missing) ── */}
-      {/* Shown persistently — no close button, no overlay — until access is granted */}
-      {isLoggedIn && noDriveAccess && (
-        <PermissionPopup
-          variant="prompt"
-          aria-label="Google Drive access required"
-          title="Google Drive permission is missing"
-          className="no-drive-access-popup"
-        >
-          <p className="subtitle prompt-subtitle" style={{ marginTop: "8px" }}>
-            It looks like Drive access was not granted when you signed in. Sign in again and make sure to allow Drive — your motion will upload automatically once access is granted.
-          </p>
-          {onNoDriveAccessRetry && (
-            <button
-              className="button primary w-full mt-8"
-              onClick={onNoDriveAccessRetry}
-              aria-label="Sign in again to grant Google Drive access"
-            >
-              <span className="has-icon icon-size-14 google-icon" aria-hidden="true" />
-              continue with Google
-            </button>
-          )}
-        </PermissionPopup>
-      )}
 
       {/* ── Delete confirmation popup ── */}
       {deleteConfirmFile && (
