@@ -347,7 +347,7 @@ function App() {
   // ── Playback controls (bridging out of R3F canvas) ────────────────────────
   const getPlaybackControls = useCallback(() =>
     (window as any).__playbackControls ?? null,
-  []);
+    []);
 
   const handleTogglePlay = useCallback(() => {
     getPlaybackControls()?.togglePlay();
@@ -524,7 +524,7 @@ function App() {
       />
 
       {/* Top-right controls */}
-      <div className="pos-fixed top-0 right-0 z-9992 m-3 flex flex-row items-center gap-2" style={{ pointerEvents: "auto" }}>
+      <div className="top-right-menu-bar-container pos-fixed top-0 right-0 z-9992 m-3 flex flex-row items-center gap-2" style={{ pointerEvents: "auto" }}>
         {isInPlayback && (
           <button
             className="rec-btn rec-btn-record outline-5 outline-soft gap-2 live-capture-button live-capture-topbar-btn reveal fade"
