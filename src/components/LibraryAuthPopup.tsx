@@ -80,6 +80,7 @@ export default function LibraryAuthPopup({
     <PermissionPopup
       variant="prompt"
       closeButton={onClose}
+      image="/images/app/explainers/motionlibrary.webp"
       centered
       backdrop
       onBackdropClick={onClose}
