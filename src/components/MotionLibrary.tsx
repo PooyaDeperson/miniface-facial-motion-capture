@@ -62,6 +62,11 @@ export interface MotionLibraryProps {
    * state up and show the persistent popup outside the library panel.
    */
   onNoDriveAccess?: (detected: boolean) => void;
+  /**
+   * Called when a 403 Drive permission error is caught during a fetch, so
+   * App.tsx can clear stale tokens and update its hasDrive state immediately.
+   */
+  onDrivePermissionError?: () => void;
   /** Whether currently in playback mode */
   isInPlayback?: boolean;
   /** The playback blob for guest users (used to download guest recordings) */
@@ -107,6 +112,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
   onLoginRequest,
   onNoDriveAccessRetry,
   onNoDriveAccess,
+  onDrivePermissionError,
   isInPlayback = false,
   playbackBlob = null,
   isPendingUploading = false,
@@ -151,6 +157,8 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
       if (isDrivePermissionError) {
         setNoDriveAccess(true);
         setLoadError(null);
+        // Notify App so it can clear stale tokens and update hasDrive immediately
+        onDrivePermissionError?.();
       } else {
         setLoadError(msg || "Failed to load motions");
       }

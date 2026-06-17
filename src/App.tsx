@@ -27,7 +27,7 @@ import PostRecordAuthPopup from "./components/PostRecordAuthPopup";
 import LibraryAuthPopup from "./components/LibraryAuthPopup";
 import PermissionPopup from "./components/PermissionPopup";
 import { supabase } from "./supabaseClient";
-import { hasDriveAccess, listDriveMotions, uploadToDrive, subscribeMotionUploaded, subscribeQuotaExceeded, subscribeNoDriveScope, DriveQuotaError, BulkSyncProgress, DRIVE_SCOPE } from "./useDriveSync";
+import { hasDriveAccess, clearDriveTokens, listDriveMotions, uploadToDrive, subscribeMotionUploaded, subscribeQuotaExceeded, subscribeNoDriveScope, DriveQuotaError, BulkSyncProgress, DRIVE_SCOPE } from "./useDriveSync";
 import type { DriveMotionFile } from "./useDriveSync";
 
 function App() {
@@ -152,7 +152,20 @@ function App() {
     }
     listDriveMotions()
       .then((files) => setLibraryMotionCount(files.length))
-      .catch(() => { /* graceful — badge stays 0 */ });
+      .catch((err: any) => {
+        const msg: string = err?.message ?? "";
+        const is403 =
+          msg.includes("403") ||
+          msg.toLowerCase().includes("insufficient") ||
+          msg.toLowerCase().includes("permission_denied");
+        if (is403) {
+          // Stale token — clear it and surface the no-drive popup
+          clearDriveTokens();
+          setHasDrive(false);
+          setNoDriveAccessDetected(true);
+        }
+        // badge stays 0 for all other errors
+      });
   }, [hasDrive]);
 
   // ── Pending playback — used when avatar swap is required before playing ─────
@@ -578,6 +591,13 @@ function App() {
           onLoginRequest={() => setShowAuthModal(true)}
           onNoDriveAccessRetry={handleGoogleReAuth}
           onNoDriveAccess={setNoDriveAccessDetected}
+          onDrivePermissionError={() => {
+            // Stale token in sessionStorage caused a 403 — clear it so
+            // hasDriveAccess() returns false, then surface the persistent popup.
+            clearDriveTokens();
+            setHasDrive(false);
+            setNoDriveAccessDetected(true);
+          }}
           isInPlayback={isInPlayback}
           playbackBlob={playbackBlob}
           isPendingUploading={driveUploadStatus === "uploading"}
