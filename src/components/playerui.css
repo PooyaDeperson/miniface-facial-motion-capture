@@ -1,15 +1,21 @@
 /*
  * playerui.css
- * Player controls — native <progress> bar, no JS transitions
+ * Player controls — custom-only rules.
+ * Utility classes (flex-row, items-center, gap-2, p-2, br-8, pos-fixed,
+ * pos-rel, pos-abs, inset-0, flex-1, overflow-hidden, z-rec, bg-primary,
+ * bg-brand-soft, text-primary, text-secondary, text-brand, icon-size-32,
+ * icon-size-24, w-full, h-full) are applied directly in the TSX via App.css.
+ * Only rules that have NO equivalent utility class live here.
  */
 
 /* ===========================
    OUTER CONTAINER
-   (pos-fixed positioning comes from App.css utilities)
+   Centres the pill horizontally inside the pos-fixed slot.
+   left-50 in App.css does translateX(-50%) + translateY(6px) which is wrong
+   here, so we override with a dedicated rule.
    =========================== */
 
 .playback-controls {
-  /* stretch to fill the fixed slot so the wrapper can flex properly */
   left: 50%;
   transform: translateX(-50%);
   width: max-content;
@@ -17,53 +23,41 @@
 }
 
 /* ===========================
-   INNER WRAPPER  — the visible pill
+   INNER PILL WRAPPER
+   display/flex-direction/align-items/gap/padding/border-radius all covered
+   by utility classes on the element. Only the visual shell is custom.
    =========================== */
 
 .player-controls-wrapper {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  background-color: rgba(255, 255, 255, 0.95);
-  border-radius: 10px;
+  background-color: var(--bg-primary);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   width: 100%;
-  box-sizing: border-box;
 }
 
 /* ===========================
    TIMELINE CONTAINER
+   flex-1 / pos-rel / overflow-hidden / br-8 come from utility classes.
+   Only the fixed height, min-width and cursor are custom.
    =========================== */
 
 .player-timeline-container {
-  /* take all remaining space between the icon buttons */
-  flex: 1 1 0;
-  min-width: 120px;
-  position: relative;
   height: 42px;
-  border-radius: 6px;
-  overflow: hidden;
+  min-width: 120px;
   cursor: pointer;
-  background-color: #f0eef6; /* pale lavender track */
+  background-color: var(--purple-100);
 }
 
 /* ===========================
-   NATIVE PROGRESS BAR
-   Reset all UA styles, then paint it ourselves.
-   The browser updates the fill natively — zero JS lag.
+   NATIVE <progress> — full reset + brand fill
+   inset-0 / w-full / h-full applied as utility classes on the element.
    =========================== */
 
 .player-progress {
-  /* fill the whole container */
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   display: block;
-
-  /* kill default appearance on every engine */
   appearance: none;
   -webkit-appearance: none;
   border: none;
@@ -72,14 +66,13 @@
   background: transparent;
 }
 
-/* WebKit / Blink (Chrome, Safari, Edge) */
+/* WebKit / Blink */
 .player-progress::-webkit-progress-bar {
   background: transparent;
 }
 .player-progress::-webkit-progress-value {
   background-color: #EAE4F7;
-  border-radius: 0;
-  transition: none; /* browser paints natively — no extra transition needed */
+  transition: none;
 }
 
 /* Firefox */
@@ -89,38 +82,39 @@
 }
 
 /* ===========================
-   PLAYHEAD (8 × 8 dot)
+   PLAYHEAD — 8 × 8 dot
+   pos-abs applied as utility class on the element.
    =========================== */
 
 .player-timeline-playhead {
-  position: absolute;
   top: 50%;
   transform: translate(-50%, -50%);
   width: 8px;
   height: 8px;
-  background-color: #7c6aa6;
+  background-color: var(--purple-700);
   border-radius: 50%;
   pointer-events: none;
-  z-index: 10;
+  z-index: 20;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
 /* ===========================
-   TIME / NAME LABELS (pos-abs inside container)
+   TIME / NAME LABELS
+   pos-abs / top-50 applied as utility on the element.
+   Only font tweaks and pointer-events are custom.
    =========================== */
 
 .player-timeline-label {
-  position: absolute;
   top: 50%;
   transform: translateY(-50%);
   font-size: 11px;
   font-weight: 500;
-  color: #444;
   white-space: nowrap;
   pointer-events: none;
   z-index: 15;
   letter-spacing: 0.3px;
   line-height: 1;
+  color: var(--text-secondary);
 }
 
 .player-timeline-label.start-time {
@@ -139,20 +133,5 @@
   text-overflow: ellipsis;
   font-size: 12px;
   font-weight: 600;
-  color: #3d3357;
-}
-
-/* ===========================
-   ICON BUTTON SIZE OVERRIDES
-   =========================== */
-
-.player-icon-size-32 {
-  width: 32px !important;
-  height: 32px !important;
-  flex-shrink: 0;
-}
-
-.player-icon-size-24 {
-  width: 24px !important;
-  height: 24px !important;
+  color: var(--text-brand);
 }

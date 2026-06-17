@@ -126,25 +126,27 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
       role="region"
       aria-label="Animation playback"
     >
-      <div className="player-controls-wrapper">
-        {/* ── Play Button ── */}
+      {/* pill: flex-row items-center gap-2 p-2 br-8 — all utility classes */}
+      <div className="player-controls-wrapper flex-row items-center gap-2 p-2 br-8">
+
+        {/* ── Play / Pause ── */}
         <IconButton
           icon={state.isPlaying ? "pause-icon" : "play-icon"}
           onClick={onTogglePlay}
           title={state.isPlaying ? "Pause" : "Play"}
-          className="player-icon-size-32"
-          iconSize="player-icon-size-24"
+          className="icon-size-32"
+          iconSize="icon-size-24"
           aria-label={state.isPlaying ? "Pause playback" : "Play animation"}
         />
 
-        {/* ── Timeline Container ── */}
+        {/* ── Timeline ── flex-1 pos-rel overflow-hidden br-8 from utilities */}
         <div
-          className="player-timeline-container"
+          className="player-timeline-container flex-1 pos-rel overflow-hidden br-8"
           ref={scrubberRef}
           onMouseDown={(e) => handleScrubStart(e.clientX)}
           onTouchStart={(e) => handleScrubStart(e.touches[0].clientX)}
         >
-          {/* Native progress bar — browser-painted, no JS transition lag */}
+          {/* Native <progress> — browser-painted fill, zero JS lag */}
           <progress
             className="player-progress"
             value={progress}
@@ -153,49 +155,49 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
             aria-valuenow={Math.round(progress * 100)}
           />
 
-          {/* Playhead */}
+          {/* Playhead — pos-abs from utility */}
           <div
-            className="player-timeline-playhead"
+            className="player-timeline-playhead pos-abs"
             style={{ left: `${progress * 100}%` }}
           />
 
-          {/* Start Time Label */}
-          <span className="player-timeline-label start-time" aria-live="off">
+          {/* Start time */}
+          <span className="player-timeline-label pos-abs start-time" aria-live="off">
             {formatTime(state.currentTime)}
           </span>
 
-          {/* End Time Label */}
-          <span className="player-timeline-label end-time">
+          {/* End time */}
+          <span className="player-timeline-label pos-abs end-time">
             {formatTime(state.duration)}
           </span>
 
-          {/* File Name Label (Center) */}
+          {/* File name */}
           {motionName && (
-            <span className="player-timeline-label file-name" title={motionName}>
+            <span className="player-timeline-label pos-abs file-name" title={motionName}>
               {motionName}
             </span>
           )}
         </div>
 
-        {/* ── Download Button ── */}
+        {/* ── Download ── */}
         {onDownload && (
           <IconButton
             icon="download-icon"
             onClick={onDownload}
             title="Download .glb"
-            className="player-icon-size-32"
-            iconSize="player-icon-size-24"
+            className="icon-size-32"
+            iconSize="icon-size-24"
             aria-label="Download motion as .glb"
           />
         )}
 
-        {/* ── Live Button (Do Another) ── */}
+        {/* ── Live / Do Another ── */}
         <IconButton
           icon="live-icon"
           onClick={onDoAnother}
           title="Record new motion"
-          className="player-icon-size-32"
-          iconSize="player-icon-size-24"
+          className="icon-size-32"
+          iconSize="icon-size-24"
           aria-label="Record new motion"
         />
       </div>
