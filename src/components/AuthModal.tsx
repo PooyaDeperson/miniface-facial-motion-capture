@@ -178,7 +178,7 @@ export default function AuthModal({ onClose, onDriveConnected, hasPendingMotion 
       title="Connect to save your motion and sync forever"
       className="auth-popup"
     >
-      <p className="subtitle prompt-subtitle">
+      <p className="subtitle prompt-subtitle mt-3">
         sign in with Google to save your motions to Drive and access them from any device.{" "}
         By continuing you agree to{" "}
         <a href="/terms" target="_blank" rel="noreferrer">Terms</a> and{" "}
