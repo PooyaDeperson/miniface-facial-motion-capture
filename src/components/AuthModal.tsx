@@ -187,7 +187,7 @@ export default function AuthModal({ onClose, onDriveConnected, hasPendingMotion 
 
       {/* Supabase not configured */}
       {!isSupabaseAvailable() && (
-        <p className="subtitle denied-subtitle error-banner" role="status">
+        <p className="subtitle denied-subtitle error-banner m-4" role="status">
           auth not configured — set Supabase env vars to enable sign in
         </p>
       )}
