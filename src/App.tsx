@@ -257,7 +257,12 @@ function App() {
       if (hasDriveAccess()) {
         setLibraryOpen(true);
       } else {
-        setShowPostRecordAuthPopup(true);
+        // Only show once per browser session — if the user already dismissed it
+        // this session, don't show it again until they reopen the tab.
+        const dismissed = sessionStorage.getItem("postRecordAuthPopup_dismissed");
+        if (!dismissed) {
+          setShowPostRecordAuthPopup(true);
+        }
       }
 
       // Immediately create an optimistic pending motion for ALL users (guest and
@@ -647,7 +652,10 @@ function App() {
       {/* Post-record auth popup — shown to guests after recording stops */}
       {showPostRecordAuthPopup && !hasDrive && (
         <PostRecordAuthPopup
-          onClose={() => setShowPostRecordAuthPopup(false)}
+          onClose={() => {
+            sessionStorage.setItem("postRecordAuthPopup_dismissed", "1");
+            setShowPostRecordAuthPopup(false);
+          }}
           onDriveConnected={() => {
             setShowPostRecordAuthPopup(false);
             setHasDrive(hasDriveAccess());
