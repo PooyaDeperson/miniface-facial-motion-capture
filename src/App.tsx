@@ -114,29 +114,30 @@ function App() {
   }, []);
 
   // ── Immediately detect missing Drive scope after login ───────────────────
-  // Check on mount and on every auth state change: if Supabase has a session
-  // but no Drive token was stored, surface the persistent popup right away
-  // without waiting for the library panel to open.
+  // We run a single definitive check after mount: if Supabase has an active
+  // session but no Drive token is in sessionStorage, the user skipped the
+  // Drive scope and should see the persistent popup immediately.
+  // We deliberately do NOT subscribe to onAuthStateChange here — supabaseClient
+  // already fires notifyNoDriveScope for fresh sign-ins (handled below). This
+  // effect only handles users who reload the page while already logged-in but
+  // without Drive access.
   useEffect(() => {
     if (!supabase) return;
 
-    const checkDriveScope = async () => {
+    // Small delay so Supabase can finish restoring the session and
+    // storeDriveTokens (triggered by supabaseClient.ts) can write to
+    // sessionStorage before we read it.
+    const t = setTimeout(async () => {
       const { data } = await supabase!.auth.getSession();
       const loggedIn = !!data.session?.user;
       const hasToken = hasDriveAccess();
-      setNoDriveAccessDetected(loggedIn && !hasToken);
-    };
+      if (loggedIn && !hasToken) {
+        setNoDriveAccessDetected(true);
+      }
+    }, 800);
 
-    checkDriveScope();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      // Short delay to let storeDriveTokens run first (it fires synchronously
-      // inside the same auth event in supabaseClient.ts)
-      setTimeout(checkDriveScope, 300);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => clearTimeout(t);
+  }, []); // runs once on mount only
 
   // When Drive access is confirmed, clear the no-drive popup
   useEffect(() => {
@@ -287,7 +288,9 @@ function App() {
   // they successfully grant access and hasDrive becomes true.
   useEffect(() => {
     return subscribeNoDriveScope(() => {
-      setShowAuthModal(true);
+      // Fresh OAuth redirect without Drive scope — show the persistent popup
+      // instead of the AuthModal so the user sees the clear Drive-specific message.
+      setNoDriveAccessDetected(true);
     });
   }, []);
 
