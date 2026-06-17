@@ -53,6 +53,15 @@ export const isSupabaseAvailable = (): boolean => supabase !== null;
 // of the app can call hasDriveAccess() / storeDriveTokens() without knowing
 // about the auth flow.
 if (supabase) {
+  // Track whether this page load originated from an OAuth redirect so we can
+  // distinguish a fresh sign-in (where missing provider_token = no Drive scope
+  // was granted) from a regular page reload (where provider_token is never
+  // present in existing sessions even if Drive was granted previously).
+  const isOAuthRedirect =
+    window.location.hash.includes("access_token") ||
+    window.location.hash.includes("error") ||
+    new URLSearchParams(window.location.search).has("code");
+
   supabase.auth.onAuthStateChange((event, session) => {
     if (event === "SIGNED_IN" && session?.provider_token) {
       storeDriveTokens(
@@ -61,9 +70,9 @@ if (supabase) {
         session.user?.email
       );
     }
-    if (event === "SIGNED_IN" && !session?.provider_token) {
-      // User signed in with Google but did not grant the Drive scope.
-      // Notify subscribers so the app can prompt them to retry with Drive access.
+    if (event === "SIGNED_IN" && !session?.provider_token && isOAuthRedirect) {
+      // User just completed a fresh Google OAuth flow but did NOT grant the
+      // Drive scope. Only fire on actual redirects — not on session restores.
       notifyNoDriveScope();
     }
     if (event === "SIGNED_OUT") {

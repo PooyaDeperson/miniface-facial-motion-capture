@@ -27,7 +27,7 @@ import PostRecordAuthPopup from "./components/PostRecordAuthPopup";
 import LibraryAuthPopup from "./components/LibraryAuthPopup";
 import PermissionPopup from "./components/PermissionPopup";
 import { supabase } from "./supabaseClient";
-import { hasDriveAccess, listDriveMotions, uploadToDrive, subscribeMotionUploaded, subscribeQuotaExceeded, subscribeNoDriveScope, DriveQuotaError, BulkSyncProgress, DRIVE_SCOPE } from "./useDriveSync";
+import { hasDriveAccess, clearDriveTokens, listDriveMotions, uploadToDrive, subscribeMotionUploaded, subscribeQuotaExceeded, subscribeNoDriveScope, DriveQuotaError, BulkSyncProgress, DRIVE_SCOPE } from "./useDriveSync";
 import type { DriveMotionFile } from "./useDriveSync";
 
 function App() {
@@ -114,29 +114,30 @@ function App() {
   }, []);
 
   // ── Immediately detect missing Drive scope after login ───────────────────
-  // Check on mount and on every auth state change: if Supabase has a session
-  // but no Drive token was stored, surface the persistent popup right away
-  // without waiting for the library panel to open.
+  // We run a single definitive check after mount: if Supabase has an active
+  // session but no Drive token is in sessionStorage, the user skipped the
+  // Drive scope and should see the persistent popup immediately.
+  // We deliberately do NOT subscribe to onAuthStateChange here — supabaseClient
+  // already fires notifyNoDriveScope for fresh sign-ins (handled below). This
+  // effect only handles users who reload the page while already logged-in but
+  // without Drive access.
   useEffect(() => {
     if (!supabase) return;
 
-    const checkDriveScope = async () => {
+    // Small delay so Supabase can finish restoring the session and
+    // storeDriveTokens (triggered by supabaseClient.ts) can write to
+    // sessionStorage before we read it.
+    const t = setTimeout(async () => {
       const { data } = await supabase!.auth.getSession();
       const loggedIn = !!data.session?.user;
       const hasToken = hasDriveAccess();
-      setNoDriveAccessDetected(loggedIn && !hasToken);
-    };
+      if (loggedIn && !hasToken) {
+        setNoDriveAccessDetected(true);
+      }
+    }, 800);
 
-    checkDriveScope();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      // Short delay to let storeDriveTokens run first (it fires synchronously
-      // inside the same auth event in supabaseClient.ts)
-      setTimeout(checkDriveScope, 300);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => clearTimeout(t);
+  }, []); // runs once on mount only
 
   // When Drive access is confirmed, clear the no-drive popup
   useEffect(() => {
@@ -151,7 +152,20 @@ function App() {
     }
     listDriveMotions()
       .then((files) => setLibraryMotionCount(files.length))
-      .catch(() => { /* graceful — badge stays 0 */ });
+      .catch((err: any) => {
+        const msg: string = err?.message ?? "";
+        const is403 =
+          msg.includes("403") ||
+          msg.toLowerCase().includes("insufficient") ||
+          msg.toLowerCase().includes("permission_denied");
+        if (is403) {
+          // Stale token — clear it and surface the no-drive popup
+          clearDriveTokens();
+          setHasDrive(false);
+          setNoDriveAccessDetected(true);
+        }
+        // badge stays 0 for all other errors
+      });
   }, [hasDrive]);
 
   // ── Pending playback — used when avatar swap is required before playing ─────
@@ -287,7 +301,9 @@ function App() {
   // they successfully grant access and hasDrive becomes true.
   useEffect(() => {
     return subscribeNoDriveScope(() => {
-      setShowAuthModal(true);
+      // Fresh OAuth redirect without Drive scope — show the persistent popup
+      // instead of the AuthModal so the user sees the clear Drive-specific message.
+      setNoDriveAccessDetected(true);
     });
   }, []);
 
@@ -575,6 +591,13 @@ function App() {
           onLoginRequest={() => setShowAuthModal(true)}
           onNoDriveAccessRetry={handleGoogleReAuth}
           onNoDriveAccess={setNoDriveAccessDetected}
+          onDrivePermissionError={() => {
+            // Stale token in sessionStorage caused a 403 — clear it so
+            // hasDriveAccess() returns false, then surface the persistent popup.
+            clearDriveTokens();
+            setHasDrive(false);
+            setNoDriveAccessDetected(true);
+          }}
           isInPlayback={isInPlayback}
           playbackBlob={playbackBlob}
           isPendingUploading={driveUploadStatus === "uploading"}
