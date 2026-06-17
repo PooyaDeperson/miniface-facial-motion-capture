@@ -27,7 +27,6 @@
   --record-icon: url('../public/images/app/icons/icon_record.svg');
   --recording-icon: url('../public/images/app/icons/icon_recording.svg');
   --download-icon: url('../public/images/app/icons/icon_download.svg');
-  --recording-icon: url('../public/images/app/icons/icon_recording.svg');
   --close-icon: url('../public/images/app/icons/icon_close.svg');
   --trash-icon: url('../public/images/app/icons/icon_trash.svg');
   --refresh-icon: url("../public/images/app/icons/icon_refresh.svg");
@@ -94,6 +93,9 @@
 .loop-icon {
   background: no-repeat center / contain var(--loop-icon);
 }
+.live-icon {
+  background: no-repeat center / contain var(--live-icon);
+}
 
 .record-icon {
   background: no-repeat center / contain var(--record-icon);
@@ -117,6 +119,21 @@
 
 .cloud-check-icon {
   background: no-repeat center / contain var(--cloud-check-icon);
+}
+.play-icon {
+  background: no-repeat center / contain var(--play-icon);
+}
+.pause-icon {
+  background: no-repeat center / contain var(--pause-icon);
+}
+.record-icon {
+  background: no-repeat center / contain var(--record-icon);
+}
+.recording-icon {
+  background: no-repeat center / contain var(--recording-icon);
+}
+.download-icon {
+  background: no-repeat center / contain var(--download-icon);
 }
 
 
