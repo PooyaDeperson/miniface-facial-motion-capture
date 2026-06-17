@@ -1008,9 +1008,11 @@ button {
 .hidden {
   opacity: 0;
 }
+
 .display-none {
-  display: none;
+  display: none !important;
 }
+
 /* =========================
    KEYFRAMES
 ========================= */
@@ -2248,6 +2250,9 @@ canvas:active {
 
   .tb\:br-24 {
     border-radius: 24px;
+  }
+  .tb\:m-6 {
+    margin: 24px;
   }
 }
 
