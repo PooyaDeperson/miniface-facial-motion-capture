@@ -122,7 +122,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
 
   return (
     <div
-      className="playback-controls reveal bottom-36 tb:bottom-50 fade pos-fixed z-rec br-100">
+      className="playback-controls elevated-sharp reveal bottom-36 tb:bottom-50 fade pos-fixed z-rec br-100"
       role="region"
       aria-label="Animation playback"
     >
