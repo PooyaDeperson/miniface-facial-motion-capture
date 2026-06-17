@@ -532,7 +532,7 @@ function App() {
             onClick={handleStartLive}
             title="Start live motion capture"
             className="icon-size-32"
-            iconSize="icon-size-24"
+            iconSize="icon-size-16"
           />
         )}
         <MotionLibraryButton

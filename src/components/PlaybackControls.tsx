@@ -25,6 +25,8 @@ import {
   subscribePlaybackState,
   getPlaybackState,
 } from "../usePlaybackAnimation";
+import IconButton from "./IconButton";
+import "./playerui.css";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -120,23 +122,25 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
 
   return (
     <div
-      className="recording-controls playback-controls reveal bottom-36 tb:bottom-50 fade pos-fixed z-rec"
+      className="playback-controls reveal bottom-36 tb:bottom-50 fade pos-fixed z-rec"
       role="region"
       aria-label="Animation playback"
     >
-      <div className="rec-bar rec-bar-review playback-bar p-3 flex flex-col">
+      <div className="player-controls-wrapper">
+        {/* ── Play Button ── */}
+        <IconButton
+          icon={state.isPlaying ? "pause-icon" : "play-icon"}
+          onClick={onTogglePlay}
+          title={state.isPlaying ? "Pause" : "Play"}
+          className="player-icon-size-32"
+          iconSize="player-icon-size-24"
+          aria-label={state.isPlaying ? "Pause playback" : "Play animation"}
+        />
 
-        {/* ── name row ── */}
-        {motionName && (
-          <div className="playback-name" title={motionName}>
-            {motionName}
-          </div>
-        )}
-
-        {/* ── scrubber ── */}
+        {/* ── Timeline Container ── */}
         <div
+          className="player-timeline-container"
           ref={scrubberRef}
-          className="playback-scrubber"
           role="slider"
           aria-label="Playback position"
           aria-valuenow={Math.round(progress * 100)}
@@ -145,60 +149,60 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
           onMouseDown={(e) => handleScrubStart(e.clientX)}
           onTouchStart={(e) => handleScrubStart(e.touches[0].clientX)}
         >
-          <div className="playback-scrubber-fill" style={{ width: `${progress * 100}%` }} />
+          {/* Progress Bar */}
           <div
-            className="playback-scrubber-thumb"
+            className="player-timeline-progress"
+            style={{ width: `${progress * 100}%` }}
+          />
+
+          {/* Playhead */}
+          <div
+            className="player-timeline-playhead"
             style={{ left: `${progress * 100}%` }}
           />
-        </div>
 
-        {/* ── time row ── */}
-        <div className="playback-time-row">
-          <span className="playback-time" aria-live="off">
+          {/* Start Time Label */}
+          <span className="player-timeline-label start-time" aria-live="off">
             {formatTime(state.currentTime)}
           </span>
-          <span className="playback-time playback-time-total">
+
+          {/* End Time Label */}
+          <span className="player-timeline-label end-time">
             {formatTime(state.duration)}
           </span>
-        </div>
 
-        {/* ── controls row ── */}
-        <div className="playback-controls-row">
-          {/* Play / Pause */}
-          <button
-            className="playback-play-btn"
-            onClick={onTogglePlay}
-            aria-label={state.isPlaying ? "Pause" : "Play"}
-          >
-            {state.isPlaying ? (
-              <span className="playback-pause-icon" aria-hidden="true" />
-            ) : (
-              <span className="playback-play-icon" aria-hidden="true" />
-            )}
-          </button>
-
-          {/* Download current motion */}
-          {onDownload && (
-            <button
-              className="playback-icon-btn playback-download-btn"
-              onClick={onDownload}
-              aria-label="Download motion as .glb"
-              title="Download .glb"
-            >
-              <span className="has-icon icon-size-16 download-icon" aria-hidden="true" />
-            </button>
+          {/* File Name Label (Center) */}
+          {motionName && (
+            <span className="player-timeline-label file-name" title={motionName}>
+              {motionName}
+            </span>
           )}
 
-          {/* Do another */}
-          <button
-            className="playback-icon-btn"
-            onClick={onDoAnother}
-            aria-label="Record new motion"
-            title="Record new motion"
-          >
-            <span className="has-icon icon-size-16 record-icon" aria-hidden="true" />
-          </button>
+          {/* Scrubber Interactive Area */}
+          <div className="player-timeline-scrubber" />
         </div>
+
+        {/* ── Download Button ── */}
+        {onDownload && (
+          <IconButton
+            icon="download-icon"
+            onClick={onDownload}
+            title="Download .glb"
+            className="player-icon-size-32"
+            iconSize="player-icon-size-24"
+            aria-label="Download motion as .glb"
+          />
+        )}
+
+        {/* ── Live Button (Do Another) ── */}
+        <IconButton
+          icon="live-icon"
+          onClick={onDoAnother}
+          title="Record new motion"
+          className="player-icon-size-32"
+          iconSize="player-icon-size-24"
+          aria-label="Record new motion"
+        />
       </div>
     </div>
   );
