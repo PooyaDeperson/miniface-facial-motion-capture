@@ -530,7 +530,7 @@ function App() {
       />
 
       {/* Top-right controls */}
-      <div className="top-right-menu-bar-container pos-fixed top-0 right-0 z-9992 m-3 flex flex-row items-center gap-2" style={{ pointerEvents: "auto" }}>
+      <div className="top-right-menu-bar-container bg-gray-100-op50 pos-fixed top-0 right-0 z-9992 m-3 flex flex-row items-center gap-2">
         {isInPlayback && (
           <IconButton
             icon="live-icon"
