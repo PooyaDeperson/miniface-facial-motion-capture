@@ -44,7 +44,7 @@
 .player-timeline-container {
   height: 42px;
   min-width: 120px;
-  cursor: var(--cursor-pointer);
+  cursor: var(--cursor-drag);
   background-color: var(--purple-100);
 }
 
@@ -65,6 +65,11 @@
   margin: 0;
   padding: 0;
   background: transparent;
+  cursor: var(--cursor-drag);
+}
+
+.player-progress:active {
+  cursor: var(--cursor-dragging);
 }
 
 /* WebKit / Blink */
