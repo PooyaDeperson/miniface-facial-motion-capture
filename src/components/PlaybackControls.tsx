@@ -127,7 +127,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
       aria-label="Animation playback"
     >
       {/* pill: flex-row items-center gap-2 p-2 br-8 — all utility classes */}
-      <div className="player-controls-wrapper flex-row items-center gap-2 p-2 br-8">
+      <div className="player-controls-wrapper flex-row items-center gap-2 p-2 br-100">
 
         {/* ── Play / Pause ── */}
         <IconButton
@@ -141,7 +141,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
 
         {/* ── Timeline ── flex-1 pos-rel overflow-hidden br-8 from utilities */}
         <div
-          className="player-timeline-container flex-1 pos-rel overflow-hidden br-8"
+          className="player-timeline-container flex-1 pos-rel overflow-hidden br-100"
           ref={scrubberRef}
           onMouseDown={(e) => handleScrubStart(e.clientX)}
           onTouchStart={(e) => handleScrubStart(e.touches[0].clientX)}
