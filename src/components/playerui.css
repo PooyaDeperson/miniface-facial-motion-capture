@@ -79,23 +79,18 @@
 
 .player-progress::-webkit-progress-value {
   background-color: var(--purple-100);
-  transition: none;
 }
-
-/* Firefox */
+/* firefox */
 .player-progress::-moz-progress-bar {
   background-color: var(--purple-100);
-  transition: none;
-}
-.player-progress:hover ::-webkit-progress-value{
-  background-color: var(--purple-300);
-  transition: none;
 }
 
-/* Firefox */
+.player-progress:hover::-webkit-progress-value {
+  background-color: var(--purple-300);
+}
+/* firefox */
 .player-progress:hover::-moz-progress-bar {
   background-color: var(--purple-300);
-  transition: none;
 }
 
 /* ===========================
