@@ -178,7 +178,7 @@ export default function AuthModal({ onClose, onDriveConnected, hasPendingMotion 
       title="Connect to save your motion and sync forever"
       className="auth-popup"
     >
-      <p className="subtitle prompt-subtitle mt-3">
+      <p className="subtitle prompt-subtitle mt-4">
         sign in with Google to save your motions to Drive and access them from any device.{" "}
         By continuing you agree to{" "}
         <a href="/terms" target="_blank" rel="noreferrer">Terms</a> and{" "}
@@ -187,7 +187,7 @@ export default function AuthModal({ onClose, onDriveConnected, hasPendingMotion 
 
       {/* Supabase not configured */}
       {!isSupabaseAvailable() && (
-        <p className="subtitle denied-subtitle error-banner m-4" role="status">
+        <p className="subtitle denied-subtitle error-banner mt-4" role="status">
           auth not configured — set Supabase env vars to enable sign in
         </p>
       )}
