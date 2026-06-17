@@ -350,7 +350,7 @@ function App() {
     return () => clearTimeout(t);
   }, [libraryRefreshKey]);
 
-  // ── Playback controls (bridging out of R3F canvas) ────────────────────────
+  // ── Playback controls (bridging out of R3F canvas) ──���─────────────────────
   const getPlaybackControls = useCallback(() =>
     (window as any).__playbackControls ?? null,
     []);
@@ -563,7 +563,7 @@ function App() {
       </div>
 
       <ColorSwitcher disabled={isSwitcherDisabled || isInPlayback} />
-      <AvatarSwitcher activeUrl={url} onAvatarChange={handleAvatarChange} disabled={isSwitcherDisabled || isInPlayback} />
+      <AvatarSwitcher activeUrl={url} onAvatarChange={handleAvatarChange} disabled={isSwitcherDisabled || isInPlayback || libraryOpen} />
 
       {/* Recording controls — always rendered so the review overlay stays visible
           while playback is active. In idle phase, the "record" button is hidden
