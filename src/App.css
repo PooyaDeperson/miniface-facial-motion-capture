@@ -12,6 +12,104 @@
 @import './icon.css';
 
 /* =========================
+   SCROLLBARS — GLOBAL
+   -------------------------------------------------------
+   Strategy: keep scrollbars invisible (transparent) at all
+   times while reserving almost-zero track space so layout
+   is not affected. Comments mark every knob you can tweak.
+   -------------------------------------------------------
+   WEBKIT (Chrome, Edge, Safari, Opera)
+   Uses the ::-webkit-scrollbar pseudo-element family.
+========================= */
+
+/* ── Track container ─────────────────────────────────── */
+::-webkit-scrollbar {
+  width:  1px;   /* ← vertical bar width   — change to e.g. 6px to make it visible */
+  height: 1px;   /* ← horizontal bar height — change to e.g. 6px to make it visible */
+  background: transparent; /* ← track background color (idle) */
+}
+
+/* ── Track (the gutter behind the thumb) ────────────── */
+::-webkit-scrollbar-track {
+  background:    transparent; /* ← track background — try: rgba(0,0,0,0.05) for subtle */
+  border-radius: 999px;       /* ← track corner rounding */
+  /* border: 1px solid transparent; ← optional track border */
+}
+
+/* ── Track piece above/below the thumb ──────────────── */
+::-webkit-scrollbar-track-piece {
+  background: transparent; /* ← same as track but split into pieces */
+}
+
+/* ── Thumb (the draggable bar) ───────────────────────── */
+::-webkit-scrollbar-thumb {
+  background:    transparent; /* ← thumb idle color — try: rgba(120,120,120,0.4) */
+  border-radius: 999px;       /* ← thumb corner rounding — try: 4px for square ends */
+  border:        1px solid transparent; /* ← inner padding via transparent border trick */
+  /* min-height: 40px; ← minimum thumb height so it stays grippable */
+  /* min-width:  40px; ← minimum thumb width  (horizontal scroll) */
+}
+
+/* ── Thumb on hover ──────────────────────────────────── */
+::-webkit-scrollbar-thumb:hover {
+  background: transparent; /* ← hover color — try: rgba(100,100,100,0.6) */
+  /* cursor: grab; ← not always respected but worth adding */
+}
+
+/* ── Thumb while being dragged / active ─────────────── */
+::-webkit-scrollbar-thumb:active {
+  background: transparent; /* ← active/drag color — try: rgba(80,80,80,0.8) */
+}
+
+/* ── Corner piece (where x and y bars meet) ──────────── */
+::-webkit-scrollbar-corner {
+  background: transparent; /* ← corner fill color */
+}
+
+/* ── Resize handle (textarea corner drag) ───────────── */
+::-webkit-scrollbar-button {
+  display: none; /* ← hide arrows at each end — remove to show them */
+  /* width:  0;    ← alternative: collapse instead of display:none */
+  /* height: 0; */
+  /* background: transparent; ← arrow button color */
+  /* background-repeat:   no-repeat; */
+  /* background-position: center; */
+  /* background-size: 6px 6px; */
+}
+
+/* -------------------------------------------------------
+   FIREFOX
+   Uses the standard `scrollbar-width` and `scrollbar-color`
+   shorthand — no pseudo-element family available.
+   -------------------------------------------------------
+   scrollbar-width:  none | thin | auto
+     none → completely hidden, no space reserved
+     thin → narrowest the browser will allow (~4 px)
+     auto → default OS width
+   scrollbar-color: <thumb-color> <track-color>
+   ------------------------------------------------------- */
+* {
+  scrollbar-width:  thin;                        /* ← width: thin | auto | none */
+  scrollbar-color:  transparent transparent;     /* ← thumb color  track color  */
+  /* scrollbar-color: rgba(120,120,120,0.4) transparent; ← example visible thumb */
+}
+
+/* -------------------------------------------------------
+   IE / LEGACY EDGE (EdgeHTML)
+   These props are ignored by modern browsers; safe to keep.
+   ------------------------------------------------------- */
+* {
+  -ms-overflow-style: none; /* ← none | auto | scrollbar | -ms-autohiding-scrollbar */
+  /* scrollbar-face-color:       #888;        ← thumb face */
+  /* scrollbar-shadow-color:     #888;        ← thumb shadow */
+  /* scrollbar-highlight-color:  #aaa;        ← thumb highlight */
+  /* scrollbar-3dlight-color:    #ccc;        ← 3-D light edge */
+  /* scrollbar-darkshadow-color: #555;        ← 3-D dark shadow */
+  /* scrollbar-track-color:      transparent; ← track fill */
+  /* scrollbar-arrow-color:      transparent; ← arrow buttons */
+}
+
+/* =========================
    BOX SIZING / RESET -
 ========================= */
 *,
@@ -1200,9 +1298,6 @@ p.subtitle.refresh-subtitle {
   background-image: url("../public/images/app/avatar/avatar5.webp");
 }
 
-.avatar-switcher {
-  gap: 16px;
-}
 
 .avatar-switcher button {
   transform-origin: center center;
