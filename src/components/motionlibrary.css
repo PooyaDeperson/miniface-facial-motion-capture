@@ -388,6 +388,38 @@
 }
 
 /* =========================================
+   EMPTY PLACEHOLDER SLOTS
+   Identical size/shape to .ml-motion-card but
+   dashed border + white/transparent background.
+   ─────────────────────────────────────────
+   To tweak appearance:
+     • border-color     → dashed line color
+     • border-dash      → use border-style: dashed
+     • background       → slot fill (transparent or white)
+     • border-radius    → keep in sync with .ml-motion-card (12px)
+     • opacity          → how faded the empty slots look
+========================================= */
+
+.ml-empty-slot {
+  /* Exact same footprint as .ml-motion-card */
+  min-width: 57px;
+  max-width: 57px;
+  min-height: 72px;
+  max-height: 72px;
+  width: 57px;
+  height: 72px;
+  border-radius: 12px; /* keep in sync with ml-motion-card */
+
+  /* Dashed placeholder styling ↓ adjust here */
+  border: 1.5px dashed var(--gray-300, #d1d5db);
+  background: transparent; /* ← change to #fff for solid white */
+  opacity: 0.55;           /* ← lower = more faded */
+
+  flex-shrink: 0;
+  pointer-events: none;    /* slots are decorative only */
+}
+
+/* =========================================
    DELETE POPUP
 ========================================= */
 

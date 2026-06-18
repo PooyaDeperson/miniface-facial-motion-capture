@@ -68,6 +68,25 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
+// ─── empty slot config ────────────────────────────────────────────────────────
+//
+// EMPTY_SLOT_BATCH controls how many empty placeholder slots appear at a time.
+// The library always shows enough slots so that the total (real + empty) is
+// rounded up to the next multiple of EMPTY_SLOT_BATCH, with a minimum of one
+// full batch always visible below the real cards.
+//
+// Change this number to control the chunk size:
+const EMPTY_SLOT_BATCH = 5; // ← adjust here (e.g. 5 or 10)
+
+/** Returns the number of empty placeholder slots to render after real cards. */
+function calcEmptySlots(realCount: number): number {
+  // Always show at least EMPTY_SLOT_BATCH slots after the real cards
+  const minTotal = realCount + EMPTY_SLOT_BATCH;
+  // Round up to the next clean multiple of EMPTY_SLOT_BATCH
+  const rounded = Math.ceil(minTotal / EMPTY_SLOT_BATCH) * EMPTY_SLOT_BATCH;
+  return rounded - realCount;
+}
+
 // ─── component ────────────────────────────────────────────────────────────────
 
 const MotionLibrary: React.FC<MotionLibraryProps> = ({
@@ -233,6 +252,16 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
       ...motions.filter((m) => m.driveFileId !== pendingMotion.driveFileId),
     ]
     : motions;
+
+  // ─── render a single empty placeholder slot ───────────────────────────────
+
+  const renderEmptySlot = (index: number) => (
+    <div
+      key={`empty-slot-${index}`}
+      className="ml-empty-slot"
+      aria-hidden="true"
+    />
+  );
 
   // ─── render a single motion card ──────────────────────────────────────────
 
@@ -433,14 +462,22 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
             {!loading && displayMotions.length === 0 && !loadError && (
               <p className="ml-empty">no motions</p>
             )}
+            {/* Real motion cards */}
             {displayMotions.map((file) => renderMotionCard(file))}
+            {/* Empty placeholder slots — always visible, count rounds up in batches of EMPTY_SLOT_BATCH */}
+            {!loading && Array.from({ length: calcEmptySlots(displayMotions.length) }, (_, i) =>
+              renderEmptySlot(i)
+            )}
           </div>
         )}
 
         {/* ── Guest with pending motion ── */}
         {!isLoggedIn && pendingMotion && (
           <div className="ml-list motion-list-container guest-motion-list" role="list">
+            {/* Pending motion card */}
             {renderMotionCard(pendingMotion)}
+            {/* Empty placeholder slots after the single guest card */}
+            {Array.from({ length: calcEmptySlots(1) }, (_, i) => renderEmptySlot(i))}
           </div>
         )}
       </aside>
