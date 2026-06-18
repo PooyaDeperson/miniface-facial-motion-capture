@@ -98,7 +98,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
   refreshKey = 0,
   pendingMotion,
   quotaReached = false,
-  isLoggedIn: isLoggedInProp = false,
+  isLoggedIn = false,
   onLoginRequest,
   onNoDriveAccessRetry,
   onNoDriveAccess,
@@ -107,14 +107,6 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
   playbackBlob = null,
   isPendingUploading = false,
 }) => {
-  // ─── DEV: Console override for testing logged-in state ──────────────────────
-  // To mock a logged-in user without auth setup:
-  // 1. Open DevTools console (F12 → Console tab)
-  // 2. Paste: window.__DEV_MOCK_USER__ = { id: 'test-user-123', email: 'dev@test.com' }
-  // 3. Refresh the page → component will behave as logged-in
-  // To disable, run: delete window.__DEV_MOCK_USER__
-  const mockUser = typeof window !== "undefined" ? (window as any).__DEV_MOCK_USER__ : null;
-  const isLoggedIn = mockUser ? true : isLoggedInProp;
   const [motions, setMotions] = useState<DriveMotionFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
