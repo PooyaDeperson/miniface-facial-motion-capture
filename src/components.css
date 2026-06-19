@@ -564,7 +564,13 @@ button.icon-holder.tab-button:not(.active) {
 button.cd-selected>.has-icon.selected-icon {
   background: no-repeat center / contain var(--selected-icon);
 }
-
+.pattern-color-container-switcher {
+  background-color: var(--border-soft);
+  min-height: 92px;
+  max-height: 350px;
+  min-width: 159px;
+  max-width: 360px;
+}
 /* =========================
    POPUP CONTAINER
 ========================= */
