@@ -503,10 +503,12 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
         show={showOnboarding}
       >
         <PermissionPopup
-          title=""
+          title="record your first motion to get started"
           show={showOnboarding}
-          subtitle="record your first motion to get started"
+          
           closeButton={() => setShowOnboarding(false)}
+          tooltipPosition="top"
+          
         />
       </FloatingOnboarding>
 

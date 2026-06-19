@@ -8,7 +8,7 @@
   min-width: max-content;
 }
 
-.tooltip-container:not(.dropdown) {
+.tooltip-container:not(.dropdown,.isVisible) {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -145,7 +145,7 @@
 ========================================= */
 
 .tooltip-container.pos-top {
-  bottom: calc(100% + 14px);
+  bottom: calc(100% + 24px);
   left: 50%;
   transform:
     translateX(-50%) translateY(6px);
@@ -169,7 +169,7 @@
   height: 0;
   border-left: 12px solid transparent;
   border-right: 12px solid transparent;
-  border-top: 6px solid var(--bg-primary);
+  border-top: 6px solid var(--bg-secondary);
 }
 
 /* =========================================

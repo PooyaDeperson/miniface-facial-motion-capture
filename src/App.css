@@ -428,9 +428,9 @@ button {
   left: 22px;
 }
 
-.left-50 {
+.left-50percent {
   left: 50%;
-  transform: translateX(-50%) translateY(6px);
+  transform: translateX(-50%)!important;
 }
 
 .right-0 {
@@ -1366,7 +1366,12 @@ button.avatar-btn.avatar-selection.active {
   margin: 0 auto;
   outline: 4px solid var(--gray-100-op50);
 }
-
+.title.prompt-title {
+  min-width: 320px;
+}
+.popup-container.prompt-popup {
+  pointer-events: all;
+}
 /* =========================
    SELECTION CARDS / ROTATION
 ========================= */
@@ -2145,7 +2150,7 @@ canvas:active {
     left: 22px;
   }
 
-  .tb\:left-50 {
+  .tb\:left-50percent {
     left: 50%;
     transform: translateX(-50%) translateY(6px);
   }
