@@ -400,6 +400,8 @@ function App() {
 
   // ── Start live capture from inside library panel or player ───────────────
   const handleStartLive = useCallback(() => {
+    const wasInPlayback = !!playbackBlob;
+
     // If currently recording, stop gracefully before switching
     if (recordingPhase === "recording") {
       discardRecording();
@@ -411,9 +413,12 @@ function App() {
     handlePhaseChange("idle");
     setLibraryOpen(false);
     setLibraryButtonActive(false);
-    // Reset mediapipe so the "keep smiling" loader shows while it re-initialises
-    setMediapipeReady(false);
-  }, [recordingPhase, handlePhaseChange]);
+    // Only reinitiate mediapipe when coming out of playback — if we were
+    // already in live mode, there is no need to reset it
+    if (wasInPlayback) {
+      setMediapipeReady(false);
+    }
+  }, [recordingPhase, handlePhaseChange, playbackBlob]);
 
   // ── When library opens, stop recording gracefully and re-check auth ─────────
   const handleOpenLibrary = useCallback(() => {
@@ -432,8 +437,8 @@ function App() {
       return;
     }
 
-    setLibraryOpen(prev => !prev);
-    // Always activate the library button state so the live button replaces it
+    setLibraryOpen(true);
+    // Replace the motion library button with the live button
     setLibraryButtonActive(true);
   }, [recordingPhase, handlePhaseChange]);
 
