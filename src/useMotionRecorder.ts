@@ -40,6 +40,37 @@ import {
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter";
 import type { SecondaryMotionSystem } from "./SecondaryMotionSystem";
 
+// ─── playback notification (module-level) ─────────────────────────────────────
+// After a successful export App.tsx needs the GLB blob + a generated ID so it
+// can enter playback mode and open the motion library. We use a pub/sub pattern
+// identical to subscribeRecorder so nothing crosses the Canvas boundary.
+
+export interface PlaybackReadyPayload {
+  blob: Blob;
+  motionId: string;
+  name: string;
+  durationSeconds: number;
+  /** The avatar URL that was active when this motion was recorded */
+  avatarUrl?: string;
+}
+
+type PlaybackListener = (payload: PlaybackReadyPayload) => void;
+const _playbackListeners = new Set<PlaybackListener>();
+
+export function subscribePlaybackReady(fn: PlaybackListener): () => void {
+  _playbackListeners.add(fn);
+  return () => _playbackListeners.delete(fn);
+}
+
+function _notifyPlaybackReady(payload: PlaybackReadyPayload) {
+  _playbackListeners.forEach((fn) => fn(payload));
+}
+
+/** Generate a short unique ID for a motion. */
+function _makeMotionId(): string {
+  return `motion_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
 // ─── types ───────────────────────────────────────────────────────────────────
 
 export interface MotionFrame {
@@ -73,12 +104,18 @@ let _frames: MotionFrame[] = [];
 let _startTime = 0;
 let _finalDuration = 0; // stored when recording stops
 
+/** Cached blob from the last stopRecording() build — reused by buildAndExportGLB */
+// eslint-disable-next-line prefer-const
+let _cachedBlob: { blob: Blob; name: string } | null = null;
+
 /** The GLTF scene Group set by Avatar.tsx so the exporter can walk it */
 let _scene: Group | null = null;
 /** All named nodes from useGraph, keyed by node.name */
 let _nodes: Record<string, any> | null = null;
 /** Meshes that carry morphTargetDictionary (Wolf3D_Head, Wolf3D_Teeth, etc.) */
 let _headMeshes: Mesh[] = [];
+/** The avatar URL that was active when setSceneForExport was last called */
+let _avatarUrl: string | null = null;
 /**
  * Optional secondary motion system. When set, its bone quaternions are
  * snapshotted every frame and baked into the exported AnimationClip.
@@ -110,15 +147,18 @@ export function subscribeRecorder(fn: Listener): () => void {
  * Avatar.tsx calls this in useEffect whenever the GLTF scene loads / reloads.
  * We store references to the live scene objects so the exporter can use them
  * without needing to traverse the R3F tree from outside the Canvas.
+ * avatarUrl is stored so it can be embedded in the exported GLB extras.
  */
 export function setSceneForExport(
   scene: Group,
   nodes: Record<string, any>,
-  meshes: Mesh[]
+  meshes: Mesh[],
+  avatarUrl?: string
 ): void {
   _scene = scene;
   _nodes = nodes;
   _headMeshes = [...meshes];
+  if (avatarUrl) _avatarUrl = avatarUrl;
 }
 
 /**
@@ -147,7 +187,30 @@ export function getRecorderState(): RecorderState {
   };
 }
 
-// ─── recording controls ───────────────────────────────────────────────────────
+// ─── recording controls ───────────────────────────────────────────────────�����───
+
+// ─── beforeunload guard ───────────────────────────────────────────────────────
+// Prevent the user from accidentally losing an in-progress recording by
+// refreshing (F5 / Ctrl+R), closing the tab, or navigating away. The native
+// browser dialog fires immediately — no custom message is shown in modern
+// browsers, but the prompt is enough to let the user cancel the action.
+
+function _onBeforeUnload(e: BeforeUnloadEvent) {
+  e.preventDefault();
+  // Setting returnValue is still required to trigger the dialog in some
+  // environments (older Chrome, Electron wrappers, etc.).
+  e.returnValue =
+    "A recording is in progress. Leaving now will discard it. Are you sure?";
+  return e.returnValue;
+}
+
+function _addUnloadGuard() {
+  window.addEventListener("beforeunload", _onBeforeUnload);
+}
+
+function _removeUnloadGuard() {
+  window.removeEventListener("beforeunload", _onBeforeUnload);
+}
 
 export function startRecording(): void {
   if (_isRecording) return;
@@ -155,20 +218,56 @@ export function startRecording(): void {
   _finalDuration = 0;
   _startTime = performance.now();
   _isRecording = true;
+  _addUnloadGuard();
   _notify();
 }
 
 export function stopRecording(): void {
   if (!_isRecording) return;
   _isRecording = false;
+  _removeUnloadGuard();
   _finalDuration = (performance.now() - _startTime) / 1000;
   _notify();
+
+  // Immediately build the GLB blob in memory so playback can start right away,
+  // before the user clicks "save .glb". This is non-blocking — errors are
+  // swallowed silently here; the Save button will surface them if needed.
+  if (_frames.length >= 2) {
+    const timestamp = new Date()
+      .toISOString()
+      .slice(0, 19)
+      .replace("T", "_")
+      .replace(/:/g, "-");
+    const fileName = `facial_capture_${timestamp}.glb`;
+    const snapshotAvatarUrl = _avatarUrl ?? undefined;
+    buildGLBBlob()
+      .then(({ blob, durationSeconds }) => {
+        const motionId = _makeMotionId();
+        _cachedBlob = { blob, name: fileName };
+        _notifyPlaybackReady({ blob, motionId, name: fileName, durationSeconds, avatarUrl: snapshotAvatarUrl });
+
+        // Attempt Drive upload immediately if tokens are already present.
+        // Import lazily to avoid circular deps at module load time.
+        import("./useDriveSync").then(({ hasDriveAccess, uploadToDrive }) => {
+          if (hasDriveAccess()) {
+            uploadToDrive(blob, fileName, durationSeconds, snapshotAvatarUrl).catch((err) => {
+              console.warn("[recorder] Auto Drive upload failed:", err?.message);
+            });
+          }
+        }).catch(() => { /* useDriveSync unavailable */ });
+      })
+      .catch((err) => {
+        console.warn("[recorder] Playback blob build failed:", err?.message);
+      });
+  }
 }
 
 export function discardRecording(): void {
   _isRecording = false;
+  _removeUnloadGuard();
   _frames = [];
   _finalDuration = 0;
+  _cachedBlob = null;
   _notify();
 }
 
@@ -208,19 +307,10 @@ export function captureFrame(
 // ─── export ───────────────────────────────────────────────────────────────────
 
 /**
- * Builds an AnimationClip from the captured frames, attaches it to the live
- * GLTF scene, and exports everything as a binary .glb that is immediately
- * downloaded by the browser.
- *
- * Edge cases handled:
- * • Fewer than 2 frames → throws a descriptive error.
- * • Missing scene reference (avatar not loaded) → throws.
- * • Morph targets with all-zero scores → track omitted (saves file size).
- * • Missing bones (non-RPM rigs) → those bone tracks are simply skipped.
- * • Single-frame duration guard: if t[-1] === 0, clamps to a minimum 1/60 s.
- * • All TypedArray views passed to KeyframeTracks for efficient serialisation.
+ * Builds a GLB ArrayBuffer from the captured frames and returns it as a Blob.
+ * Does NOT download the file or notify listeners — useful for programmatic use.
  */
-export async function buildAndExportGLB(): Promise<void> {
+export async function buildGLBBlob(): Promise<{ blob: Blob; durationSeconds: number }> {
   // ── guards ──────────────────────────────────────────────────────────────────
   if (!_scene) {
     throw new Error(
@@ -378,39 +468,91 @@ export async function buildAndExportGLB(): Promise<void> {
     );
   }
 
-  // ── build AnimationClip ─────────────────────────────────────────────────────
+  // ── build AnimationClip ──────────────────────────────────────────────────��──
   const clip = new AnimationClip("FacialCapture", -1, tracks);
+  const durationSeconds = clip.duration;
 
   // ── GLTFExporter ────────────────────────────────────────────────────────────
   const exporter = new GLTFExporter();
 
+  // Embed avatarUrl into scene.userData so GLTFExporter writes it into
+  // asset.extras in the output GLB (userData is the supported mechanism —
+  // the 'extras' option key does not exist on GLTFExporterOptions).
+  const prevUserData = scene.userData ? { ...scene.userData } : {};
+  if (_avatarUrl) {
+    scene.userData = { ...prevUserData, avatarUrl: _avatarUrl };
+  }
+
   const result = await exporter.parseAsync(scene, {
     binary: true,
     animations: [clip],
-    // Export all nodes (including non-visible skeleton bones)
     onlyVisible: false,
-    // Embed all textures so the .glb is fully self-contained
     embedImages: true,
   });
 
-  // ── download ────────────────────────────────────────────────────────────────
+  // Restore scene.userData so we don't pollute the live scene
+  scene.userData = prevUserData;
+
   const buffer = result as ArrayBuffer;
   const blob = new Blob([buffer], { type: "model/gltf-binary" });
-  const objectUrl = URL.createObjectURL(blob);
+  return { blob, durationSeconds };
+}
 
+/**
+ * Builds a GLB, triggers a browser download, notifies playback subscribers,
+ * and (if Drive tokens are present) uploads to Google Drive in the background.
+ *
+ * This is the function called by RecordingControls on "save .glb".
+ */
+export async function buildAndExportGLB(): Promise<void> {
   const timestamp = new Date()
     .toISOString()
     .slice(0, 19)
     .replace("T", "_")
     .replace(/:/g, "-");
+  const fileName = `facial_capture_${timestamp}.glb`;
 
+  // Re-use the blob already built by stopRecording() if available — avoids a
+  // second heavy GLTFExporter pass for the same take.
+  let blob: Blob;
+  let durationSeconds: number;
+  if (_cachedBlob) {
+    blob = _cachedBlob.blob;
+    durationSeconds = 0; // duration already notified; this path is download-only
+  } else {
+    const result = await buildGLBBlob();
+    blob = result.blob;
+    durationSeconds = result.durationSeconds;
+
+    // Notify playback if it hasn't been notified yet (edge case: user skips stop
+    // and goes straight to export without the stopRecording async completing)
+    const motionId = _makeMotionId();
+    _cachedBlob = { blob, name: fileName };
+    _notifyPlaybackReady({ blob, motionId, name: fileName, durationSeconds });
+  }
+
+  // ── browser download ───────────────────────────────────────────────────────
+  const objectUrl = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = objectUrl;
-  anchor.download = `facial_capture_${timestamp}.glb`;
+  anchor.download = fileName;
   document.body.appendChild(anchor);
   anchor.click();
   document.body.removeChild(anchor);
-
-  // Revoke after a tick so the browser has time to start the download
   setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+
+  // ── notify playback listeners ──────────────────────────────────────────────
+  const motionId = _makeMotionId();
+  _notifyPlaybackReady({ blob, motionId, name: fileName, durationSeconds });
+
+  // ── Drive upload (background, non-blocking) ─────────────────────────────────
+  // Import lazily to avoid circular deps; graceful fallback if Drive not ready.
+  try {
+    const { hasDriveAccess, uploadToDrive } = await import("./useDriveSync");
+    if (hasDriveAccess()) {
+      uploadToDrive(blob, fileName, durationSeconds).catch((err) => {
+        console.warn("[recorder] Background Drive upload failed:", err?.message);
+      });
+    }
+  } catch { /* useDriveSync not available */ }
 }

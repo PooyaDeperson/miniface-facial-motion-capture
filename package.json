@@ -1,5 +1,5 @@
 {
-  "name": "react-face-tracking",
+  "name": "miniface",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -8,6 +8,7 @@
     "@react-three/drei": "^9.90.0",
     "@react-three/fiber": "^8.14.0",
     "@supabase/supabase-js": "^2.108.1",
+    "clsx": "^2.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.2.3",
