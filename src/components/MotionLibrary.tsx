@@ -29,6 +29,7 @@ import {
 } from "../useDriveSync";
 import IconButton from "./IconButton";
 import PermissionPopup from "./PermissionPopup";
+import { FloatingOnboarding } from "./onboarding/floatingOnboarding";
 import "./motionlibrary.css";
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -116,6 +117,22 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
 
   const [deleteConfirmFile, setDeleteConfirmFile] = useState<DriveMotionFile | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // ── Empty-state onboarding ────────────────────────────────────────────────
+  // Show the floating onboarding tooltip only when the library is open,
+  // the user is logged in, loading is done, and there are no motion files.
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    const isEmpty =
+      isLoggedIn &&
+      !loading &&
+      !loadError &&
+      !noDriveAccess &&
+      motions.length === 0 &&
+      !pendingMotion;
+    setShowOnboarding(isEmpty);
+  }, [isLoggedIn, loading, loadError, noDriveAccess, motions.length, pendingMotion]);
 
   // Load Drive motions
   const fetchMotions = useCallback(async (silent = false) => {
@@ -479,6 +496,19 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
           </div>
         )}
       </aside>
+
+      {/* ── Empty-state onboarding tooltip ── */}
+      <FloatingOnboarding
+        target='[data-onboarding="record:record-your-first-motion"]'
+        show={showOnboarding}
+      >
+        <PermissionPopup
+          title=""
+          show={showOnboarding}
+          subtitle="record your first motion to get started"
+          closeButton={() => setShowOnboarding(false)}
+        />
+      </FloatingOnboarding>
 
       {/* ── Delete confirmation popup ── */}
       {deleteConfirmFile && (
