@@ -46,6 +46,12 @@ interface PlaybackControlsProps {
   onSeek: (t: number) => void;
   /** Callback when the user wants to go back to recording mode */
   onDoAnother: () => void;
+  /**
+   * Callback for the live button — mirrors the top-right live button logic
+   * (closes library, clears playback, resets state).
+   * Falls back to onDoAnother when not provided for backwards compatibility.
+   */
+  onStartLive?: () => void;
   /** Optional: name of the motion being played (shown in the bar) */
   motionName?: string;
   /** Optional: download the current motion */
@@ -58,6 +64,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
   onTogglePlay,
   onSeek,
   onDoAnother,
+  onStartLive,
   motionName,
   onDownload,
 }) => {
@@ -200,7 +207,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
         {/* ── Live / Do Another ── */}
         <IconButton
           icon="live-icon"
-          onClick={onDoAnother}
+          onClick={onStartLive ?? onDoAnother}
           title="Record new motion"
           className="icon-size-32"
           iconSize="icon-size-24"

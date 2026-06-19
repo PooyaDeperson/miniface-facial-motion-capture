@@ -595,6 +595,7 @@ function App() {
           onTogglePlay={handleTogglePlay}
           onSeek={handleSeek}
           onDoAnother={handleDoAnother}
+          onStartLive={handleStartLive}
           motionName={activeMotionName}
           onDownload={playbackBlob ? () => {
             const url = URL.createObjectURL(playbackBlob);
