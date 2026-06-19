@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import IconButton from "./IconButton";
 
 type PermissionPopupMedia =
@@ -44,6 +44,25 @@ export type PermissionPopupProps = PermissionPopupMedia & {
   "aria-label"?: string;
   /** Whether clicking the overlay backdrop closes the popup. @default true */
   overlayClosesPopup?: boolean;
+  /**
+   * Controls visibility of the popup. When false the component renders nothing.
+   * Mirrors the `show` prop on PromptTooltip so PermissionPopup can be used
+   * as a direct child of FloatingOnboarding.
+   * @default true
+   */
+  show?: boolean;
+  /**
+   * Called when the popup is dismissed (close button or backdrop).
+   * Use this instead of — or alongside — closeButton/onBackdropClick when you
+   * need a single unified dismiss callback.
+   */
+  onClose?: () => void;
+  /**
+   * Injected automatically by FloatingOnboarding via cloneElement.
+   * Signals the portal wrapper to unmount itself after the popup closes.
+   * Do NOT set this manually — FloatingOnboarding handles it.
+   */
+  __floatingOnboardingUnmount?: () => void;
 };
 
 export default function PermissionPopup({
@@ -66,7 +85,32 @@ export default function PermissionPopup({
   role,
   "aria-label": ariaLabel,
   overlayClosesPopup = true,
+  show = true,
+  onClose,
+  __floatingOnboardingUnmount,
 }: PermissionPopupProps) {
+  // ── FloatingOnboarding compatibility ─────────────────────────────────────
+  // Mirror the `show` prop into local state so the component can self-dismiss
+  // and signal FloatingOnboarding to tear down its portal, exactly like
+  // PromptTooltip does.
+  const [isVisible, setIsVisible] = useState(show);
+
+  useEffect(() => {
+    setIsVisible(show);
+  }, [show]);
+
+  // Unified dismiss handler used by the close button and backdrop click.
+  // Keeps the existing closeButton / onBackdropClick callbacks intact and
+  // additionally fires onClose + the FloatingOnboarding unmount signal.
+  const handleClose = () => {
+    setIsVisible(false);
+    onClose?.();
+    __floatingOnboardingUnmount?.();
+  };
+
+  if (!isVisible) return null;
+  // ─────────────────────────────────────────────────────────────────────────
+
   const positionClass = centered
     ? "popup-centered popup-width-auth"
     : "w-100 tb:w-392 pos-abs top-0 m-5";
@@ -76,7 +120,14 @@ export default function PermissionPopup({
       {backdrop && (
         <div
           className="backdrop-overlay reveal fade"
-          onClick={overlayClosesPopup ? onBackdropClick : undefined}
+          onClick={
+            overlayClosesPopup
+              ? () => {
+                  onBackdropClick?.();
+                  handleClose();
+                }
+              : undefined
+          }
           aria-hidden="true"
         />
       )}
@@ -93,7 +144,10 @@ export default function PermissionPopup({
           {closeButton && (
             <IconButton
               icon="close-icon"
-              onClick={closeButton}
+              onClick={() => {
+                closeButton();
+                handleClose();
+              }}
               title="Close"
               tooltipText="Close"
               className="icon-size-25 pos-abs top-2 right-2"
