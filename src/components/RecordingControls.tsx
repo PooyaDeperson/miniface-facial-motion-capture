@@ -1,11 +1,6 @@
 /*
  * Copyright (c) 2025 Pooya Moradi M. poamrd@gmail.com https://github.com/PooyaDeperson
  * Licensed under the MIT License with Attribution.
- *
- * Permission is hereby granted, free of charge, to use, copy, modify, merge,
- * publish, and distribute this software, provided that the following credit
- * is included in any derivative or distributed version:
- * "Created by Pooya Moradi M. poamrd@gmail.com https://github.com/PooyaDeperson"
  */
 
 /**
@@ -13,15 +8,13 @@
  *
  * Fixed bottom-center pill UI that drives the motion-capture recording flow.
  *
- * Three phases
- * ────────────
- * idle      → "Record" button (only shown when mediapipeReady && avatarReady)
+ * Phases
+ * ──────
+ * idle      → "Record" button (only when mediapipeReady && avatarReady)
  * recording → pulsing red dot + live MM:SS timer + frame counter + "Stop"
- * review    → frame/duration summary + "Save GLB" + "Discard"
  *
- * The component subscribes to the module-level recorder singleton so it stays
- * in sync with Avatar.tsx's useFrame captures without any prop drilling through
- * the R3F Canvas boundary.
+ * On stop, the GLB is built in memory and App.tsx opens the Motion Library
+ * with the newly saved motion pre-selected.
  */
 
 import React, {
@@ -36,7 +29,6 @@ import {
   startRecording,
   stopRecording,
   discardRecording,
-  buildAndExportGLB,
 } from "../useMotionRecorder";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -54,30 +46,33 @@ interface RecordingControlsProps {
   mediapipeReady: boolean;
   avatarReady: boolean;
   onPhaseChange?: (phase: Phase) => void;
+  /** Called when the user clicks "do another" — lets App clear playback state */
+  onDoAnother?: () => void;
+  /** When true, hides the idle "record" button (playback is already running) */
+  hideIdleWhenPlaying?: boolean;
 }
 
-// ─── component ────────────────────────────────────────────────────────────────
-
 type Phase = "idle" | "recording" | "review" | "done";
+
+// ─── component ────────────────────────────────────────────────────────────────
 
 const RecordingControls: React.FC<RecordingControlsProps> = ({
   mediapipeReady,
   avatarReady,
   onPhaseChange,
+  onDoAnother: onDoAnotherProp,
+  hideIdleWhenPlaying = false,
 }) => {
   const [phase, setPhase] = useState<Phase>("idle");
+  const [frameCount, setFrameCount] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
 
-  // Notify parent whenever phase changes
   const setPhaseAndNotify = useCallback((newPhase: Phase) => {
     setPhase(newPhase);
     onPhaseChange?.(newPhase);
   }, [onPhaseChange]);
-  const [frameCount, setFrameCount] = useState(0);
-  const [elapsed, setElapsed] = useState(0);
-  const [isExporting, setIsExporting] = useState(false);
-  const [exportError, setExportError] = useState<string | null>(null);
 
-  // Live interval for sub-second timer updates while recording
+  // Live interval ref for timer
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── sync with recorder singleton ────────────────────────────────────────────
@@ -88,7 +83,12 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
         setPhaseAndNotify("recording");
         setFrameCount(state.frameCount);
       } else if (state.hasFrames) {
-        setPhaseAndNotify("review");
+        // Stay in review; don't reset if already in review/done
+        setPhase((prev) => {
+          const next = prev === "idle" ? "review" : prev;
+          onPhaseChange?.(next);
+          return next;
+        });
         setFrameCount(state.frameCount);
         setElapsed(state.duration);
       } else {
@@ -97,12 +97,10 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
         setElapsed(0);
       }
     };
-
-    const unsubscribe = subscribeRecorder(syncState);
-    // Run once immediately to pick up any state already set
+    const unsub = subscribeRecorder(syncState);
     syncState();
-    return unsubscribe;
-  }, [setPhaseAndNotify]);
+    return unsub;
+  }, [setPhaseAndNotify, onPhaseChange]);
 
   // ── live timer while recording ───────────────────────────────────────────────
   useEffect(() => {
@@ -111,7 +109,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
         const state = getRecorderState();
         setElapsed(state.duration);
         setFrameCount(state.frameCount);
-      }, 100); // 10 Hz is plenty for a display timer
+      }, 100);
     } else {
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -119,16 +117,12 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
       }
     }
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [phase]);
 
   // ── handlers ─────────────────────────────────────────────────────────────────
   const handleRecord = useCallback(() => {
-    setExportError(null);
     startRecording();
     setPhaseAndNotify("recording");
     setElapsed(0);
@@ -136,25 +130,13 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   }, [setPhaseAndNotify]);
 
   const handleStop = useCallback(() => {
+    // stopRecording() builds the GLB blob and notifies subscribePlaybackReady,
+    // which causes App.tsx to open the library with the new motion selected.
     stopRecording();
+    setPhaseAndNotify("idle");
     const state = getRecorderState();
-    setPhaseAndNotify("review");
     setFrameCount(state.frameCount);
     setElapsed(state.duration);
-  }, [setPhaseAndNotify]);
-
-  const handleSave = useCallback(async () => {
-    setIsExporting(true);
-    setExportError(null);
-    try {
-      await buildAndExportGLB();
-      // Move to done phase on first save; subsequent calls (re-download) stay in done
-      setPhaseAndNotify("done");
-    } catch (err: any) {
-      setExportError(err?.message ?? "Export failed. Please try again.");
-    } finally {
-      setIsExporting(false);
-    }
   }, [setPhaseAndNotify]);
 
   const handleDoAnother = useCallback(() => {
@@ -162,178 +144,66 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
     setPhaseAndNotify("idle");
     setFrameCount(0);
     setElapsed(0);
-    setExportError(null);
-  }, [setPhaseAndNotify]);
-
-  const handleDiscard = useCallback(() => {
-    discardRecording();
-    setPhaseAndNotify("idle");
-    setFrameCount(0);
-    setElapsed(0);
-    setExportError(null);
-  }, [setPhaseAndNotify]);
+    onDoAnotherProp?.();
+  }, [setPhaseAndNotify, onDoAnotherProp]);
 
   // ── visibility guard ─────────────────────────────────────────────────────────
-  // Only render once both the avatar and MediaPipe are fully ready.
-  // During recording or review we keep controls visible even if mediapipe
-  // drops out (e.g. face leaves frame) so the user can still save their take.
-  const shouldShow =
-    avatarReady && mediapipeReady
-      ? true
-      : phase === "recording" || phase === "review" || phase === "done";
-
-  if (!shouldShow) return null;
+  const isActivePhase = phase === "recording";
+  const showIdle = phase === "idle" && !hideIdleWhenPlaying && (avatarReady && mediapipeReady);
+  if (!isActivePhase && !showIdle) return null;
 
   // ── render ───────────────────────────────────────────────────────────────────
   return (
-    <div
-      className="recording-controls reveal bottom-36 tb:bottom-50 fade pos-fixed z-rec"
-      role="region"
-      aria-label="Motion capture recording"
-    >
-      {/* ── IDLE ── */}
-      {phase === "idle" && (
-        <button
-          className="rec-btn pos-rel rec-btn-record pt-10 pb-10 pl-22 pr-22 outline-5 outline-soft gap-2"
-          onClick={handleRecord}
-          aria-label="Start recording motion"
-        >
-          <span className="rec-dot rec-dot-idle" aria-hidden="true" />
-          <span>record</span>
-        </button>
-      )}
-
-      {/* ── RECORDING ── */}
-      {phase === "recording" && (
+    <>
+      {/* ── IDLE: Record button (hidden while playback is active) ── */}
+      {showIdle && (
         <div
-          className="rec-bar rec-bar-live outline-5 outline-softdanger"
-          role="status"
-          aria-live="polite"
+          data-onboarding="record:record-your-first-motion"
+          className="recording-controls reveal bottom-36 tb:bottom-50 fade pos-fixed z-rec recording-idle-container"
+          role="region"
+          aria-label="Motion capture recording"
         >
-          {/* <span className="rec-dot rec-dot-pulse" aria-hidden="true" /> */}
           <button
-            className="rec-btn rec-btn-stop bg-danger gap-3 pl-22 pr-22 pt-10 pb-3"
-            onClick={handleStop}
-            aria-label="Stop recording"
+            className="rec-btn pos-rel rec-btn-record pt-10 pb-10 pl-22 pr-22 outline-5 outline-soft gap-2 record-button"
+            onClick={handleRecord}
+            aria-label="Start recording motion"
           >
-            <span className="rec-stop-icon" aria-hidden="true" />
-            stop
-            <span
-              className="rec-timer"
-              aria-label={`Recording time: ${formatTime(elapsed)}`}
-            >
-              {formatTime(elapsed)}
-            </span>
-            <span
-              className="rec-frames"
-              aria-label={`${frameCount} frames captured`}
-            >
-              {frameCount}&thinsp;f
-            </span>
-
+            <span className="rec-dot rec-dot-idle" aria-hidden="true" />
+            <span>record</span>
           </button>
         </div>
       )}
 
-      {/* ── REVIEW ── */}
-      {phase === "review" && (
-        <div className="rec-bar p-3 gap-12 rec-bar-review p-20 flex flex-col">
-          {/* Stats row */}
-          <div className="rec-stats" aria-label="Recording stats">
-            <span className="rec-stat-label">recorded</span>
-            <span className="rec-stat-item">{frameCount}&thinsp;frames</span>
-            <span className="rec-stat-divider" aria-hidden="true">
-              ·
-            </span>
-            <span className="rec-stat-item">{formatTime(elapsed)}</span>
-          </div>
-
-          {/* Error message */}
-          {exportError && (
-            <p className="rec-error" role="alert">
-              {exportError}
-            </p>
-          )}
-
-          {/* Actions */}
-          <div className="rec-actions flex flex-col">
+      {/* ── RECORDING: Stop button ── */}
+      {phase === "recording" && (
+        <div
+          className="recording-controls reveal bottom-36 tb:bottom-50 fade pos-fixed z-rec recording-active-container"
+          role="region"
+          aria-label="Motion capture recording"
+        >
+          <div
+            className="rec-bar rec-bar-live outline-5 outline-softdanger recording-bar"
+            role="status"
+            aria-live="polite"
+          >
             <button
-              className="rec-btn gap-3 justify-center w-full rec-btn-save"
-              onClick={handleSave}
-              disabled={isExporting}
-              aria-label="Save recording as GLB file"
-              aria-busy={isExporting}
+              className="rec-btn rec-btn-stop bg-danger gap-3 pl-22 pr-22 pt-10 pb-3 stop-button"
+              onClick={handleStop}
+              aria-label="Stop recording"
             >
-              {isExporting ? (
-                <>
-                  <span className="rec-spinner" aria-hidden="true" />
-                  Exporting&hellip;
-                </>
-              ) : (
-                <>
-                  {/* <span className="rec-save-icon" aria-hidden="true" /> */}
-                  save &nbsp;.glb
-                </>
-              )}
-            </button>
-
-            <button
-              className="rec-btn rec-btn-discard w-full justify-center border-3 border-inverse"
-              onClick={handleDiscard}
-              disabled={isExporting}
-              aria-label="Discard this recording"
-            >
-              another take
+              <span className="rec-stop-icon" aria-hidden="true" />
+              stop
+              <span className="rec-timer" aria-label={`Recording time: ${formatTime(elapsed)}`}>
+                {formatTime(elapsed)}
+              </span>
+              <span className="rec-frames" aria-label={`${frameCount} frames captured`}>
+                {frameCount}&thinsp;f
+              </span>
             </button>
           </div>
         </div>
       )}
-
-      {/* ── DONE ── */}
-      {phase === "done" && (
-        <div className="rec-bar p-20 gap-12 rec-bar-review p-20 flex flex-col">
-          <div className="rec-stats" aria-label="Recording stats">
-            <span className="rec-stat-label">recorded</span>
-            <span className="rec-stat-item">{frameCount}&thinsp;frames</span>
-            <span className="rec-stat-divider" aria-hidden="true">·</span>
-            <span className="rec-stat-item">{formatTime(elapsed)}</span>
-          </div>
-          {exportError && (
-            <p className="rec-error" role="alert">
-              {exportError}
-            </p>
-          )}
-          <div className="rec-actions flex flex-col">
-            <button
-              className="rec-btn gap-8 justify-center w-full rec-btn-save"
-              onClick={handleSave}
-              disabled={isExporting}
-              aria-label="Download GLB file"
-              aria-busy={isExporting}
-            >
-              {isExporting ? (
-                <>
-                  <span className="rec-spinner" aria-hidden="true" />
-                  Exporting&hellip;
-                </>
-              ) : (
-                <>
-                  {/* <span className="rec-save-icon" aria-hidden="true" /> */}
-                  save &nbsp;.glb
-                </>
-              )}
-            </button>
-            <button
-              className="rec-btn rec-btn-discard w-full justify-center border-3 border-inverse"
-              onClick={handleDoAnother}
-              aria-label="Start a new recording"
-            >
-              do another
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+    </>
   );
 };
 

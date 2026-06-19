@@ -15,6 +15,7 @@ import { Euler, Mesh, Object3D, Quaternion } from "three";
 import { blendshapes, rotation, headMesh, headMatrix, isMobileTracking, isMediaPipeActive } from "./FaceTracking";
 import { captureFrame, setSceneForExport } from "./useMotionRecorder";
 import { useAnimationPlayer } from "./useAnimationPlayer";
+import { usePlaybackAnimation } from "./usePlaybackAnimation";
 import { BlendshapeSmoother, QuaternionSmoother } from "./smoothing";
 import { getAvatarMetadata } from "./avatarMetadata";
 import { useSecondaryMotion } from "./useSecondaryMotion";
@@ -30,6 +31,8 @@ const DEBUG_COLLISION_SPHERES = false;
 interface AvatarProps {
   url: string;
   onLoaded?: () => void;
+  /** When set, replays this GLB blob instead of running live face tracking. */
+  playbackBlob?: Blob | null;
 }
 
 // ─── module-level smoother singletons ────────────────────────────────────────
@@ -45,7 +48,7 @@ const quaternionSmoother = new QuaternionSmoother();
 const _targetQuat = new Quaternion();
 const _smoothedEuler = new Euler();
 
-function Avatar({ url, onLoaded }: AvatarProps) {
+function Avatar({ url, onLoaded, playbackBlob }: AvatarProps) {
   const { scene } = useGLTF(url);
   const { nodes } = useGraph(scene);
 
@@ -65,7 +68,7 @@ function Avatar({ url, onLoaded }: AvatarProps) {
     if (nodes.Avatar) headMesh.push(nodes.Avatar);
     if (nodes.face) headMesh.push(nodes.face);
 
-    setSceneForExport(scene, nodes, headMesh as Mesh[]);
+    setSceneForExport(scene, nodes, headMesh as Mesh[], url);
 
     // Reset smoothers whenever the avatar reloads so we don't carry stale
     // state from a previous session into the new pose.
@@ -91,9 +94,17 @@ function Avatar({ url, onLoaded }: AvatarProps) {
   // Wire up the idle animation. Pass a stable getter so the hook always
   // reads the latest mutable module variable without needing React state reactivity.
   // Also pass the excluded bone names so the mixer does not touch hair bones.
+  // Idle animation is disabled during playback so the two mixers don't conflict.
   useAnimationPlayer({
-    characterScene: scene,
+    characterScene: playbackBlob ? null : scene,
     getIsMediaPipeActive: () => isMediaPipeActive,
+    excludeBoneNames: springBoneNameSet,
+  });
+
+  // Playback animation — only active when a blob is provided
+  const playbackControls = usePlaybackAnimation({
+    characterScene: playbackBlob ? scene : null,
+    playbackBlob: playbackBlob ?? null,
     excludeBoneNames: springBoneNameSet,
   });
 
@@ -104,6 +115,10 @@ function Avatar({ url, onLoaded }: AvatarProps) {
   });
 
   useFrame((_, delta) => {
+    // In playback mode the usePlaybackAnimation hook drives the mixer each frame.
+    // Live face tracking must not touch bones at the same time.
+    if (playbackBlob) return;
+
     // Only drive bones + blendshapes when MediaPipe has live data.
     if (!isMediaPipeActive || blendshapes.length === 0) return;
 
@@ -170,6 +185,13 @@ function Avatar({ url, onLoaded }: AvatarProps) {
       [_smoothedEuler.x, _smoothedEuler.y, _smoothedEuler.z]
     );
   });
+
+  // Expose playback controls via window so App.tsx can call togglePlay/seek/setLoop
+  // without needing React context across the Canvas boundary.
+  useEffect(() => {
+    (window as any).__playbackControls = playbackControls;
+    return () => { delete (window as any).__playbackControls; };
+  }, [playbackControls]);
 
   return <primitive object={scene} position={[0, 0, 0]} />;
 }
