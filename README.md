@@ -6,7 +6,7 @@
   
   **Real-time face tracking with 3D avatars in your browser** ✨
 
-  Try it at : https://facemocap.radframes.com/
+  Try it at : https://www.miniface.org/
   
  [![License: MIT-Attribution](https://img.shields.io/badge/License-MIT--Attribution-yellow.svg)](LICENSE.md)
  [![React](https://img.shields.io/badge/React-18.2.0-blue.svg)](https://reactjs.org/)
