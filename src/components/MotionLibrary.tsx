@@ -51,6 +51,7 @@ export interface MotionLibraryProps {
   isInPlayback?: boolean;
   playbackBlob?: Blob | null;
   isPendingUploading?: boolean;
+  onMotionLoadingChange?: (isLoading: boolean) => void;
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -105,6 +106,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
   isInPlayback = false,
   playbackBlob = null,
   isPendingUploading = false,
+  onMotionLoadingChange,
 }) => {
   const [motions, setMotions] = useState<DriveMotionFile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -191,6 +193,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
     if (deletingId === file.driveFileId) return;
     setDownloadingId(file.driveFileId);
     setDownloadError(null);
+    onMotionLoadingChange?.(true);
     try {
       if (!isLoggedIn && file.driveFileId === pendingMotion?.driveFileId) {
         onSelectMotion(new Blob(), file);
@@ -202,8 +205,9 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
       setDownloadError(err?.message ?? "Download failed");
     } finally {
       setDownloadingId(null);
+      onMotionLoadingChange?.(false);
     }
-  }, [onSelectMotion, deletingId, isLoggedIn, pendingMotion]);
+  }, [onSelectMotion, deletingId, isLoggedIn, pendingMotion, onMotionLoadingChange]);
 
   // Download button on active card
   const handleDownload = useCallback(async (e: React.MouseEvent, file: DriveMotionFile) => {
@@ -293,37 +297,54 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
     const sizeStr = formatBytes(file.size);
 
     return (
-      <div key={file.driveFileId} className="pos-rel">
-        {/* Always-visible tooltip to the left */}
-        <div className="ml-card-tooltip hidden" aria-hidden="true">
-          <div className="ml-card-tooltip-inner">
-            <div className="ml-card-tooltip-content">
-              <span className="ml-card-tooltip-name">{displayName}</span>
-              {(durationStr || sizeStr) && (
-                <span className="ml-card-tooltip-meta">
-                  {durationStr ? `${durationStr} · ${sizeStr}` : sizeStr}
-                </span>
-              )}
+      <button
+        key={file.driveFileId}
+        className={clsx("motion-file-container pos-rel", isActive && "active", isDownloading && "loading")}
+        onClick={() => !isDeleting && !isDim && handleCardClick(file)}
+        aria-label={isActive ? `Download ${displayName}` : `Select ${displayName}`}
+        aria-pressed={isActive}
+        disabled={isDeleting || isDim}
+      >
+        {/* Always-visible tooltip: filename */}
+        <div className="ml-tooltip ml-tooltip-name" aria-hidden="true">
+          <div className="ml-tooltip-inner">
+            <div className="ml-tooltip-content">
+              <span className="ml-tooltip-label">{displayName}</span>
             </div>
           </div>
         </div>
 
-        {/* Card button */}
-        <button
+        {/* Always-visible tooltip: duration */}
+        {durationStr && (
+          <div className="ml-tooltip ml-tooltip-duration" aria-hidden="true">
+            <div className="ml-tooltip-inner">
+              <div className="ml-tooltip-content">
+                <span className="ml-tooltip-value">{durationStr}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Always-visible tooltip: file size */}
+        <div className="ml-tooltip ml-tooltip-size" aria-hidden="true">
+          <div className="ml-tooltip-inner">
+            <div className="ml-tooltip-content">
+              <span className="ml-tooltip-value">{sizeStr}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card */}
+        <div
           className={clsx(
-            "ml-motion-card",
-            isActive && "ml-motion-card-active",
-            isDim && "ml-motion-card-dim",
-            isDeleting && "ml-motion-card-deleting"
+            "flex flex-col",
+            isDim && "loading",
+            isDeleting && "deleting"
           )}
-          onClick={() => !isDeleting && !isDim && handleCardClick(file)}
-          aria-label={isActive ? `Download ${displayName}` : `Select ${displayName}`}
-          aria-pressed={isActive}
-          disabled={isDeleting || isDim}
         >
           {isActive ? (
             /* Active card: flex-col with download + trash */
-            <div className="ml-card-actions">
+            <div className="flex flex-col card-action-holder">
               {/* Download icon button */}
               <IconButton
                 icon="download-icon"
@@ -350,12 +371,12 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
           ) : (
             /* Idle: motion library icon */
             <span
-              className="has-icon motionlibrary-icon icon-size-20"
+              className="has-icon cursor-pointer motionlibrary-icon icon-size-20"
               aria-hidden="true"
             />
           )}
-        </button>
-      </div>
+        </div>
+      </button>
     );
   };
 
@@ -468,7 +489,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
 
         {/* ── Logged-in motion list ── */}
         {isLoggedIn && (
-          <div className="ml-list motion-list-container" role="list">
+          <div className="ml-list motion-list-container gap-4 flex flex-col-reverse items-center" role="list">
             {loading && displayMotions.length === 0 && (
               <div className="ml-loading" aria-busy="true">
                 <span className="rec-spinner rec-spinner-xs" aria-hidden="true" />

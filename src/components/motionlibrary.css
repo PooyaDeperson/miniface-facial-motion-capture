@@ -227,10 +227,8 @@
   overflow-y: auto;
   overflow-x: visible;
   padding: 6px 0 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
+
+
   -webkit-overflow-scrolling: touch;
 }
 
@@ -253,7 +251,7 @@
    MOTION CARD  (57×72 min-max)
 ========================================= */
 
-.ml-motion-card {
+.motion-file-container {
   position: relative;
   min-width: 57px;
   max-width: 57px;
@@ -309,33 +307,51 @@
 }
 
 /* =========================================
-   MOTION CARD TOOLTIP  (always visible, pos-left)
+   MOTION CARD TOOLTIPS  (3 separate tooltips)
+   positioned below the card (absolute)
    hidden completely on mobile
 ========================================= */
 
-.ml-card-tooltip {
+/* ── base tooltip shell ── */
+.ml-tooltip {
   position: absolute;
-  right: calc(100% + 10px);
-  top: 50%;
-  transform: translateY(-50%);
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 9999;
-  /* always visible */
-  opacity: 1;
-  visibility: hidden;
   pointer-events: none;
   max-width: 70px;
   overflow: hidden;
 }
 
-/* tooltip inner box */
-.ml-card-tooltip-inner {
+/* ── name tooltip ── */
+.ml-tooltip-name {
+  bottom: -37px;
+}
+
+/* ── duration tooltip ── */
+.ml-tooltip-duration {
+  bottom: -55px;
+}
+
+/* ── size tooltip ── */
+.ml-tooltip-size {
+  bottom: -73px;
+}
+
+/* Show all tooltips on card hover */
+.motion-file-container:hover .ml-tooltip {
+  opacity: 1;
+}
+
+/* ── tooltip inner box ── */
+.ml-tooltip-inner {
   background: var(--bg-primary);
   border-radius: 6px;
   padding: 2px;
   border: 1.5px solid var(--border-brand-soft);
 }
 
-.ml-card-tooltip-content {
+.ml-tooltip-content {
   background: var(--bg-primary);
   border-radius: 4px;
   padding: 4px 6px;
@@ -347,7 +363,8 @@
   overflow: hidden;
 }
 
-.ml-card-tooltip-name {
+/* ── label (filename) ── */
+.ml-tooltip-label {
   font-size: 11px;
   font-weight: 500;
   color: var(--text-brand);
@@ -358,7 +375,8 @@
   display: block;
 }
 
-.ml-card-tooltip-meta {
+/* ── value (duration / size) ── */
+.ml-tooltip-value {
   font-size: 10px;
   color: var(--text-tertiary);
   white-space: nowrap;
@@ -366,23 +384,23 @@
   flex-shrink: 0;
 }
 
-/* Triangle pointing right → toward the card */
-.ml-card-tooltip::after {
+/* ── Triangle pointing up → toward the card ── */
+.ml-tooltip::after {
   content: "";
   position: absolute;
-  right: -6px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
   width: 0;
   height: 0;
-  border-top: 5px solid transparent;
-  border-bottom: 5px solid transparent;
-  border-left: 6px solid var(--bg-primary);
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 6px solid var(--bg-primary);
 }
 
 /* Hide tooltips entirely on mobile */
 @media (max-width: 768px) {
-  .ml-card-tooltip {
+  .ml-tooltip {
     display: none !important;
   }
 }
