@@ -1,0 +1,462 @@
+/*
+ * Copyright (c) 2025 Pooya Moradi M. poamrd@gmail.com https://github.com/PooyaDeperson
+ * Licensed under the MIT License with Attribution.
+ */
+
+/* =========================================
+   MOTION LIBRARY PANEL
+========================================= */
+
+.motion-library-panel {
+
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 90px;
+  max-width: 90px;
+  min-width: 90px;
+  background: transparent;
+  border-left: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  z-index: 99;
+  animation: slide-in-right 220ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  overflow: visible;
+  margin-right: 12px;
+
+}
+  .ml-list.motion-list-container {
+
+    padding-bottom: 120px;
+        padding-top: 120px;
+  }
+/* Mobile: full-screen */
+@media (max-width: 768px) {
+  .motion-library-panel {
+    height: 100%;
+    bottom: 0;
+  }
+
+
+}
+
+/* =========================================
+   BACKDROP
+========================================= */
+
+.ml-backdrop {
+  display: none;
+}
+
+/* =========================================
+   HEADER
+========================================= */
+
+.ml-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0 4px;
+  flex-shrink: 0;
+  position: relative;
+  right: -41px;
+  top: 40px;
+}
+
+/* =========================================
+   SYNC PROGRESS BAR
+========================================= */
+
+.ml-sync-progress {
+  padding: 6px 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.ml-sync-progress-bar {
+  height: 3px;
+  background: var(--gray-300);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.ml-sync-progress-fill {
+  height: 100%;
+  background: var(--purple-900);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.ml-sync-label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* =========================================
+   SYNC STATUS — refresh icon-button only
+========================================= */
+
+.ml-sync-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0 2px;
+  flex-shrink: 0;
+}
+
+/* =========================================
+   NO DRIVE / ERROR
+========================================= */
+
+.ml-no-drive-label {
+  margin: 4px 6px 0;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-danger, #e05c5c);
+  opacity: 0.8;
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.ml-error {
+  margin: 6px 6px 0;
+  padding: 6px 8px;
+  background: var(--bg-danger-soft);
+  border-radius: 8px;
+  font-size: 11px;
+  color: var(--text-danger);
+  flex-shrink: 0;
+  text-align: center;
+}
+
+/* =========================================
+   QUOTA BANNER
+========================================= */
+
+.ml-quota-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  margin: 8px 6px 0;
+  padding: 10px 10px;
+  background: #fff8e1;
+  border: 1.5px solid #f9a825;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.ml-quota-icon {
+  font-size: 18px;
+  line-height: 1;
+  color: #f9a825;
+  flex-shrink: 0;
+}
+
+.ml-quota-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ml-quota-body strong {
+  font-size: 11px;
+  font-weight: 600;
+  color: #5d4037;
+  display: block;
+}
+
+.ml-quota-body p {
+  font-size: 10px;
+  color: #6d5a4a;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.ml-quota-link {
+  color: var(--purple-900);
+  text-decoration: underline;
+  font-weight: 500;
+  word-break: break-all;
+}
+
+.ml-quota-link:hover {
+  opacity: 0.8;
+}
+
+/* =========================================
+   GUEST EMPTY STATE
+========================================= */
+
+.ml-guest-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 8px 16px;
+  flex: 1;
+  text-align: center;
+  gap: 6px;
+}
+
+.ml-guest-headline {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.ml-guest-sub {
+  font-size: 10px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* =========================================
+   MOTION LIST CONTAINER
+========================================= */
+
+.ml-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: visible;
+  padding: 6px 0 24px;
+
+
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Loading / empty states */
+.ml-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0;
+}
+
+.ml-empty {
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  padding: 20px 8px;
+}
+
+/* =========================================
+   MOTION CARD  (57×72 min-max)
+========================================= */
+
+.motion-file-container {
+  position: relative;
+  min-width: 57px;
+  max-width: 57px;
+  min-height: 72px;
+  max-height: 72px;
+  width: 57px;
+  height: 72px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: var(--gray-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: var(--cursor-pointer), pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+  flex-shrink: 0;
+  padding: 0;
+  overflow: visible;
+}
+
+.ml-motion-card:hover:not(:disabled) {
+  background: var(--gray-300);
+}
+
+/* Active / selected state */
+.ml-motion-card.ml-motion-card-active {
+  border-color: var(--purple-800);
+}
+
+/* Saving / downloading dimmed */
+.ml-motion-card.ml-motion-card-dim {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* Deleting state */
+.ml-motion-card.ml-motion-card-deleting {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* =========================================
+   INNER ACTIONS (flex-col, gap-1)
+   shown when card is active: download + trash
+========================================= */
+
+.ml-card-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+/* =========================================
+   MOTION CARD TOOLTIPS  (3 separate tooltips)
+   positioned below the card (absolute)
+   hidden completely on mobile
+========================================= */
+
+/* ── base tooltip shell ── */
+.ml-tooltip {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  pointer-events: none;
+  max-width: 70px;
+  overflow: hidden;
+}
+
+/* ── name tooltip ── */
+.ml-tooltip-name {
+  bottom: -37px;
+}
+
+/* ── duration tooltip ── */
+.ml-tooltip-duration {
+  bottom: 0px;
+}
+
+/* ── size tooltip ── */
+.ml-tooltip-size {
+  bottom: -73px;
+}
+
+/* Show all tooltips on card hover */
+.motion-file-container:hover .ml-tooltip {
+  opacity: 1;
+}
+
+/* ── tooltip inner box ── */
+.ml-tooltip-inner {
+  background: var(--bg-primary);
+  border-radius: 6px;
+  padding: 2px;
+  border: 1.5px solid var(--border-brand-soft);
+}
+
+.ml-tooltip-content {
+  background: var(--bg-primary);
+  border-radius: 4px;
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  max-width: 70px;
+  overflow: hidden;
+}
+
+/* ── label (filename) ── */
+.ml-tooltip-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-brand);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 70px;
+  display: block;
+}
+
+/* ── value (duration / size) ── */
+.ml-tooltip-duration-value {
+  font-size: 10px;
+  color: var(--interactive-primary);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/* ── Triangle pointing up → toward the card ── */
+.ml-tooltip::after {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 6px solid var(--bg-primary);
+}
+
+/* Hide tooltips entirely on mobile
+@media (max-width: 768px) {
+  .ml-tooltip {
+    display: none !important;
+  }
+} */
+
+/* =========================================
+   EMPTY PLACEHOLDER SLOTS
+   Identical size/shape to .ml-motion-card but
+   dashed border + white/transparent background.
+   ─────────────────────────────────────────
+   To tweak appearance:
+     • border-color     → dashed line color
+     • border-dash      → use border-style: dashed
+     • background       → slot fill (transparent or white)
+     • border-radius    → keep in sync with .ml-motion-card (12px)
+     • opacity          → how faded the empty slots look
+========================================= */
+
+.ml-empty-slot {
+  /* Exact same footprint as .ml-motion-card */
+  min-width: 57px;
+  max-width: 57px;
+  min-height: 72px;
+  max-height: 72px;
+  width: 57px;
+  height: 72px;
+  border-radius: 12px;
+  /* keep in sync with ml-motion-card */
+  opacity: 0.5;
+  
+  /* Dashed placeholder styling ↓ adjust here */
+  border: 2px dashed var(--gray-400, --gray-400);
+  background: var(--gray-200);
+  /* ← change to #fff for solid white */
+  /* ← lower = more faded */
+
+  flex-shrink: 0;
+  pointer-events: none;
+  /* slots are decorative only */
+}
+
+/* =========================================
+   DELETE POPUP
+========================================= */
+
+.ml-delete-popup {
+  max-width: 320px !important;
+}
+
+/* =========================================
+   SPINNER
+========================================= */
+
+.rec-spinner.rec-spinner-xs {
+  width: 10px;
+  height: 10px;
+  border-width: 1.5px;
+}
