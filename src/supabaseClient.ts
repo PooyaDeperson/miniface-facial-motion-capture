@@ -7,13 +7,14 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { storeDriveTokens, clearDriveTokens, notifyNoDriveScope } from "./useDriveSync";
 
 // ── Environment detection ────────────────────────────────────────────────────
-// On facemocap.radframes.com → use REACT_APP_SUPABASE_URL / ANON_KEY (prod vars).
-// On every other host       → use REACT_APP_SUPABASE_STAGE_URL / STAGE_ANON_KEY.
+// On miniface.org / www.miniface.org → use REACT_APP_SUPABASE_URL / ANON_KEY (prod vars).
+// On every other host                → use REACT_APP_SUPABASE_STAGE_URL / STAGE_ANON_KEY.
 // Set the matching pair in Vercel's Environment Variables for each deployment.
 
 const isProductionHost =
   typeof window !== "undefined" &&
-  window.location.hostname === "facemocap.radframes.com";
+  (window.location.hostname === "miniface.org" ||
+    window.location.hostname === "www.miniface.org");
 
 const supabaseUrl = isProductionHost
   ? process.env.REACT_APP_SUPABASE_URL

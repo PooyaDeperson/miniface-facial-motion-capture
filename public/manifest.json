@@ -1,6 +1,6 @@
 {
-  "short_name": "Face Mocap",
-  "name": "Facial Motion Capture Realtime",
+  "short_name": "miniface",
+  "name": "miniface - Facial Motion Capture",
   "icons": [
     {
       "src": "/images/seo/favicon16.jpg",
