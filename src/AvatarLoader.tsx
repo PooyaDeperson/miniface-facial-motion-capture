@@ -60,14 +60,17 @@ const AvatarLoader: React.FC<AvatarLoaderProps> = ({
   if (!visible) return null;
 
 return (
-  <div
-    className="reveal fade avatar-loader-container flex flex-col items-center justify-center space-y-3 fixed inset-0 bg-white/80 backdrop-blur-sm z-50"
-    style={{
-      backgroundImage: "url('/images/app/image_avatar_skeleton.svg')",
-    }}
-  >
-    {/* <div className="spinner w-8 h-8 border-4 border-gray-300 border-t-transparent rounded-full animate-spin" /> */}
-    <p className="avatar-loader-text text-gray-700 text-sm">{message}</p>
+  <div className="reveal fade avatar-loader-container flex flex-col items-center justify-center space-y-3 fixed inset-0 bg-white/80 backdrop-blur-sm z-50"
+>
+    <div
+      className="avatar-loader-image-container"
+      style={{
+        backgroundImage: "url('/images/app/image_avatar_skeleton.svg')",
+      }}
+    >
+      {/* <div className="spinner w-8 h-8 border-4 border-gray-300 border-t-transparent rounded-full animate-spin" /> */}
+      <p className="avatar-loader-text text-gray-700 text-sm">{message}</p>
+    </div>
   </div>
 );
 
