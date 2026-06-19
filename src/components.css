@@ -373,6 +373,7 @@ button.avatar-btn.avatar-selection.active,
 .motion-file-container.active
  {
   transform: rotate(0deg)!important;
+  scale: 0.95;
 }
 .motion-file-container.loading {
   scale: 0.9;
@@ -382,7 +383,7 @@ button.avatar-btn.avatar-selection.active,
 }
 button.avatar-btn.avatar-selection.active,
 .motion-file-container.active {
-  border-color: var(--gray-900)
+  border-color: var(--interactive-primary)
 }
 
 .avatar-image-containter {
@@ -895,7 +896,7 @@ canvas:active {
 .avatar-switcher.switcher-disabled {
   animation: hide-right 0.3s ease forwards;
 }
-.motionlibrary-switcher.switcher-disabled {
+.motion-library-panel.switcher-disabled {
   animation: hide-right 0.3s ease forwards;
 }
 

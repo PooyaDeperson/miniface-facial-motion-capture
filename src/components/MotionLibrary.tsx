@@ -77,7 +77,7 @@ function formatBytes(bytes: number): string {
 // motion, no empty slots are rendered at all.
 //
 // Change this number to control how many slots show in the empty state:
-const EMPTY_SLOT_BATCH = 5; // ← adjust here (e.g. 5 or 10)
+const EMPTY_SLOT_BATCH = 20; // ← adjust here (e.g. 5 or 10)
 
 /** Returns the number of empty placeholder slots to render.
  *  Only renders slots when there are zero real motions (empty state).
@@ -277,9 +277,14 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
   const renderEmptySlot = (index: number) => (
     <div
       key={`empty-slot-${index}`}
-      className="ml-empty-slot"
+      className="ml-empty-slot motion-list-container  motion-file-container flex flex-col pos-rel items-center"
       aria-hidden="true"
-    />
+    >
+         <span
+              className="has-icon motionlibrary-icon icon-size-20 filter-grayscale pos-abs top-50percent"
+              aria-hidden="true"
+            />
+    </div>
   );
 
   // ─── render a single motion card ──────────────────────────────────────────
@@ -306,50 +311,50 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
         disabled={isDeleting || isDim}
       >
         {/* Always-visible tooltip: filename */}
-        <div className="ml-tooltip ml-tooltip-name" aria-hidden="true">
+        {/* <div className="ml-tooltip ml-tooltip-name" aria-hidden="true">
           <div className="ml-tooltip-inner">
             <div className="ml-tooltip-content">
               <span className="ml-tooltip-label">{displayName}</span>
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* Always-visible tooltip: duration */}
         {durationStr && (
           <div className="ml-tooltip ml-tooltip-duration" aria-hidden="true">
-            <div className="ml-tooltip-inner">
-              <div className="ml-tooltip-content">
-                <span className="ml-tooltip-value">{durationStr}</span>
+            <div className="ml-tooltip-duration-inner">
+              <div className="ml-tooltip-duration-content">
+                <span className="ml-tooltip-duration-value">{durationStr}</span>
               </div>
             </div>
           </div>
         )}
 
         {/* Always-visible tooltip: file size */}
-        <div className="ml-tooltip ml-tooltip-size" aria-hidden="true">
+        {/* <div className="ml-tooltip ml-tooltip-size" aria-hidden="true">
           <div className="ml-tooltip-inner">
             <div className="ml-tooltip-content">
               <span className="ml-tooltip-value">{sizeStr}</span>
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* Card */}
         <div
           className={clsx(
-            "flex flex-col",
+            "flex flex-col icon-holder top-8 pos-abs",
             isDim && "loading",
             isDeleting && "deleting"
           )}
         >
           {isActive ? (
             /* Active card: flex-col with download + trash */
-            <div className="flex flex-col card-action-holder">
+            <div className="flex gap-1 card-action-holder">
               {/* Download icon button */}
               <IconButton
                 icon="download-icon"
                 iconSize="icon-size-20"
-                className="icon-size-32"
+                className="icon-size-20"
                 tooltip={false}
                 onClick={(e) => handleDownload(e, file)}
                 disabled={isDownloading || isSaving}
@@ -360,7 +365,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
                 <IconButton
                   icon="trash-icon"
                   iconSize="icon-size-20"
-                  className="icon-size-32"
+                  className="icon-size-20"
                   tooltip={false}
                   onClick={(e) => handleDeleteClick(e, file)}
                   disabled={isDeleting || isDownloading || isSaving}
@@ -495,9 +500,9 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
                 <span className="rec-spinner rec-spinner-xs" aria-hidden="true" />
               </div>
             )}
-            {!loading && displayMotions.length === 0 && !loadError && (
+            {/* {!loading && displayMotions.length === 0 && !loadError && (
               <p className="ml-empty">no motions</p>
-            )}
+            )} */}
             {/* Real motion cards */}
             {displayMotions.map((file) => renderMotionCard(file))}
             {/* Empty placeholder slots — always visible, count rounds up in batches of EMPTY_SLOT_BATCH */}
