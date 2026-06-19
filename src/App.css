@@ -1120,7 +1120,7 @@ button {
 
   100% {
     opacity: 0.5;
-    right: -63px;
+    right: -100px;
   }
 }
 
@@ -1897,6 +1897,9 @@ canvas:active {
 }
 
 .avatar-switcher.switcher-disabled {
+  animation: hide-right 0.3s ease forwards;
+}
+.motionlibrary-switcher.switcher-disabled {
   animation: hide-right 0.3s ease forwards;
 }
 
