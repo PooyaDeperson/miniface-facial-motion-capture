@@ -48,6 +48,8 @@ function App() {
 
   // ── Motion Library state ──────────────────────────────────────────────────
   const [libraryOpen, setLibraryOpen] = useState(false);
+  /** True while the motion library button has been clicked — replaces it with the live button */
+  const [libraryButtonActive, setLibraryButtonActive] = useState(false);
   const [libraryMotionCount, setLibraryMotionCount] = useState(0);
   const [bulkProgress] = useState<BulkSyncProgress | null>(null);
   /** Incremented after a successful upload to trigger a background re-fetch */
@@ -408,6 +410,7 @@ function App() {
     pendingPlaybackRef.current = null;
     handlePhaseChange("idle");
     setLibraryOpen(false);
+    setLibraryButtonActive(false);
     // Reset mediapipe so the "keep smiling" loader shows while it re-initialises
     setMediapipeReady(false);
   }, [recordingPhase, handlePhaseChange]);
@@ -430,6 +433,8 @@ function App() {
     }
 
     setLibraryOpen(prev => !prev);
+    // Always activate the library button state so the live button replaces it
+    setLibraryButtonActive(true);
   }, [recordingPhase, handlePhaseChange]);
 
   // ── Select motion from library ────────────────────────────────────────────
@@ -533,7 +538,7 @@ function App() {
 
       {/* Top-right controls */}
       <div className="top-right-menu-bar-container bg-soft-light br-100 pr-4 pl-4 pos-fixed top-0 right-0 z-9992 m-3 flex flex-row items-center gap-2">
-        {isInPlayback && (
+        {libraryButtonActive || isInPlayback ? (
           <IconButton
             icon="live-icon"
             onClick={handleStartLive}
@@ -544,11 +549,12 @@ function App() {
             tooltipPosition="pos-bottom"
             tooltipText="back to live"
           />
+        ) : (
+          <MotionLibraryButton
+            onClick={handleOpenLibrary}
+            motionCount={hasDrive ? libraryMotionCount : 0}
+          />
         )}
-        <MotionLibraryButton
-          onClick={handleOpenLibrary}
-          motionCount={hasDrive ? libraryMotionCount : 0}
-        />
         <AuthButton onDriveConnected={() => setHasDrive(hasDriveAccess())} />
         {/* Library auth popup — shown to guests when they click the library button */}
         {showLibraryAuthPopup && !hasDrive && (
