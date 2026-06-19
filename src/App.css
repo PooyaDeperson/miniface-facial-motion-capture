@@ -1270,13 +1270,19 @@ button {
   position: absolute;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   left: 50%;
   transform: translateX(-50%);
   gap: 12px;
+
+}
+.avatar-loader-image-container {
+  min-width: 100%;
+  min-height: 80vh;
+  bottom: 0;
   background-repeat: no-repeat;
   background-position: center bottom;
-  background-size: cover;
+  background-size: contain;
 }
 
 .spinner {
