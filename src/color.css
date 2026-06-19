@@ -7,7 +7,7 @@
    /* =========================
      NEUTRAL / GRAY
      ========================= */
-
+   --gray-1000: #FFFFFF;
    --gray-100: #EBF0F5;
    --gray-100-op50: rgba(235, 240, 245, 0.5);
    --gray-200: #DDE4EC;
@@ -18,6 +18,7 @@
    --gray-700: #505867;
    --gray-800: #3A3E4F;
    --gray-900: #272939;
+      --gray-9000: #000000;
 
    /* =========================
      PURPLE
@@ -51,8 +52,8 @@
      BASE
      ========================= */
 
-   --white-color: #ffffff;
-   --black-color: #000000;
+   --white-color: var(--gray-1000);
+   --black-color: var(--gray-9000);
 
    /* =========================
      TEXT
@@ -81,7 +82,7 @@
      BACKGROUNDS
      ========================= */
 
-   --bg-primary: var(--white-color);
+   --bg-primary: var(--gray-1000);
    --bg-secondary: var(--gray-100);
    --bg-tertiary: var(--gray-200);
    --bg-quaternary: var(--gray-300);
@@ -120,7 +121,7 @@
    --surface-default: var(--white-color);
    --surface-subtle: var(--gray-100);
    --surface-muted: var(--gray-200);
-   --surface-raised: var(--white-color);
+   --surface-raised: var(--gray-1000);
 
    --surface-brand: var(--purple-100);
    --surface-brand-hover: var(--purple-200);

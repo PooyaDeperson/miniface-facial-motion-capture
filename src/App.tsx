@@ -35,6 +35,7 @@ function App() {
   const [url, setUrl] = useState<string | null>(null);
   const [avatarKey, setAvatarKey] = useState(0);
   const [avatarReady, setAvatarReady] = useState(false);
+  const [motionLoading, setMotionLoading] = useState(false);
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
   const [mediapipeReady, setMediapipeReady] = useState(false);
   const [recordingPhase, setRecordingPhase] = useState<"idle" | "recording" | "review" | "done">("idle");
@@ -527,6 +528,7 @@ function App() {
         setAvatarReady={setAvatarReady}
         isFlipped={isFlipped}
         playbackBlob={playbackBlob}
+        motionLoading={motionLoading}
       />
 
       {/* Top-right controls */}
@@ -621,6 +623,7 @@ function App() {
           isInPlayback={isInPlayback}
           playbackBlob={playbackBlob}
           isPendingUploading={driveUploadStatus === "uploading"}
+          onMotionLoadingChange={setMotionLoading}
         />
       )}
 

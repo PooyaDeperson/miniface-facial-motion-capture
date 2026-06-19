@@ -29,6 +29,7 @@ import {
 } from "../useDriveSync";
 import IconButton from "./IconButton";
 import PermissionPopup from "./PermissionPopup";
+import { FloatingOnboarding } from "./onboarding/floatingOnboarding";
 import "./motionlibrary.css";
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -50,6 +51,7 @@ export interface MotionLibraryProps {
   isInPlayback?: boolean;
   playbackBlob?: Blob | null;
   isPendingUploading?: boolean;
+  onMotionLoadingChange?: (isLoading: boolean) => void;
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -66,6 +68,23 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
+// ─── empty slot config ────────────────────────────────────────────────────────
+//
+// EMPTY_SLOT_BATCH controls how many empty placeholder slots appear when there
+// are NO real motion files (pure empty state). Once the user has at least one
+// motion, no empty slots are rendered at all.
+//
+// Change this number to control how many slots show in the empty state:
+const EMPTY_SLOT_BATCH = 20; // ← adjust here (e.g. 5 or 10)
+
+/** Returns the number of empty placeholder slots to render.
+ *  Only renders slots when there are zero real motions (empty state).
+ */
+function calcEmptySlots(realCount: number): number {
+  if (realCount > 0) return 0;
+  return EMPTY_SLOT_BATCH;
 }
 
 // ─── component ────────────────────────────────────────────────────────────────
@@ -87,6 +106,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
   isInPlayback = false,
   playbackBlob = null,
   isPendingUploading = false,
+  onMotionLoadingChange,
 }) => {
   const [motions, setMotions] = useState<DriveMotionFile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,6 +119,22 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
 
   const [deleteConfirmFile, setDeleteConfirmFile] = useState<DriveMotionFile | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // ── Empty-state onboarding ────────────────────────────────────────────────
+  // Show the floating onboarding tooltip only when the library is open,
+  // the user is logged in, loading is done, and there are no motion files.
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    const isEmpty =
+      isLoggedIn &&
+      !loading &&
+      !loadError &&
+      !noDriveAccess &&
+      motions.length === 0 &&
+      !pendingMotion;
+    setShowOnboarding(isEmpty);
+  }, [isLoggedIn, loading, loadError, noDriveAccess, motions.length, pendingMotion]);
 
   // Load Drive motions
   const fetchMotions = useCallback(async (silent = false) => {
@@ -157,6 +193,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
     if (deletingId === file.driveFileId) return;
     setDownloadingId(file.driveFileId);
     setDownloadError(null);
+    onMotionLoadingChange?.(true);
     try {
       if (!isLoggedIn && file.driveFileId === pendingMotion?.driveFileId) {
         onSelectMotion(new Blob(), file);
@@ -168,8 +205,9 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
       setDownloadError(err?.message ?? "Download failed");
     } finally {
       setDownloadingId(null);
+      onMotionLoadingChange?.(false);
     }
-  }, [onSelectMotion, deletingId, isLoggedIn, pendingMotion]);
+  }, [onSelectMotion, deletingId, isLoggedIn, pendingMotion, onMotionLoadingChange]);
 
   // Download button on active card
   const handleDownload = useCallback(async (e: React.MouseEvent, file: DriveMotionFile) => {
@@ -234,6 +272,21 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
     ]
     : motions;
 
+  // ─── render a single empty placeholder slot ───────────────────────────────
+
+  const renderEmptySlot = (index: number) => (
+    <div
+      key={`empty-slot-${index}`}
+      className="ml-empty-slot motion-list-container  motion-file-container flex flex-col pos-rel items-center"
+      aria-hidden="true"
+    >
+         <span
+              className="has-icon motionlibrary-icon icon-size-20 filter-grayscale pos-abs top-50percent"
+              aria-hidden="true"
+            />
+    </div>
+  );
+
   // ─── render a single motion card ──────────────────────────────────────────
 
   const renderMotionCard = (file: DriveMotionFile) => {
@@ -249,42 +302,59 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
     const sizeStr = formatBytes(file.size);
 
     return (
-      <div key={file.driveFileId} className="pos-rel">
-        {/* Always-visible tooltip to the left */}
-        <div className="ml-card-tooltip hidden" aria-hidden="true">
-          <div className="ml-card-tooltip-inner">
-            <div className="ml-card-tooltip-content">
-              <span className="ml-card-tooltip-name">{displayName}</span>
-              {(durationStr || sizeStr) && (
-                <span className="ml-card-tooltip-meta">
-                  {durationStr ? `${durationStr} · ${sizeStr}` : sizeStr}
-                </span>
-              )}
+      <button
+        key={file.driveFileId}
+        className={clsx("motion-file-container pos-rel", isActive && "active", isDownloading && "loading")}
+        onClick={() => !isDeleting && !isDim && handleCardClick(file)}
+        aria-label={isActive ? `Download ${displayName}` : `Select ${displayName}`}
+        aria-pressed={isActive}
+        disabled={isDeleting || isDim}
+      >
+        {/* Always-visible tooltip: filename */}
+        {/* <div className="ml-tooltip ml-tooltip-name" aria-hidden="true">
+          <div className="ml-tooltip-inner">
+            <div className="ml-tooltip-content">
+              <span className="ml-tooltip-label">{displayName}</span>
             </div>
           </div>
-        </div>
+        </div> */}
 
-        {/* Card button */}
-        <button
+        {/* Always-visible tooltip: duration */}
+        {durationStr && (
+          <div className="ml-tooltip ml-tooltip-duration" aria-hidden="true">
+            <div className="ml-tooltip-duration-inner">
+              <div className="ml-tooltip-duration-content">
+                <span className="ml-tooltip-duration-value">{durationStr}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Always-visible tooltip: file size */}
+        {/* <div className="ml-tooltip ml-tooltip-size" aria-hidden="true">
+          <div className="ml-tooltip-inner">
+            <div className="ml-tooltip-content">
+              <span className="ml-tooltip-value">{sizeStr}</span>
+            </div>
+          </div>
+        </div> */}
+
+        {/* Card */}
+        <div
           className={clsx(
-            "ml-motion-card",
-            isActive && "ml-motion-card-active",
-            isDim && "ml-motion-card-dim",
-            isDeleting && "ml-motion-card-deleting"
+            "flex flex-col icon-holder top-8 pos-abs",
+            isDim && "loading",
+            isDeleting && "deleting"
           )}
-          onClick={() => !isDeleting && !isDim && handleCardClick(file)}
-          aria-label={isActive ? `Download ${displayName}` : `Select ${displayName}`}
-          aria-pressed={isActive}
-          disabled={isDeleting || isDim}
         >
           {isActive ? (
             /* Active card: flex-col with download + trash */
-            <div className="ml-card-actions">
+            <div className="flex gap-1 card-action-holder">
               {/* Download icon button */}
               <IconButton
                 icon="download-icon"
                 iconSize="icon-size-20"
-                className="icon-size-32"
+                className="icon-size-20"
                 tooltip={false}
                 onClick={(e) => handleDownload(e, file)}
                 disabled={isDownloading || isSaving}
@@ -295,7 +365,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
                 <IconButton
                   icon="trash-icon"
                   iconSize="icon-size-20"
-                  className="icon-size-32"
+                  className="icon-size-20"
                   tooltip={false}
                   onClick={(e) => handleDeleteClick(e, file)}
                   disabled={isDeleting || isDownloading || isSaving}
@@ -306,12 +376,12 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
           ) : (
             /* Idle: motion library icon */
             <span
-              className="has-icon motionlibrary-icon icon-size-20"
+              className="has-icon cursor-pointer motionlibrary-icon icon-size-20"
               aria-hidden="true"
             />
           )}
-        </button>
-      </div>
+        </div>
+      </button>
     );
   };
 
@@ -424,26 +494,49 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
 
         {/* ── Logged-in motion list ── */}
         {isLoggedIn && (
-          <div className="ml-list motion-list-container" role="list">
+          <div className="ml-list motion-list-container gap-4 flex flex-col-reverse items-center" role="list">
             {loading && displayMotions.length === 0 && (
               <div className="ml-loading" aria-busy="true">
                 <span className="rec-spinner rec-spinner-xs" aria-hidden="true" />
               </div>
             )}
-            {!loading && displayMotions.length === 0 && !loadError && (
+            {/* {!loading && displayMotions.length === 0 && !loadError && (
               <p className="ml-empty">no motions</p>
-            )}
+            )} */}
+            {/* Real motion cards */}
             {displayMotions.map((file) => renderMotionCard(file))}
+            {/* Empty placeholder slots — always visible, count rounds up in batches of EMPTY_SLOT_BATCH */}
+            {!loading && Array.from({ length: calcEmptySlots(displayMotions.length) }, (_, i) =>
+              renderEmptySlot(i)
+            )}
           </div>
         )}
 
         {/* ── Guest with pending motion ── */}
         {!isLoggedIn && pendingMotion && (
           <div className="ml-list motion-list-container guest-motion-list" role="list">
+            {/* Pending motion card */}
             {renderMotionCard(pendingMotion)}
+            {/* Empty placeholder slots after the single guest card */}
+            {Array.from({ length: calcEmptySlots(1) }, (_, i) => renderEmptySlot(i))}
           </div>
         )}
       </aside>
+
+      {/* ── Empty-state onboarding tooltip ── */}
+      <FloatingOnboarding
+        target='[data-onboarding="record:record-your-first-motion"]'
+        show={showOnboarding}
+      >
+        <PermissionPopup
+          title="record your first motion to get started"
+          show={showOnboarding}
+          
+          closeButton={() => setShowOnboarding(false)}
+          tooltipPosition="top"
+          
+        />
+      </FloatingOnboarding>
 
       {/* ── Delete confirmation popup ── */}
       {deleteConfirmFile && (

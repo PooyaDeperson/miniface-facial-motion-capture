@@ -158,6 +158,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
       {/* ── IDLE: Record button (hidden while playback is active) ── */}
       {showIdle && (
         <div
+          data-onboarding="record:record-your-first-motion"
           className="recording-controls reveal bottom-36 tb:bottom-50 fade pos-fixed z-rec recording-idle-container"
           role="region"
           aria-label="Motion capture recording"

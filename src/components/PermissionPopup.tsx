@@ -1,5 +1,17 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import IconButton from "./IconButton";
+import "./tooltip.css";
+
+/** Matches the position modifiers in tooltip.css (pos-bottom, pos-top, etc.) */
+export type TooltipPosition =
+  | "bottom"
+  | "bottom-left"
+  | "bottom-right"
+  | "top"
+  | "top-left"
+  | "top-right"
+  | "left"
+  | "right";
 
 type PermissionPopupMedia =
   | { image: string; imagAlt?: string; video?: never }
@@ -44,6 +56,32 @@ export type PermissionPopupProps = PermissionPopupMedia & {
   "aria-label"?: string;
   /** Whether clicking the overlay backdrop closes the popup. @default true */
   overlayClosesPopup?: boolean;
+  /**
+   * Controls visibility of the popup. When false the component renders nothing.
+   * Mirrors the `show` prop on PromptTooltip so PermissionPopup can be used
+   * as a direct child of FloatingOnboarding.
+   * @default true
+   */
+  show?: boolean;
+  /**
+   * Called when the popup is dismissed (close button or backdrop).
+   * Use this instead of — or alongside — closeButton/onBackdropClick when you
+   * need a single unified dismiss callback.
+   */
+  onClose?: () => void;
+  /**
+   * Injected automatically by FloatingOnboarding via cloneElement.
+   * Signals the portal wrapper to unmount itself after the popup closes.
+   * Do NOT set this manually — FloatingOnboarding handles it.
+   */
+  __floatingOnboardingUnmount?: () => void;
+  /**
+   * When set, wraps the popup in a `tooltip-container pos-{value}` div that
+   * reuses the triangle arrow and positioning rules from tooltip.css.
+   * The popup then behaves like a positioned tooltip anchored to a parent.
+   * When omitted the existing absolute/centered positioning is used unchanged.
+   */
+  tooltipPosition?: TooltipPosition;
 };
 
 export default function PermissionPopup({
@@ -66,34 +104,59 @@ export default function PermissionPopup({
   role,
   "aria-label": ariaLabel,
   overlayClosesPopup = true,
+  show = true,
+  onClose,
+  __floatingOnboardingUnmount,
+  tooltipPosition,
 }: PermissionPopupProps) {
-  const positionClass = centered
-    ? "popup-centered popup-width-auth"
-    : "w-100 tb:w-392 pos-abs top-0 m-5";
+  // ── FloatingOnboarding compatibility ─────────────────────────────────────
+  // Mirror the `show` prop into local state so the component can self-dismiss
+  // and signal FloatingOnboarding to tear down its portal, exactly like
+  // PromptTooltip does.
+  const [isVisible, setIsVisible] = useState(show);
 
-  return (
-    <>
-      {backdrop && (
-        <div
-          className="backdrop-overlay reveal fade"
-          onClick={overlayClosesPopup ? onBackdropClick : undefined}
-          aria-hidden="true"
-        />
-      )}
+  useEffect(() => {
+    setIsVisible(show);
+  }, [show]);
 
-      <div
-        className={`popup-container ${variant}-popup reveal fade scaleIn ${positionClass} z-9992 p-1 br-20 ${className}`}
-        role={role ?? (centered ? "dialog" : undefined)}
-        aria-modal={centered ? true : undefined}
-        aria-label={ariaLabel}
-      >
+  // Unified dismiss handler used by the close button and backdrop click.
+  // Keeps the existing closeButton / onBackdropClick callbacks intact and
+  // additionally fires onClose + the FloatingOnboarding unmount signal.
+  const handleClose = () => {
+    setIsVisible(false);
+    onClose?.();
+    __floatingOnboardingUnmount?.();
+  };
+
+  if (!isVisible) return null;
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // When tooltipPosition is set the popup rides inside a tooltip-container div
+  // that reuses tooltip.css for triangle arrow + positioning. In that mode we
+  // skip the normal absolute/centered position classes so they don't conflict.
+  const positionClass = tooltipPosition
+    ? ""
+    : centered
+      ? "popup-centered popup-width-auth"
+      : "w-100 tb:w-392 pos-abs top-0 m-5";
+
+  const popupCard = (
+    <div
+      className={`popup-container ${variant}-popup reveal fade scaleIn ${positionClass} z-9992 p-1 br-20 ${className}`}
+      role={role ?? (centered ? "dialog" : undefined)}
+      aria-modal={centered ? true : undefined}
+      aria-label={ariaLabel}
+    >
         <div className="inner-container p-5 flex-col br-16 pos-rel">
 
           {/* Optional close button */}
           {closeButton && (
             <IconButton
               icon="close-icon"
-              onClick={closeButton}
+              onClick={() => {
+                closeButton();
+                handleClose();
+              }}
               title="Close"
               tooltipText="Close"
               className="icon-size-25 pos-abs top-2 right-2"
@@ -149,6 +212,34 @@ export default function PermissionPopup({
           )}
         </div>
       </div>
+  );
+
+  return (
+    <>
+      {backdrop && (
+        <div
+          className="backdrop-overlay reveal fade"
+          onClick={
+            overlayClosesPopup
+              ? () => {
+                  onBackdropClick?.();
+                  handleClose();
+                }
+              : undefined
+          }
+          aria-hidden="true"
+        />
+      )}
+
+      {tooltipPosition ? (
+        // Reuse tooltip.css: the triangle and positioning are driven entirely by
+        // the pos-{position} class — no extra CSS needed.
+        <div className={`tooltip-container isVisible pos-${tooltipPosition}`}>
+          {popupCard}
+        </div>
+      ) : (
+        popupCard
+      )}
     </>
   );
 }
