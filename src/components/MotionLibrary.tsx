@@ -70,21 +70,19 @@ function formatBytes(bytes: number): string {
 
 // ─── empty slot config ────────────────────────────────────────────────────────
 //
-// EMPTY_SLOT_BATCH controls how many empty placeholder slots appear at a time.
-// The library always shows enough slots so that the total (real + empty) is
-// rounded up to the next multiple of EMPTY_SLOT_BATCH, with a minimum of one
-// full batch always visible below the real cards.
+// EMPTY_SLOT_BATCH controls how many empty placeholder slots appear when there
+// are NO real motion files (pure empty state). Once the user has at least one
+// motion, no empty slots are rendered at all.
 //
-// Change this number to control the chunk size:
+// Change this number to control how many slots show in the empty state:
 const EMPTY_SLOT_BATCH = 5; // ← adjust here (e.g. 5 or 10)
 
-/** Returns the number of empty placeholder slots to render after real cards. */
+/** Returns the number of empty placeholder slots to render.
+ *  Only renders slots when there are zero real motions (empty state).
+ */
 function calcEmptySlots(realCount: number): number {
-  // Always show at least EMPTY_SLOT_BATCH slots after the real cards
-  const minTotal = realCount + EMPTY_SLOT_BATCH;
-  // Round up to the next clean multiple of EMPTY_SLOT_BATCH
-  const rounded = Math.ceil(minTotal / EMPTY_SLOT_BATCH) * EMPTY_SLOT_BATCH;
-  return rounded - realCount;
+  if (realCount > 0) return 0;
+  return EMPTY_SLOT_BATCH;
 }
 
 // ─── component ────────────────────────────────────────────────────────────────
