@@ -410,8 +410,8 @@ button.avatar-btn.avatar-selection.active,
 
 .color-card,
 .pattern-card {
-  width: 81px;
-  height: 95px;
+  min-width: 81px;
+  min-height: 95px;
   cursor: var(--cursor-pointer), auto;
   transition: transform 0.2s ease, border 0.2s ease;
 }
@@ -484,8 +484,8 @@ button.avatar-btn.avatar-selection.active,
 ========================= */
 .selector-inner-container {
   display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
+  flex-direction: column;
+  
   align-items: flex-start;
   gap: 30px;
   height: 100%;
@@ -564,7 +564,12 @@ button.icon-holder.tab-button:not(.active) {
 button.cd-selected>.has-icon.selected-icon {
   background: no-repeat center / contain var(--selected-icon);
 }
-
+.pattern-color-container-switcher {
+  background-color: var(--border-soft);
+    max-height: 400px;
+    max-width: 300px;
+    width: fit-content;
+}
 /* =========================
    POPUP CONTAINER
 ========================= */
@@ -1044,9 +1049,6 @@ canvas:active {
    MOBILE  (max-width: 768px)
 ========================= */
 @media (max-width: 768px) {
-  .rec-btn {
-    left: 37px;
-  }
 
   button.camera-dropdown {
     background-color: transparent !important;
@@ -1108,8 +1110,8 @@ canvas:active {
 /* =========================
    TINY SCREENS (min-width: 400px)
 ========================= */
-@media (min-width: 400px) {
+/* @media (min-width: 400px) {
   .selector-inner-container {
     overflow-y: hidden;
   }
-}
+} */
