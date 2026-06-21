@@ -119,7 +119,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
         // Blender shows the full diameter in Dimensions, not the radius —
         // so 0.255931 m diameter → 0.127966 m radius, etc.
         collisionSpheresDef: [
-          
+
           { node: "col_head", radius: 0.25 / 2 },
         ],
         collisionMargin: 0.00,
@@ -167,7 +167,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
         smoothing: 0.99,    // Velocity filter: higher = smoother movement, less micro-jitter (0.1-0.2 responsive, 0.8+ smooth)
 
       },
-            {
+      {
         id: "hairstrand2_1",
         driver: "hairstrand2_1",
         chainStart: "hairstrand2_1",
@@ -179,7 +179,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
         smoothing: 0.99,    // Velocity filter: higher = smoother movement, less micro-jitter (0.1-0.2 responsive, 0.8+ smooth)
 
       },
-            {
+      {
         id: "hairstrand3_1",
         driver: "hairstrand3_1",
         chainStart: "hairstrand3_2",
@@ -191,7 +191,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
         smoothing: 0.99,    // Velocity filter: higher = smoother movement, less micro-jitter (0.1-0.2 responsive, 0.8+ smooth)
 
       },
-            {
+      {
         id: "hairstrand4_1",
         driver: "hairstrand4_1",
         chainStart: "hairstrand4_2",
