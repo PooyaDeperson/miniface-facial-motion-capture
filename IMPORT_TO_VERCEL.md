@@ -18,7 +18,7 @@ Your `.env.local` file is ready with all the avatar URLs. Here's how to add them
 
    ```
    Variable Name: NEXT_PUBLIC_AVATAR_PONYTAIL_URL
-   Value: https://res.cloudinary.com/da1zca4wj/image/upload/v1782023142/miniface/avatar/avatar1.glb
+   Value: https://res.cloudinary.com/da1zca4wj/image/upload/v1782023142/miniface/avatar/avatar-ponytail.glb
    Environment: Production, Preview, Development (select all)
    ```
 

@@ -5,11 +5,11 @@
 ### Step 1: Add to Vercel (Settings → Environment Variables)
 
 ```
-NEXT_PUBLIC_AVATAR_PONYTAIL_URL  = https://res.cloudinary.com/da1zca4wj/image/upload/v1782023142/miniface/avatar/avatar1.glb
-NEXT_PUBLIC_AVATAR_SHORT_URL     = https://res.cloudinary.com/da1zca4wj/image/upload/v1782023143/miniface/avatar/avatar2.glb
-NEXT_PUBLIC_AVATAR_CURLY_URL     = https://res.cloudinary.com/da1zca4wj/image/upload/v1782022983/miniface/avatar/avatar3.glb
-NEXT_PUBLIC_AVATAR_WAVY_URL      = https://res.cloudinary.com/da1zca4wj/image/upload/v1782023132/miniface/avatar/avatar4.glb
-NEXT_PUBLIC_AVATAR_BRAIDS_URL    = https://res.cloudinary.com/da1zca4wj/image/upload/v1782023136/miniface/avatar/avatar5.glb
+NEXT_PUBLIC_AVATAR_PONYTAIL_URL  = https://res.cloudinary.com/da1zca4wj/image/upload/v1782023142/miniface/avatar/avatar-ponytail.glb
+NEXT_PUBLIC_AVATAR_SHORT_URL     = https://res.cloudinary.com/da1zca4wj/image/upload/v1782023143/miniface/avatar/avatar-short.glb
+NEXT_PUBLIC_AVATAR_CURLY_URL     = https://res.cloudinary.com/da1zca4wj/image/upload/v1782022983/miniface/avatar/avatar-curly.glb
+NEXT_PUBLIC_AVATAR_WAVY_URL      = https://res.cloudinary.com/da1zca4wj/image/upload/v1782023132/miniface/avatar/avatar-wavy.glb
+NEXT_PUBLIC_AVATAR_BRAIDS_URL    = https://res.cloudinary.com/da1zca4wj/image/upload/v1782023136/miniface/avatar/avatar-braids.glb
 NEXT_PUBLIC_AVATAR_CACHE_VERSION = 1
 ```
 
@@ -72,11 +72,11 @@ When you update an avatar URL or need to refresh all caches:
 
 | Env Var | Avatar | URL |
 |---------|--------|-----|
-| `NEXT_PUBLIC_AVATAR_PONYTAIL_URL` | Ponytail | avatar1.glb |
-| `NEXT_PUBLIC_AVATAR_SHORT_URL` | Short Hair | avatar2.glb |
-| `NEXT_PUBLIC_AVATAR_CURLY_URL` | Curly Hair | avatar3.glb |
-| `NEXT_PUBLIC_AVATAR_WAVY_URL` | Wavy Hair | avatar4.glb |
-| `NEXT_PUBLIC_AVATAR_BRAIDS_URL` | Braids | avatar5.glb |
+| `NEXT_PUBLIC_AVATAR_PONYTAIL_URL` | Ponytail | avatar-ponytail.glb |
+| `NEXT_PUBLIC_AVATAR_SHORT_URL` | Short Hair | avatar-short.glb |
+| `NEXT_PUBLIC_AVATAR_CURLY_URL` | Curly Hair | avatar-curly.glb |
+| `NEXT_PUBLIC_AVATAR_WAVY_URL` | Wavy Hair | avatar-wavy.glb |
+| `NEXT_PUBLIC_AVATAR_BRAIDS_URL` | Braids | avatar-braids.glb |
 
 ---
 

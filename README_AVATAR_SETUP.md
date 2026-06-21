@@ -31,8 +31,8 @@
 cp .env.example .env.local
 
 # Edit it and add your Cloudinary URLs:
-NEXT_PUBLIC_AVATAR_PONYTAIL_URL=https://res.cloudinary.com/.../avatar1.glb
-NEXT_PUBLIC_AVATAR_SHORT_URL=https://res.cloudinary.com/.../avatar2.glb
+NEXT_PUBLIC_AVATAR_PONYTAIL_URL=https://res.cloudinary.com/.../avatar-ponytail.glb
+NEXT_PUBLIC_AVATAR_SHORT_URL=https://res.cloudinary.com/.../avatar-short.glb
 # ... (add the 5 URLs)
 NEXT_PUBLIC_AVATAR_CACHE_VERSION=1
 

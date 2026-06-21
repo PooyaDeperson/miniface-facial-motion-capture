@@ -103,11 +103,11 @@ Go to [vercel.com/dashboard](https://vercel.com/dashboard):
 
 | Name | Value |
 |------|-------|
-| `NEXT_PUBLIC_AVATAR_PONYTAIL_URL` | `https://res.cloudinary.com/da1zca4wj/image/upload/v1782023142/miniface/avatar/avatar1.glb` |
-| `NEXT_PUBLIC_AVATAR_SHORT_URL` | `https://res.cloudinary.com/da1zca4wj/image/upload/v1782023143/miniface/avatar/avatar2.glb` |
-| `NEXT_PUBLIC_AVATAR_CURLY_URL` | `https://res.cloudinary.com/da1zca4wj/image/upload/v1782022983/miniface/avatar/avatar3.glb` |
-| `NEXT_PUBLIC_AVATAR_WAVY_URL` | `https://res.cloudinary.com/da1zca4wj/image/upload/v1782023132/miniface/avatar/avatar4.glb` |
-| `NEXT_PUBLIC_AVATAR_BRAIDS_URL` | `https://res.cloudinary.com/da1zca4wj/image/upload/v1782023136/miniface/avatar/avatar5.glb` |
+| `NEXT_PUBLIC_AVATAR_PONYTAIL_URL` | `https://res.cloudinary.com/da1zca4wj/image/upload/v1782023142/miniface/avatar/avatar-ponytail.glb` |
+| `NEXT_PUBLIC_AVATAR_SHORT_URL` | `https://res.cloudinary.com/da1zca4wj/image/upload/v1782023143/miniface/avatar/avatar-short.glb` |
+| `NEXT_PUBLIC_AVATAR_CURLY_URL` | `https://res.cloudinary.com/da1zca4wj/image/upload/v1782022983/miniface/avatar/avatar-curly.glb` |
+| `NEXT_PUBLIC_AVATAR_WAVY_URL` | `https://res.cloudinary.com/da1zca4wj/image/upload/v1782023132/miniface/avatar/avatar-wavy.glb` |
+| `NEXT_PUBLIC_AVATAR_BRAIDS_URL` | `https://res.cloudinary.com/da1zca4wj/image/upload/v1782023136/miniface/avatar/avatar-braids.glb` |
 | `NEXT_PUBLIC_AVATAR_CACHE_VERSION` | `1` |
 
 ### 2. Create Local .env.local (1 min)

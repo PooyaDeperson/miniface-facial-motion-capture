@@ -32,7 +32,7 @@ Click **[Add New]** and fill in the first variable:
 
 ```
 Name:          NEXT_PUBLIC_AVATAR_PONYTAIL_URL
-Value:         https://res.cloudinary.com/da1zca4wj/image/upload/v1782023142/miniface/avatar/avatar1.glb
+Value:         https://res.cloudinary.com/da1zca4wj/image/upload/v1782023142/miniface/avatar/avatar-ponytail.glb
 Environment:   Production  ← Select this
 ```
 
@@ -43,28 +43,28 @@ Repeat for the remaining 4 avatars:
 #### Avatar 2 - Short Hair
 ```
 Name:          NEXT_PUBLIC_AVATAR_SHORT_URL
-Value:         https://res.cloudinary.com/da1zca4wj/image/upload/v1782023143/miniface/avatar/avatar2.glb
+Value:         https://res.cloudinary.com/da1zca4wj/image/upload/v1782023143/miniface/avatar/avatar-short.glb
 Environment:   Production
 ```
 
 #### Avatar 3 - Curly Hair
 ```
 Name:          NEXT_PUBLIC_AVATAR_CURLY_URL
-Value:         https://res.cloudinary.com/da1zca4wj/image/upload/v1782022983/miniface/avatar/avatar3.glb
+Value:         https://res.cloudinary.com/da1zca4wj/image/upload/v1782022983/miniface/avatar/avatar-curly.glb
 Environment:   Production
 ```
 
 #### Avatar 4 - Wavy Hair
 ```
 Name:          NEXT_PUBLIC_AVATAR_WAVY_URL
-Value:         https://res.cloudinary.com/da1zca4wj/image/upload/v1782023132/miniface/avatar/avatar4.glb
+Value:         https://res.cloudinary.com/da1zca4wj/image/upload/v1782023132/miniface/avatar/avatar-wavy.glb
 Environment:   Production
 ```
 
 #### Avatar 5 - Braids
 ```
 Name:          NEXT_PUBLIC_AVATAR_BRAIDS_URL
-Value:         https://res.cloudinary.com/da1zca4wj/image/upload/v1782023136/miniface/avatar/avatar5.glb
+Value:         https://res.cloudinary.com/da1zca4wj/image/upload/v1782023136/miniface/avatar/avatar-braids.glb
 Environment:   Production
 ```
 

@@ -15,8 +15,8 @@ cp .env.example .env.local
 Edit `.env.local` and add your Cloudinary avatar URLs:
 
 ```env
-NEXT_PUBLIC_AVATAR_PONYTAIL_URL=https://res.cloudinary.com/da1zca4wj/image/upload/v1782023142/miniface/avatar/avatar1.glb
-NEXT_PUBLIC_AVATAR_SHORT_URL=https://res.cloudinary.com/da1zca4wj/image/upload/v1782023143/miniface/avatar/avatar2.glb
+NEXT_PUBLIC_AVATAR_PONYTAIL_URL=https://res.cloudinary.com/da1zca4wj/image/upload/v1782023142/miniface/avatar/avatar-ponytail.glb
+NEXT_PUBLIC_AVATAR_SHORT_URL=https://res.cloudinary.com/da1zca4wj/image/upload/v1782023143/miniface/avatar/avatar-short.glb
 # ... etc
 NEXT_PUBLIC_AVATAR_CACHE_VERSION=1
 ```
@@ -36,7 +36,7 @@ pnpm dev
 1. Go to **Vercel Dashboard** → **Your Project** → **Settings** → **Environment Variables**
 2. Click **Add New** and enter each avatar URL:
    - **Name**: `NEXT_PUBLIC_AVATAR_PONYTAIL_URL`
-   - **Value**: `https://res.cloudinary.com/.../avatar1.glb`
+   - **Value**: `https://res.cloudinary.com/.../avatar-ponytail.glb`
    - **Environment**: Production (or all)
 3. Repeat for all avatars (short, curly, wavy, braids)
 4. Add cache version:
@@ -252,7 +252,7 @@ IndexedDB usually has 50 MB+ quota per domain. If you exceed it:
 
 2. Add your Cloudinary URLs (or host anywhere):
    ```env
-   NEXT_PUBLIC_AVATAR_PONYTAIL_URL=https://your-cdn.com/avatar1.glb
+   NEXT_PUBLIC_AVATAR_PONYTAIL_URL=https://your-cdn.com/avatar-ponytail.glb
    ```
 
 3. The app will cache on first load, blazing fast on subsequent loads

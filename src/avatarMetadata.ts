@@ -58,11 +58,29 @@ interface AvatarUrls {
 }
 
 const AVATAR_URLS: AvatarUrls = {
-  ponytail: process.env.NEXT_PUBLIC_AVATAR_PONYTAIL_URL || "",
-  short: process.env.NEXT_PUBLIC_AVATAR_SHORT_URL || "",
-  curly: process.env.NEXT_PUBLIC_AVATAR_CURLY_URL || "",
-  wavy: process.env.NEXT_PUBLIC_AVATAR_WAVY_URL || "",
-  braids: process.env.NEXT_PUBLIC_AVATAR_BRAIDS_URL || "",
+  // ponytail: process.env.NEXT_PUBLIC_AVATAR_PONYTAIL_URL || "",
+  // short: process.env.NEXT_PUBLIC_AVATAR_SHORT_URL || "",
+  // curly: process.env.NEXT_PUBLIC_AVATAR_CURLY_URL || "",
+  // wavy: process.env.NEXT_PUBLIC_AVATAR_WAVY_URL || "",
+  // braids: process.env.NEXT_PUBLIC_AVATAR_BRAIDS_URL || "",
+
+  // temporary bypassing envs 
+
+  ponytail:
+    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023142/miniface/avatar/avatar-short.glb",
+
+  short:
+    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023143/miniface/avatar/avatar-short.glb",
+
+  curly:
+    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782022983/miniface/avatar/avatar-curly.glb",
+
+  wavy:
+    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023132/miniface/avatar/avatar-wavy.glb",
+
+  braids:
+    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023136/miniface/avatar/avatar-braids.glb",
+
 };
 
 // ─── Registry ────────────────────────────────────────────────────────────────
@@ -119,7 +137,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
         // Blender shows the full diameter in Dimensions, not the radius —
         // so 0.255931 m diameter → 0.127966 m radius, etc.
         collisionSpheresDef: [
-          
+
           { node: "col_head", radius: 0.25 / 2 },
         ],
         collisionMargin: 0.00,
@@ -167,7 +185,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
         smoothing: 0.99,    // Velocity filter: higher = smoother movement, less micro-jitter (0.1-0.2 responsive, 0.8+ smooth)
 
       },
-            {
+      {
         id: "hairstrand2_1",
         driver: "hairstrand2_1",
         chainStart: "hairstrand2_1",
@@ -179,7 +197,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
         smoothing: 0.99,    // Velocity filter: higher = smoother movement, less micro-jitter (0.1-0.2 responsive, 0.8+ smooth)
 
       },
-            {
+      {
         id: "hairstrand3_1",
         driver: "hairstrand3_1",
         chainStart: "hairstrand3_2",
@@ -191,7 +209,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
         smoothing: 0.99,    // Velocity filter: higher = smoother movement, less micro-jitter (0.1-0.2 responsive, 0.8+ smooth)
 
       },
-            {
+      {
         id: "hairstrand4_1",
         driver: "hairstrand4_1",
         chainStart: "hairstrand4_2",
