@@ -45,18 +45,42 @@ export type { SecondaryChainConfig };
 export interface AvatarMetadata {
   /** The avatar's public URL path, used as the lookup key. */
   avatarPath: string;
+  /** Avatar display name for UI and cache keys */
+  displayName: string;
   /** Secondary motion chains to simulate. Empty array = no simulation. */
   secondaryMotion: SecondaryChainConfig[];
 }
 
+// ─── Avatar URLs ──────────────────────────────────────────────────────────────
+// To bust the browser cache for a specific avatar, bump its Cloudinary version
+// number (e.g. v1782023142 → v1782023143) or append a query param (?v=2).
+
+const AVATAR_URLS = {
+  ponytail:
+    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023142/miniface/avatar/avatar-ponytail.glb",
+
+  short:
+    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023143/miniface/avatar/avatar-short.glb",
+
+  curly:
+    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782022983/miniface/avatar/avatar-curly.glb",
+
+  wavy:
+    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023132/miniface/avatar/avatar-wavy.glb",
+
+  braids:
+    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023136/miniface/avatar/avatar-braids.glb",
+};
+
 // ─── Registry ────────────────────────────────────────────────────────────────
 
 const AVATAR_METADATA: AvatarMetadata[] = [
-  // ── Avatar 1 ──────────────────────────────────────────────────────────────
+  // ── Avatar 1 (Ponytail) ───────────────────────────────────────────────────
   // Driver: hair_head (the parent bone driven by head movement)
   // Chain:  hair_1 … hair_7 (individual strands branching from hair_head)
   {
-    avatarPath: "/avatar/avatar1.glb",
+    avatarPath: AVATAR_URLS.ponytail,
+    displayName: "ponytail",
     // Ponytail: hair_head is the driver; chain runs hair_1 → hair_7.
     secondaryMotion: [
       {
@@ -102,7 +126,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
         // Blender shows the full diameter in Dimensions, not the radius —
         // so 0.255931 m diameter → 0.127966 m radius, etc.
         collisionSpheresDef: [
-          
+
           { node: "col_head", radius: 0.25 / 2 },
         ],
         collisionMargin: 0.00,
@@ -110,9 +134,10 @@ const AVATAR_METADATA: AvatarMetadata[] = [
     ],
   },
 
-  // ── Avatar 2 ──────────────────────────────────────────────────────────────
+  // ── Avatar 2 (Short) ─────────────────────────────────────────────────────
   {
-    avatarPath: "/avatar/avatar2.glb",
+    avatarPath: AVATAR_URLS.short,
+    displayName: "short",
     secondaryMotion: [
       {
         id: "hairstrands_left",
@@ -149,7 +174,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
         smoothing: 0.99,    // Velocity filter: higher = smoother movement, less micro-jitter (0.1-0.2 responsive, 0.8+ smooth)
 
       },
-            {
+      {
         id: "hairstrand2_1",
         driver: "hairstrand2_1",
         chainStart: "hairstrand2_1",
@@ -161,7 +186,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
         smoothing: 0.99,    // Velocity filter: higher = smoother movement, less micro-jitter (0.1-0.2 responsive, 0.8+ smooth)
 
       },
-            {
+      {
         id: "hairstrand3_1",
         driver: "hairstrand3_1",
         chainStart: "hairstrand3_2",
@@ -173,7 +198,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
         smoothing: 0.99,    // Velocity filter: higher = smoother movement, less micro-jitter (0.1-0.2 responsive, 0.8+ smooth)
 
       },
-            {
+      {
         id: "hairstrand4_1",
         driver: "hairstrand4_1",
         chainStart: "hairstrand4_2",
@@ -188,15 +213,17 @@ const AVATAR_METADATA: AvatarMetadata[] = [
     ],
   },
 
-  // ── Avatar 3 ──────────────────────────────────────────────────────────────
+  // ── Avatar 3 (Curly) ─────────────────────────────────────────────────────
   {
-    avatarPath: "/avatar/avatar3.glb",
+    avatarPath: AVATAR_URLS.curly,
+    displayName: "curly",
     secondaryMotion: [],
   },
 
-  // ── Avatar 4 ──────────────────────────────────────────────────────────────
+  // ── Avatar 4 (Wavy) ──────────────────────────────────────────────────────
   {
-    avatarPath: "/avatar/avatar4.glb",
+    avatarPath: AVATAR_URLS.wavy,
+    displayName: "wavy",
     // Ponytail: hair_head is the driver; chain runs hair_1 → hair_7.
     secondaryMotion: [
       {
@@ -248,9 +275,10 @@ const AVATAR_METADATA: AvatarMetadata[] = [
     ],
   },
 
-  // ── Avatar 5 ──────────────────────────────────────────────────────────────
+  // ── Avatar 5 (Braids) ────────────────────────────────────────────────────
   {
-    avatarPath: "/avatar/avatar5.glb",
+    avatarPath: AVATAR_URLS.braids,
+    displayName: "braids",
     secondaryMotion: [],
   },
 ];
@@ -264,7 +292,14 @@ const AVATAR_METADATA: AvatarMetadata[] = [
 export function getAvatarMetadata(avatarPath: string): AvatarMetadata {
   const found = AVATAR_METADATA.find((m) => m.avatarPath === avatarPath);
   if (!found) {
-    return { avatarPath, secondaryMotion: [] };
+    return { avatarPath, displayName: "unknown", secondaryMotion: [] };
   }
   return found;
+}
+
+/**
+ * Get all available avatars as an array
+ */
+export function getAllAvatars(): AvatarMetadata[] {
+  return AVATAR_METADATA.filter((m) => m.avatarPath); // Only return avatars with valid URLs
 }
