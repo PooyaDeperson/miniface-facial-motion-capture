@@ -66,7 +66,7 @@ const AVATAR_URLS: AvatarUrls = {
   // temporary bypassing envs new- ss
 
   ponytail:
-    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023142/miniface/avatar/avatar-short.glb",
+    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023142/miniface/avatar/avatar-ponytail.glb",
 
   short:
     "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023143/miniface/avatar/avatar-short.glb",
