@@ -58,11 +58,27 @@ interface AvatarUrls {
 }
 
 const AVATAR_URLS: AvatarUrls = {
-  ponytail: process.env.NEXT_PUBLIC_AVATAR_PONYTAIL_URL || "",
-  short: process.env.NEXT_PUBLIC_AVATAR_SHORT_URL || "",
-  curly: process.env.NEXT_PUBLIC_AVATAR_CURLY_URL || "",
-  wavy: process.env.NEXT_PUBLIC_AVATAR_WAVY_URL || "",
-  braids: process.env.NEXT_PUBLIC_AVATAR_BRAIDS_URL || "",
+ // ponytail: process.env.NEXT_PUBLIC_AVATAR_PONYTAIL_URL || "",
+  // short: process.env.NEXT_PUBLIC_AVATAR_SHORT_URL || "",
+  // curly: process.env.NEXT_PUBLIC_AVATAR_CURLY_URL || "",
+  // wavy: process.env.NEXT_PUBLIC_AVATAR_WAVY_URL || "",
+  // braids: process.env.NEXT_PUBLIC_AVATAR_BRAIDS_URL || "",
+  // temporary bypassing envs new- ss
+
+  ponytail:
+    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023142/miniface/avatar/avatar-short.glb",
+
+  short:
+    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023143/miniface/avatar/avatar-short.glb",
+
+  curly:
+    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782022983/miniface/avatar/avatar-curly.glb",
+
+  wavy:
+    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023132/miniface/avatar/avatar-wavy.glb",
+
+  braids:
+    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023136/miniface/avatar/avatar-braids.glb",
 };
 
 // ─── Registry ────────────────────────────────────────────────────────────────
