@@ -10,6 +10,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useGraph } from "@react-three/fiber";
+import { useGLTF } from "@react-three/drei";
 import { Euler, Mesh, Object3D, Quaternion } from "three";
 import { blendshapes, rotation, headMesh, headMatrix, isMobileTracking, isMediaPipeActive } from "./FaceTracking";
 import { captureFrame, setSceneForExport } from "./useMotionRecorder";
@@ -18,7 +19,6 @@ import { usePlaybackAnimation } from "./usePlaybackAnimation";
 import { BlendshapeSmoother, QuaternionSmoother } from "./smoothing";
 import { getAvatarMetadata } from "./avatarMetadata";
 import { useSecondaryMotion } from "./useSecondaryMotion";
-import { useCachedGLTF } from "./hooks/useCachedGLTF";
 
 // ─── Dev flags ───────────────────────────────────────────────────────────────
 // Set DEBUG_COLLISION_SPHERES to true to render cyan wireframe spheres over
@@ -49,7 +49,7 @@ const _targetQuat = new Quaternion();
 const _smoothedEuler = new Euler();
 
 function Avatar({ url, onLoaded, playbackBlob }: AvatarProps) {
-  const { scene, loading: sceneLoading, error: sceneError } = useCachedGLTF(url);
+  const { scene } = useGLTF(url);
   const { nodes } = useGraph(scene);
 
   // Keep a stable ref to the scene so useAnimationPlayer can use it

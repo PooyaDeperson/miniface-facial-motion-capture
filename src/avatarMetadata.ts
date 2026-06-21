@@ -51,20 +51,11 @@ export interface AvatarMetadata {
   secondaryMotion: SecondaryChainConfig[];
 }
 
-// ─── Avatar URL Configuration (loaded from env vars) ─────────────────────────
+// ─── Avatar URLs ──────────────────────────────────────────────────────────────
+// To bust the browser cache for a specific avatar, bump its Cloudinary version
+// number (e.g. v1782023142 → v1782023143) or append a query param (?v=2).
 
-interface AvatarUrls {
-  [displayName: string]: string;
-}
-
-const AVATAR_URLS: AvatarUrls = {
- // ponytail: process.env.NEXT_PUBLIC_AVATAR_PONYTAIL_URL || "",
-  // short: process.env.NEXT_PUBLIC_AVATAR_SHORT_URL || "",
-  // curly: process.env.NEXT_PUBLIC_AVATAR_CURLY_URL || "",
-  // wavy: process.env.NEXT_PUBLIC_AVATAR_WAVY_URL || "",
-  // braids: process.env.NEXT_PUBLIC_AVATAR_BRAIDS_URL || "",
-  // temporary bypassing envs new- ss
-
+const AVATAR_URLS = {
   ponytail:
     "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023142/miniface/avatar/avatar-ponytail.glb",
 
