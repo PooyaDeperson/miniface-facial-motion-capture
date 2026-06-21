@@ -72,11 +72,11 @@ When you update an avatar URL or need to refresh all caches:
 
 | Env Var | Avatar | URL |
 |---------|--------|-----|
-| `NEXT_PUBLIC_AVATAR_PONYTAIL_URL` | Ponytail | avatar-ponytail.glb |
-| `NEXT_PUBLIC_AVATAR_SHORT_URL` | Short Hair | avatar-short.glb |
-| `NEXT_PUBLIC_AVATAR_CURLY_URL` | Curly Hair | avatar-curly.glb |
-| `NEXT_PUBLIC_AVATAR_WAVY_URL` | Wavy Hair | avatar-wavy.glb |
-| `NEXT_PUBLIC_AVATAR_BRAIDS_URL` | Braids | avatar-braids.glb |
+| `NEXT_PUBLIC_AVATAR_PONYTAIL_URL` | Ponytail | avatar1.glb |
+| `NEXT_PUBLIC_AVATAR_SHORT_URL` | Short Hair | avatar2.glb |
+| `NEXT_PUBLIC_AVATAR_CURLY_URL` | Curly Hair | avatar3.glb |
+| `NEXT_PUBLIC_AVATAR_WAVY_URL` | Wavy Hair | avatar4.glb |
+| `NEXT_PUBLIC_AVATAR_BRAIDS_URL` | Braids | avatar5.glb |
 
 ---
 

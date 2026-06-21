@@ -15,26 +15,18 @@ import { getAvatarMetadata } from "../avatarMetadata";
 
 /**
  * Wraps useGLTF with browser-level caching via IndexedDB.
- *
- * - Checks IndexedDB cache first (by avatar display name)
- * - If hit: creates a blob URL so drei loads from memory — no network request
- * - If miss: fetches from the Cloudinary URL, stores in cache, then loads
+ * 
+ * - Checks cache first (by avatar display name)
+ * - If hit: creates a blob URL for immediate loading
+ * - If miss: fetches from URL, caches for future use, then loads
  * - Automatically invalidates cache when NEXT_PUBLIC_AVATAR_CACHE_VERSION changes
- *
- * resolvedUrl is null until the async cache check completes, which prevents
- * useGLTF from firing the original Cloudinary URL in parallel with the blob URL
- * on a cache hit.
  */
 export function useCachedGLTF(url: string) {
-  // null = still resolving (cache check in progress); string = ready to load
-  const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
+  const [cachedUrl, setCachedUrl] = useState<string>(url);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  // Only call useGLTF once resolvedUrl is known — avoids a redundant Cloudinary
-  // fetch on cache hits, because useGLTF is unconditional once called.
-  // Fallback to an empty string (never a valid GLTF) so the hook call is stable.
-  const { scene } = useGLTF(resolvedUrl ?? "");
+  const { scene } = useGLTF(cachedUrl);
 
   useEffect(() => {
     if (!url) {
@@ -42,42 +34,45 @@ export function useCachedGLTF(url: string) {
       return;
     }
 
-    // Reset state when URL changes (avatar switch)
-    setResolvedUrl(null);
-    setLoading(true);
-    setError(null);
-
     const avatarMeta = getAvatarMetadata(url);
     const displayName = avatarMeta.displayName;
 
     const loadAvatarWithCache = async () => {
       try {
-        // Try IndexedDB cache first
+        setLoading(true);
+        setError(null);
+
+        // Try cache first
         const cachedBlob = await getCachedAvatar(displayName);
         if (cachedBlob) {
+          console.log("[v0] Avatar cache hit:", displayName);
           const blobUrl = URL.createObjectURL(cachedBlob);
-          setResolvedUrl(blobUrl);
-          setLoading(false);
+          setCachedUrl(blobUrl);
           return;
         }
 
-        // Cache miss: fetch from Cloudinary, store for next time
+        console.log("[v0] Avatar cache miss:", displayName, "fetching from", url);
+
+        // Cache miss: fetch from URL
         const response = await fetch(url);
         if (!response.ok) {
           throw new Error(`Failed to fetch avatar: ${response.statusText}`);
         }
 
         const blob = await response.blob();
+
+        // Store in cache for next time
         await setCachedAvatar(displayName, blob);
 
+        // Create blob URL for loading
         const blobUrl = URL.createObjectURL(blob);
-        setResolvedUrl(blobUrl);
+        setCachedUrl(blobUrl);
       } catch (err) {
-        const fetchError = err instanceof Error ? err : new Error(String(err));
-        console.error("[v0] Avatar loading failed:", fetchError);
-        setError(fetchError);
-        // Fall back to original URL on error so the avatar still attempts to load
-        setResolvedUrl(url);
+        const error = err instanceof Error ? err : new Error(String(err));
+        console.error("[v0] Avatar loading failed:", error);
+        setError(error);
+        // Fall back to original URL on error
+        setCachedUrl(url);
       } finally {
         setLoading(false);
       }
