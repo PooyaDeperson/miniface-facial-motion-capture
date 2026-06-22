@@ -307,7 +307,7 @@ function applyFingerBones(
   }
 }
 
-// ─── Arm IK ───────────────────────────────────────────────────────────────────
+// ─── Arm IK ─────────────────────��─────────────────────────────────────────────
 // We map the MediaPipe wrist landmark (normalized image coords) to a 3-D world
 // target, then solve a standard 2-bone IK chain:
 //   Shoulder (LeftArm / RightArm)  →  Elbow (LeftForeArm / RightForeArm)  →  Wrist (LeftHand / RightHand)
@@ -761,16 +761,31 @@ function Avatar({ url, onLoaded }: AvatarProps) {
     if (rightWristPos) rightRestPoseSmoother.smoothFromBones(nodes, RIGHT_HAND_BONES, delta);
 
     // ── capture frame (WYSIWYG) ────────────────────────────────────────────
-    // Pass smoothedLeft / smoothedRight — the same post-FingerSmoother values
-    // that were applied to the skeleton via applyFingerBones — so the recording
-    // is a true WYSIWYG capture of what is visible in the live preview.
-    // Raw leftFingerBones / rightFingerBones are jitter-noisy; the smoother
-    // has already damped them by FINGER_TAU before this point.
+    // Snapshot arm bone local quaternions AFTER IK + forearm twist + RestPose
+    // smoothing have all been applied. This is the exact state written to the
+    // skeleton this frame, matching what the user sees in the live preview.
+    // We only include a side if its wrist was detected (avoids rest-pose noise).
+    const armBoneSnapshot: Record<string, [number, number, number, number]> = {};
+    const ARM_BONES_TO_CAPTURE = [
+      { name: "LeftArm",      active: !!leftWristPos },
+      { name: "LeftForeArm",  active: !!leftWristPos },
+      { name: "RightArm",     active: !!rightWristPos },
+      { name: "RightForeArm", active: !!rightWristPos },
+    ];
+    for (const { name, active } of ARM_BONES_TO_CAPTURE) {
+      const bone = (nodes as any)[name];
+      if (bone && active) {
+        const q = bone.quaternion;
+        armBoneSnapshot[name] = [q.x, q.y, q.z, q.w];
+      }
+    }
+
     captureFrame(
       smoothedBlendshapes,
       [_smoothedEuler.x, _smoothedEuler.y, _smoothedEuler.z],
       smoothedLeft as FingerQuats ?? undefined,
-      smoothedRight as FingerQuats ?? undefined
+      smoothedRight as FingerQuats ?? undefined,
+      Object.keys(armBoneSnapshot).length > 0 ? armBoneSnapshot : undefined
     );
   });
 

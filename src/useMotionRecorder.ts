@@ -59,6 +59,12 @@ export interface MotionFrame {
   /** Finger bone quaternions for left/right hand. Null when hand not visible. */
   leftFingers?:  FingerQuats;
   rightFingers?: FingerQuats;
+  /**
+   * Arm bone local quaternions snapshotted AFTER IK + forearm twist distribution.
+   * Keyed by exact bone name: "LeftArm", "LeftForeArm", "RightArm", "RightForeArm".
+   * Absent on frames where hand tracking was not active (arm at rest).
+   */
+  armBones?: Record<string, [number, number, number, number]>;
 }
 
 export interface RecorderState {
@@ -187,7 +193,8 @@ export function captureFrame(
   currentBlendshapes: Array<{ categoryName: string; score: number }>,
   headEuler: [number, number, number],
   leftFingers?: FingerQuats,
-  rightFingers?: FingerQuats
+  rightFingers?: FingerQuats,
+  armBones?: Record<string, [number, number, number, number]>
 ): void {
   if (!_isRecording) return;
 
@@ -212,6 +219,7 @@ export function captureFrame(
     secondaryBones,
     leftFingers:  leftFingers  ?? undefined,
     rightFingers: rightFingers ?? undefined,
+    armBones,
   });
 
   // Notify UI listeners at ~1 Hz (assuming ~30 fps)
@@ -383,6 +391,45 @@ export async function buildAndExportGLB(): Promise<void> {
         )
       );
     }
+  }
+
+  // ── arm bone tracks (LeftArm, LeftForeArm, RightArm, RightForeArm) ───────
+  // These bones are driven by the IK solver + forearm twist distribution in
+  // Avatar.tsx. They are NOT derivable from headEuler or finger data, so they
+  // must be snapshotted as local quaternions from the live bones each frame.
+  // We read them from armBones which is populated after solveArmIK + twist.
+  // Frames where a hand was absent will have no armBones entry for that side,
+  // so we fall back to the bone's current (rest/last-known) local quaternion
+  // stored in _nodes — guaranteeing the track stays valid at every timestamp.
+  const ARM_BONE_NAMES = ["LeftArm", "LeftForeArm", "RightArm", "RightForeArm"] as const;
+
+  for (const boneName of ARM_BONE_NAMES) {
+    const bone = nodes[boneName];
+    if (!bone) continue; // non-RPM rig — skip
+
+    const quatValues = new Float32Array(frames.length * 4);
+    // Read the bone's current local quaternion as a fallback (rest pose).
+    const fallback = bone.quaternion;
+
+    for (let i = 0; i < frames.length; i++) {
+      const q = frames[i].armBones?.[boneName];
+      if (q) {
+        quatValues[i * 4 + 0] = q[0];
+        quatValues[i * 4 + 1] = q[1];
+        quatValues[i * 4 + 2] = q[2];
+        quatValues[i * 4 + 3] = q[3];
+      } else {
+        // Hand not visible this frame — hold rest pose.
+        quatValues[i * 4 + 0] = fallback.x;
+        quatValues[i * 4 + 1] = fallback.y;
+        quatValues[i * 4 + 2] = fallback.z;
+        quatValues[i * 4 + 3] = fallback.w;
+      }
+    }
+
+    tracks.push(
+      new QuaternionKeyframeTrack(`${boneName}.quaternion`, times, quatValues)
+    );
   }
 
   // ── finger bone tracks ─────────────────────────────────────────────────────
