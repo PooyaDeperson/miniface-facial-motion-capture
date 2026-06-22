@@ -534,34 +534,44 @@ function wristQuatFromLandmarks(lm, isRight) {
 // ─── Handedness stabilisation ────────────────────────────────────────────────
 //
 // MediaPipe occasionally mis-classifies a hand as the wrong side for 1-2 frames,
-// which causes the avatar's arm to flash/jump then snap back.  Three layers of
-// defence are applied here — all purely within the worker so they are zero-cost
-// to the rest of the pipeline and add no latency to normal, correct frames.
+// OR produces a phantom second-hand detection when only one hand is visible (common
+// when the real hand is rotated to an unusual angle). Three layers of defence are
+// applied here — all purely within the worker so they are zero-cost to the rest of
+// the pipeline and add no latency to normal, correct frames.
 //
-// Layer 1 – Confidence gate
-//   Only LOW-confidence frames (below HANDEDNESS_LABEL_TRUST) should be treated
-//   as unreliable for the *label* — the finger geometry itself is still valid.
-//   We never skip the whole hand; we just don't let a low-confidence label
-//   override the last committed assignment.
-const HANDEDNESS_LABEL_TRUST = 0.5; // below this → label is distrusted, use last committed
+// Layer 1 – Detection quality gate
+//   Before any label logic, discard the whole hand detection if its score is below
+//   HAND_DETECTION_MIN_SCORE. This is the overall quality of the detection (not just
+//   the handedness label). Phantom hands from gesture-induced false positives are
+//   almost always low-quality detections, so a high gate here eliminates them before
+//   they can pollute the vote buffers.
+const HAND_DETECTION_MIN_SCORE = 0.70; // below this → whole hand detection is discarded
 
-// Layer 2 – Majority-vote latch (ring buffer)
-//   Track the last N handedness labels for each detected hand slot (0 or 1).
-//   Only high-confidence labels are fed into the vote so bad frames don't
-//   corrupt the buffer, but the hand is NEVER dropped just because the label
-//   is uncertain — we fall back to the last committed label instead.
-const HANDEDNESS_VOTE_WINDOW = 5;  // frames kept per hand slot
-const HANDEDNESS_VOTE_REQUIRED = 3; // minimum agreement to commit a label
+// Layer 2 – Handedness label confidence gate + majority-vote latch (ring buffer)
+//   Only feed the vote buffer from HIGH-confidence labels. Low-confidence labels
+//   (score below HANDEDNESS_LABEL_TRUST) fall back to the last committed label so
+//   the hand is never dropped mid-rotation. The vote requires a supermajority
+//   (HANDEDNESS_VOTE_REQUIRED out of HANDEDNESS_VOTE_WINDOW) before committing a
+//   new label, which means a transient phantom needs to persist for many consecutive
+//   high-confidence frames before it can produce a visible avatar arm.
+const HANDEDNESS_LABEL_TRUST = 0.75; // below this → label is distrusted, use last committed
+const HANDEDNESS_VOTE_WINDOW = 5;    // frames kept per hand slot
+const HANDEDNESS_VOTE_REQUIRED = 4;  // minimum agreement to commit a label (supermajority)
 
-// Per-slot ring buffers — reset only when hands go from visible to none.
+// Per-slot ring buffers.
+// Reset for a specific slot when that slot goes absent (not just when all hands go away),
+// so a phantom that appears in slot 1 while slot 0 stays visible gets its buffer cleared
+// when it disappears — preventing stale committed state from affecting the next appearance.
 const _handednessHistory = [[], []]; // index 0 and 1 → slot for up to 2 hands
 const _handednessCommitted = [null, null]; // last successfully committed label per slot
-let _prevHandCount = 0;              // tracks last hand count; used only for zero-reset
+const _prevSlotPresent = [false, false];   // tracks per-slot presence for targeted resets
+let _prevHandCount = 0;                    // tracks last hand count; used for zero-reset
 
 /**
  * Feed a label into the majority-vote latch and return the best label to use.
- * High-confidence labels update the vote buffer; low-confidence ones skip the
- * vote but still return the last committed label so the hand is never dropped.
+ * High-confidence labels (>= HANDEDNESS_LABEL_TRUST) update the vote buffer;
+ * low-confidence ones skip the vote but still return the last committed label
+ * so the hand is never dropped mid-rotation.
  *
  * @param {number} slot        - hand index (0 or 1)
  * @param {string} rawLabel    - "Left" | "Right" from MediaPipe
@@ -585,8 +595,20 @@ function committedHandedness(slot, rawLabel, confidence) {
     }
   }
 
-  // Return the committed label (may be null on the very first frames)
+  // Return the committed label (may be null on the very first frames before
+  // HANDEDNESS_VOTE_REQUIRED high-confidence frames have been seen)
   return _handednessCommitted[slot];
+}
+
+/**
+ * Clear the ring buffer and committed label for a single slot.
+ * Called when a slot goes from present to absent so a subsequent phantom
+ * in that slot starts with a clean buffer rather than stale committed state.
+ */
+function resetHandSlot(slot) {
+  _handednessHistory[slot] = [];
+  _handednessCommitted[slot] = null;
+  _prevSlotPresent[slot] = false;
 }
 
 // ─── Worker message handler ───────────────────────────────────────────────────
@@ -756,21 +778,33 @@ self.onmessage = async function (e) {
       }
 
       if (handResult?.landmarks?.length) {
-        _prevHandCount = handResult.landmarks.length;
+        const currentHandCount = handResult.landmarks.length;
 
         // Collect candidate assignments (may include nulls from failed vote)
-        const candidates = []; // { label, landmarks, wristPos }
+        const candidates = []; // { slot, label, landmarks, wristPos }
 
-        for (let i = 0; i < handResult.landmarks.length; i++) {
+        for (let i = 0; i < currentHandCount; i++) {
           const handLandmarks = handResult.landmarks[i];
           const handednessEntry = handResult.handednesses?.[i]?.[0];
 
           const confidence = handednessEntry?.score ?? 0;
           const rawLabel = handednessEntry?.categoryName ?? "";
 
-          // ── Layers 1+2: vote latch with confidence-aware label trust ─────────
-          // Low-confidence frames don't update the vote buffer but still fall
-          // back to the last committed label so the hand is never dropped mid-rotation.
+          // ── Layer 1: detection quality gate ──────────────────────────────────
+          // Discard the whole detection if its overall quality score is too low.
+          // Phantom hands from gesture-induced false positives are almost always
+          // low-quality detections; catching them here prevents them from ever
+          // entering the vote buffer or producing avatar motion.
+          if (confidence < HAND_DETECTION_MIN_SCORE) {
+            // Don't reset the slot — the real hand (if present) may reuse it.
+            // Just skip this detection silently.
+            continue;
+          }
+
+          // ── Layers 2+3: vote latch with confidence-aware label trust ─────────
+          // Low-confidence handedness labels don't update the vote buffer but still
+          // fall back to the last committed label so the hand is never dropped
+          // mid-rotation. (confidence already >= HAND_DETECTION_MIN_SCORE here.)
           const label = committedHandedness(i, rawLabel, confidence);
           if (label === null) continue; // no committed label yet (very first frames only)
 
@@ -778,29 +812,40 @@ self.onmessage = async function (e) {
           const w = handLandmarks[0];
           const wristPos = w ? [w.x, w.y, w.z] : null;
 
-          candidates.push({ label, landmarks: handLandmarks, wristPos });
+          _prevSlotPresent[i] = true;
+          candidates.push({ slot: i, label, landmarks: handLandmarks, wristPos });
         }
 
-        // ── Layer 3: spatial sanity swap ─────────────────────────────────────
+        // Per-slot reset: if a slot that was present last frame is now absent
+        // (because the detection was dropped by the quality gate or the hand truly
+        // left), clear its ring buffer so the next appearance starts fresh.
+        const currentSlotsPresent = new Set(candidates.map(c => c.slot));
+        for (let s = 0; s < 2; s++) {
+          if (_prevSlotPresent[s] && !currentSlotsPresent.has(s)) {
+            resetHandSlot(s);
+          }
+        }
+
+        _prevHandCount = currentHandCount;
+
+        // ── Layer 4: spatial sanity swap ─────────────────────────────────────
         // When both hands are committed, verify their wrist X positions match
         // the expected layout in image space (image-x: 0=left edge, 1=right edge).
         // In a mirrored/selfie view the user's right hand appears on the LEFT
         // side of the image (lower image-x), so:
         //   avatar Right wrist image-x  <  avatar Left wrist image-x
-        // If the committed labels violate this, swap them.
+        // If the committed labels violate this, swap them. The threshold is tight
+        // (0.08) to avoid false swaps when both hands are near the centre.
         if (candidates.length === 2) {
           const c0 = candidates[0];
           const c1 = candidates[1];
           if (c0.wristPos && c1.wristPos) {
-            // Find which candidate claims to be Right and which claims Left
             const idxRight = c0.label === "Right" ? 0 : 1;
             const idxLeft  = c0.label === "Left"  ? 0 : 1;
             const rightX = candidates[idxRight].wristPos[0];
             const leftX  = candidates[idxLeft].wristPos[0];
             // In a mirrored feed rightX should be less than leftX.
-            // If it's significantly reversed, the labels are swapped.
-            if (rightX - leftX > 0.15) {
-              // Swap labels (don't alter ring buffers — let them self-correct)
+            if (rightX - leftX > 0.08) {
               candidates[idxRight].label = "Left";
               candidates[idxLeft].label  = "Right";
             }
@@ -819,13 +864,11 @@ self.onmessage = async function (e) {
           }
         }
       } else {
-        // No hands detected this frame — reset hand count so next appearance
-        // starts with clean ring buffers
+        // No hands detected this frame — reset all slot state so the next
+        // appearance starts with clean ring buffers.
         if (_prevHandCount !== 0) {
-          _handednessHistory[0] = [];
-          _handednessHistory[1] = [];
-          _handednessCommitted[0] = null;
-          _handednessCommitted[1] = null;
+          resetHandSlot(0);
+          resetHandSlot(1);
           _prevHandCount = 0;
         }
       }
