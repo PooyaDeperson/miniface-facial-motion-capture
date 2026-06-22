@@ -60,6 +60,19 @@ const rightIKSmoother = new IKTargetSmoother();
 const leftElbowSmoother = new IKTargetSmoother(ARM_ELBOW_TAU);
 const rightElbowSmoother = new IKTargetSmoother(ARM_ELBOW_TAU);
 
+// ─── Sticky last-good elbow hints ────────────────────────────────────────────
+// When the PoseLandmarker confidence drops and leftElbowOffset / rightElbowOffset
+// becomes null for a frame (or a few), we hold the last successfully computed hint
+// world-position instead of snapping to the hardcoded static fallback. This prevents
+// the IK bend axis from suddenly jumping, which was the main source of the hand
+// bobbing up-and-down after elbow detection was introduced.
+// Set to null until the first valid hint is computed so the hardcoded fallback
+// still fires on initial startup (before any pose data has arrived).
+const _lastGoodLeftElbowHint = new Vector3();
+const _lastGoodRightElbowHint = new Vector3();
+let _hasLeftElbowHint = false;
+let _hasRightElbowHint = false;
+
 // Rest-pose / in-frame bone smoothers — one per hand.
 // smoothFromBones() uses IN_FRAME_TAU (hand visible).
 // smoothToRest()   uses REST_POSE_TAU (hand out of frame).
@@ -763,8 +776,18 @@ function Avatar({ url, onLoaded }: AvatarProps) {
         poseElbowToHint(_shoulderPos, smoothedOffset, _elbowHint);
         // Cap: never let the hint rise more than ELBOW_MAX_RISE_DEG above shoulder level.
         _elbowHint.y = Math.min(_elbowHint.y, _shoulderPos.y + ELBOW_HINT_MAX_RISE);
+        // Commit this valid hint so we can re-use it if confidence drops next frame.
+        _lastGoodLeftElbowHint.copy(_elbowHint);
+        _hasLeftElbowHint = true;
+      } else if (_hasLeftElbowHint) {
+        // Pose confidence dropped — hold the last valid hint to avoid a snap.
+        // The shoulder position drifts slightly with spine animation, so offset
+        // the stored hint by the new shoulder position delta would be ideal, but
+        // for a seated user the shoulder is essentially static, so a simple copy
+        // is sufficient and avoids any position-tracking complexity.
+        _elbowHint.copy(_lastGoodLeftElbowHint);
       } else {
-        // Hardcoded fallback: elbow wide-left, slightly down, mildly forward.
+        // No valid hint has ever been received — use hardcoded fallback.
         _elbowHint.copy(_shoulderPos);
         _elbowHint.x += 0.65;
         _elbowHint.y -= 0.2;
@@ -785,6 +808,9 @@ function Avatar({ url, onLoaded }: AvatarProps) {
       leftFingerSmoother.reset();
       leftIKSmoother.reset();
       leftElbowSmoother.reset();
+      // Clear the sticky elbow hint so the next appearance doesn't start from
+      // a stale position that could be far from the new arm position.
+      _hasLeftElbowHint = false;
     }
     if (rightWristPos) {
       const smoothedRightPos = rightIKSmoother.smooth(rightWristPos, delta);
@@ -799,8 +825,14 @@ function Avatar({ url, onLoaded }: AvatarProps) {
         // This prevents the IK bend axis from flipping sign on the right arm (which would
         // shoot the elbow upward) while still allowing natural upward elbow motion.
         _elbowHint.y = Math.min(_elbowHint.y, _shoulderPos.y + ELBOW_HINT_MAX_RISE);
+        // Commit this valid hint so we can re-use it if confidence drops next frame.
+        _lastGoodRightElbowHint.copy(_elbowHint);
+        _hasRightElbowHint = true;
+      } else if (_hasRightElbowHint) {
+        // Pose confidence dropped — hold the last valid hint to avoid a snap.
+        _elbowHint.copy(_lastGoodRightElbowHint);
       } else {
-        // Hardcoded fallback: elbow wide-right, slightly down, mildly forward.
+        // No valid hint has ever been received — use hardcoded fallback.
         _elbowHint.copy(_shoulderPos);
         _elbowHint.x -= 0.65;
         _elbowHint.y -= 0.2;
@@ -821,6 +853,9 @@ function Avatar({ url, onLoaded }: AvatarProps) {
       rightFingerSmoother.reset();
       rightIKSmoother.reset();
       rightElbowSmoother.reset();
+      // Clear the sticky elbow hint so the next appearance doesn't start from
+      // a stale position that could be far from the new arm position.
+      _hasRightElbowHint = false;
     }
 
     // ── finger bone animation ─────────────────────────────────────────���────

@@ -716,8 +716,10 @@ self.onmessage = async function (e) {
       // Avatar.tsx can compute the live elbow hint without absolute-position drift.
       //   User's left:  shoulder=11, elbow=13  →  avatar's Left arm
       //   User's right: shoulder=12, elbow=14  →  avatar's Right arm
-      // Visibility gate (0.4) avoids jumpy hints when a shoulder/elbow is occluded.
-      const POSE_VIS_THRESHOLD = 0.4;
+      // Visibility gate: only trust elbow landmarks with high visibility. 0.65 filters
+      // out the noisy mid-confidence detections that cause forearm / hand jitter while
+      // still passing through clearly visible landmarks.
+      const POSE_VIS_THRESHOLD = 0.65;
       let leftElbowOffset = null;   // [dx,dy,dz] shoulder→elbow, pose world space
       let rightElbowOffset = null;
 

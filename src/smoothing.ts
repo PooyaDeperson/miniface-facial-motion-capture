@@ -90,11 +90,12 @@ export const ARM_IK_TAU = 0.05;
 /**
  * Elbow hint smoothing time constant in seconds.
  * Applied to the shoulder→elbow offset vector from PoseLandmarker before it
- * is used as the IK bend-plane hint.  Slightly higher than ARM_IK_TAU because
- * pose body landmarks are noisier than hand landmarks, and the elbow hint only
- * needs to convey general direction rather than precise position.
+ * is used as the IK bend-plane hint.  Kept high because pose body landmarks
+ * are significantly noisier than hand landmarks — the elbow hint only needs
+ * to convey general arm direction, not precise position, so heavy damping
+ * eliminates forearm jitter without perceptible lag.
  */
-export const ARM_ELBOW_TAU = 0.08;
+export const ARM_ELBOW_TAU = 0.20;
 
 // ─── internal helper ──────────────────────────────────────────────────────────
 
