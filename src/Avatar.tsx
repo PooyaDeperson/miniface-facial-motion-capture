@@ -483,7 +483,7 @@ function poseElbowToHint(
   // Apply a larger scale when pulling the hint DOWN (offset[1] > 0) to
   // counteract the T-pose artefact, but use 1.0 when pushing UP (offset[1] < 0)
   // so raising the elbow to shoulder level is not over-amplified.
-  const yScale = offset[1] > 0 ? 3.2 : 1.0; // tune 3.2 to push elbow lower at rest; 1.0 keeps upward motion 1:1 for both arms
+  const yScale = offset[1] > 0 ? 4.6 : 1.0; // tune 4.6 to push elbow lower at rest; 1.0 keeps upward motion 1:1 for both arms
   out.y += -offset[1] * POSE_TO_AVATAR_SCALE * yScale;
   out.z += offset[2] * POSE_TO_AVATAR_SCALE;
 }
