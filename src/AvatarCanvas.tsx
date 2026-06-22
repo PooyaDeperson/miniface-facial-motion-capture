@@ -53,16 +53,6 @@ const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarRe
         thirdDelay={20000}
       />
 
-      {/* Canvas flip button — positioned over the 3D canvas */}
-      <button
-        className="flex canvas-flip-switcher icon-holder br-12 tab-button size-30 mb:size-48 pos-abs z-9991"
-        style={{ bottom: 0, right: 0, margin: "1rem" }}
-        onClick={() => setIsFlipped && setIsFlipped(!isFlipped)}
-        title="Flip canvas"
-      >
-        <span className={`has-icon icon-size-18 flip-icon ${isFlipped ? "flipped" : ""}`}></span>
-      </button>
-
       <Canvas
         className={`avatar-container mb:pos tb:avatar-pos bottom-0 pos-abs-important z-1 ${isFlipped ? " flipped-x" : ""}`}
         camera={{

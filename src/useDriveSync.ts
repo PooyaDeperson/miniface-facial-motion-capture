@@ -77,6 +77,23 @@ function _notifyQuota() {
   _quotaListeners.forEach((fn) => fn());
 }
 
+// ─── upload-failed notification ───────────────────────────────────────────────
+// Fired by uploadToDrive() on any non-quota error so App.tsx can always react
+// to upload failures, even when the upload was initiated from useMotionRecorder
+// (where App.tsx has no direct .catch() handle).
+
+type UploadFailedListener = (err: Error) => void;
+const _uploadFailedListeners = new Set<UploadFailedListener>();
+
+export function subscribeUploadFailed(fn: UploadFailedListener): () => void {
+  _uploadFailedListeners.add(fn);
+  return () => _uploadFailedListeners.delete(fn);
+}
+
+function _notifyUploadFailed(err: Error) {
+  _uploadFailedListeners.forEach((fn) => fn(err));
+}
+
 // ─── constants ────────────────────────────────────────────────────────────────
 
 const DRIVE_UPLOAD_URL =
@@ -231,6 +248,28 @@ export async function uploadToDrive(
   durationSeconds?: number,
   avatarUrl?: string
 ): Promise<string> {
+  // Wrap the entire function so that DriveAuthError thrown by driveFetch
+  // (e.g. no token, expired session) also triggers the failure notification,
+  // which App.tsx uses to clear the stuck "saving…" card.
+  try {
+    return await _uploadToDriveImpl(blob, fileName, durationSeconds, avatarUrl);
+  } catch (err: any) {
+    // Only re-notify here for errors we haven't already notified inside _uploadToDriveImpl.
+    // DriveAuthError from driveFetch (no token / 401) lands here; the
+    // 403/non-ok paths already called _notifyUploadFailed before throwing.
+    if (err instanceof DriveAuthError) {
+      _notifyUploadFailed(err);
+    }
+    throw err;
+  }
+}
+
+async function _uploadToDriveImpl(
+  blob: Blob,
+  fileName: string,
+  durationSeconds?: number,
+  avatarUrl?: string
+): Promise<string> {
   const appProperties: Record<string, string> = {};
   if (durationSeconds != null) appProperties.duration = String(durationSeconds);
   if (avatarUrl) appProperties.avatarUrl = avatarUrl;
@@ -257,12 +296,16 @@ export async function uploadToDrive(
       _notifyQuota();
       throw new DriveQuotaError();
     }
-    throw new Error(`Drive upload forbidden: ${body?.error?.message ?? res.statusText}`);
+    const forbiddenErr = new Error(`Drive upload forbidden: ${body?.error?.message ?? res.statusText}`);
+    _notifyUploadFailed(forbiddenErr);
+    throw forbiddenErr;
   }
 
   if (!res.ok) {
     const txt = await res.text().catch(() => res.statusText);
-    throw new Error(`Drive upload failed (${res.status}): ${txt}`);
+    const uploadErr = new Error(`Drive upload failed (${res.status}): ${txt}`);
+    _notifyUploadFailed(uploadErr);
+    throw uploadErr;
   }
 
   const json = await res.json();
