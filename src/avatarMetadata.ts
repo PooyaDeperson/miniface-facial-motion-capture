@@ -56,7 +56,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
   // Driver: hair_head (the parent bone driven by head movement)
   // Chain:  hair_1 … hair_7 (individual strands branching from hair_head)
   {
-    avatarPath: "/avatar/avatar1.glb",
+    avatarPath: "/avatar/avatar-ponytail.glb",
     // Ponytail: hair_head is the driver; chain runs hair_1 → hair_7.
     secondaryMotion: [
       {
@@ -88,7 +88,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
 
   // ── Avatar 2 ──────────────────────────────────────────────────────────────
   {
-    avatarPath: "/avatar/avatar2.glb",
+    avatarPath: "/avatar/avatar-short.glb",
     secondaryMotion: [
       {
         id: "hairstrands_left",
@@ -166,13 +166,13 @@ const AVATAR_METADATA: AvatarMetadata[] = [
 
   // ── Avatar 3 ──────────────────────────────────────────────────────────────
   {
-    avatarPath: "/avatar/avatar3.glb",
+    avatarPath: "/avatar/avatar-curly.glb",
     secondaryMotion: [],
   },
 
   // ── Avatar 4 ──────────────────────────────────────────────────────────────
   {
-    avatarPath: "/avatar/avatar4.glb",
+    avatarPath: "/avatar/avatar-braids.glb",
     // Ponytail: hair_head is the driver; chain runs hair_1 → hair_7.
     secondaryMotion: [
       {
@@ -226,7 +226,7 @@ const AVATAR_METADATA: AvatarMetadata[] = [
 
   // ── Avatar 5 ──────────────────────────────────────────────────────────────
   {
-    avatarPath: "/avatar/avatar5.glb",
+    avatarPath: "/avatar/avatar-wavy.glb",
     secondaryMotion: [],
   },
 ];

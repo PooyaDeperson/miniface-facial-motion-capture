@@ -20,11 +20,11 @@ interface AvatarSwitcherProps {
 
 const AvatarSwitcher: React.FC<AvatarSwitcherProps> = ({ onAvatarChange, activeUrl, disabled = false }) => {
   const avatars = [
-    { name: "Avatar 1", url: "/avatar/avatar1.glb" },
-    { name: "Avatar 2", url: "/avatar/avatar2.glb" },
-    { name: "Avatar 3", url: "/avatar/avatar3.glb" },
-    { name: "Avatar 4", url: "/avatar/avatar4.glb" },
-    { name: "Avatar 5", url: "/avatar/avatar5.glb" },
+    { name: "Avatar 1", url: "/avatar/avatar-ponytail.glb" },
+    { name: "Avatar 2", url: "/avatar/avatar-short.glb" },
+    { name: "Avatar 3", url: "/avatar/avatar-curly.glb" },
+    { name: "Avatar 4", url: "/avatar/avatar-braids.glb" },
+    { name: "Avatar 5", url: "/avatar/avatar-wavy.glb" },
   ];
 
   // Load avatar from localStorage on mount
