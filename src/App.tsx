@@ -562,19 +562,19 @@ function App() {
           />
         )}
         <AuthButton onDriveConnected={() => setHasDrive(hasDriveAccess())} />
-        {/* Library auth popup — shown to guests when they click the library button */}
-        {showLibraryAuthPopup && !hasDrive && (
-          <LibraryAuthPopup
-            onClose={() => setShowLibraryAuthPopup(false)}
-            onDriveConnected={() => {
-              setShowLibraryAuthPopup(false);
-              setHasDrive(hasDriveAccess());
-            }}
-            /* Replace with your image URL when ready — e.g. imgSrc="/images/library-preview.png" */
-            imgSrc={undefined}
-          />
-        )}
       </div>
+
+      {/* Library auth popup — rendered at App root so it escapes all nested stacking contexts */}
+      {showLibraryAuthPopup && !hasDrive && (
+        <LibraryAuthPopup
+          onClose={() => setShowLibraryAuthPopup(false)}
+          onDriveConnected={() => {
+            setShowLibraryAuthPopup(false);
+            setHasDrive(hasDriveAccess());
+          }}
+          imgSrc={undefined}
+        />
+      )}
 
       <ColorSwitcher disabled={isSwitcherDisabled || isInPlayback} />
       <AvatarSwitcher activeUrl={url} onAvatarChange={handleAvatarChange} disabled={isSwitcherDisabled || isInPlayback || libraryOpen} />
