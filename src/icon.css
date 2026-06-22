@@ -55,6 +55,19 @@
   display: inline-block;
 }
 
+.icon-size-16 {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-size-18 {
+  width: 18px;
+  height: 18px;
+}
+
+.icon-size-32 {
+  width: 32px;
+  height: 32px;
 -size-16 {
   min-width: 16px;
   min-height: 16px;

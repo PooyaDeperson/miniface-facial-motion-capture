@@ -15,11 +15,16 @@ import { Canvas } from "@react-three/fiber";
 import Avatar from "./Avatar";
 import AvatarOrbitControls from "./AvatarOrbitControls";
 import AvatarLoader from "./AvatarLoader";
+import DebugCamera from "./DebugCamera";
+import DebugJoints from "./DebugJoints";
 
 interface AvatarCanvasProps {
   url: string | null;
   avatarKey: number;
   setAvatarReady: (ready: boolean) => void;
+}
+
+const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarReady }) => {
   isFlipped: boolean;
   playbackBlob?: Blob | null;
   motionLoading?: boolean;
@@ -52,7 +57,7 @@ const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarRe
 
 
       <Canvas
-        className={`avatar-container mb:pos tb:avatar-pos bottom-0 pos-abs-important z-1 ${isFlipped ? "flipped-x" : ""}`}
+        className="avatar-container mb:pos tb:avatar-pos bottom-0 pos-abs-important z-1"
         camera={{
           fov: 27,
           position: cameraPosition,
@@ -66,10 +71,9 @@ const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarRe
         <pointLight position={[-10, 0, 10]} intensity={50} castShadow />
         <pointLight position={[0, 0, 10]} intensity={0.5} castShadow />
 
-        <AvatarOrbitControls 
-        target={avatarCenter} 
-        enableZoom={true} 
-        isFlipped={isFlipped}/>
+        <AvatarOrbitControls target={avatarCenter} enableZoom={true} />
+        <DebugCamera />
+        <DebugJoints />
 
         {url && !motionLoading && (
           <Suspense fallback={null}>

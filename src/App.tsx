@@ -509,6 +509,7 @@ function App() {
 
   return (
     <div className="App">
+      <CameraPermissions onStreamReady={handleStreamReady} disabled={isSwitcherDisabled} />
       <CameraPermissions
         onStreamReady={handleStreamReady}
         disabled={isSwitcherDisabled || isInPlayback}
@@ -526,12 +527,14 @@ function App() {
         <FaceTracking
           videoStream={videoStream}
           onMediapipeReady={handleMediapipeReady}
+          disabled={isSwitcherDisabled}
           disabled={faceTrackingDisabled}
           isFlipped={isFlipped}
         />
       )}
 
       {/* 3D Avatar Canvas */}
+      <AvatarCanvas url={url} avatarKey={avatarKey} setAvatarReady={setAvatarReady} />
       <AvatarCanvas
         url={url}
         avatarKey={avatarKey}

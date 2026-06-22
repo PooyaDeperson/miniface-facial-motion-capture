@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2025 Pooya Moradi M. poamrd@gmail.com https://github.com/PooyaDeperson
  * Licensed under the MIT License with Attribution.
@@ -29,10 +30,10 @@ const VideoIcon = (
 interface CameraPermissionsProps {
   onStreamReady: (stream: MediaStream) => void;
   disabled?: boolean;
-  isFlipped: boolean;
-  setIsFlipped: (value: boolean) => void;
 }
 
+export default function CameraPermissions({ onStreamReady, disabled }: CameraPermissionsProps) {
+  const [permissionState, setPermissionState] = useState<"prompt" | "denied" | "granted">("prompt");
 export default function CameraPermissions({ onStreamReady, disabled, isFlipped, setIsFlipped }: CameraPermissionsProps) {
   const [permissionState, setPermissionState] = useState<"prompt" | "denied" | "granted" | "inuse">("prompt");
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
@@ -132,18 +133,17 @@ export default function CameraPermissions({ onStreamReady, disabled, isFlipped, 
 
   return (
     <>
-      {/* Permission popup at root level - above the control div */}
       {permissionState === "prompt" && (
         <PermissionPopup
           variant="prompt"
           title="pssst… give camera access to animate!"
-          subtitle="use your camera for fun face animation! by tapping 'let's go & allow,' you agree to camera and cookie use."
-          buttonText="let's go & allow"
+          subtitle="use your camera for fun face animation! by tapping 'let’s go & allow,' you agree to camera and cookie use."
+          buttonText="let’s go & allow"
           onClick={() => requestCamera(selectedCamera || undefined)}
           showButton
         />
       )}
-      
+
       {permissionState === "denied" && (() => {
         const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
         return (
@@ -163,6 +163,17 @@ export default function CameraPermissions({ onStreamReady, disabled, isFlipped, 
           />
         );
       })()}
+
+      {permissionState === "granted" && cameras.length > 1 && (
+        <div className={`camera-selection cp-dropdown pos-abs reveal fade scaleIn top-0 right-0 tb:left-0 tb:display-table z-9991 m-6${disabled ? " switcher-disabled" : ""}`}>
+          <CustomDropdown
+            options={dropdownOptions}
+            value={selectedCamera}
+            onChange={handleCameraChange}
+            placeholder="Select camera"
+          />
+        </div>
+      )}
 
       {permissionState === "inuse" && (
         <PermissionPopup
