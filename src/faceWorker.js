@@ -567,6 +567,21 @@ const _handednessCommitted = [null, null]; // last successfully committed label 
 const _prevSlotPresent = [false, false];   // tracks per-slot presence for targeted resets
 let _prevHandCount = 0;                    // tracks last hand count; used for zero-reset
 
+// ─── Per-slot grace-period hold ───────────────────────────────────────────────
+// When a committed hand's detection score briefly drops below HAND_DETECTION_MIN_SCORE
+// (e.g. during a fast wrist rotation that causes motion blur), we hold the last valid
+// landmarks for up to HAND_HOLD_FRAMES frames before declaring the hand gone.
+// This prevents the avatar arm from snapping back to rest and then immediately returning,
+// which looks like a flicker/blink.
+//
+// A phantom hand (never-committed slot) has no stored landmarks, so it can never
+// exploit this hold — the guard only activates for a slot that already has a
+// committed label and stored landmarks.
+const HAND_HOLD_FRAMES = 6; // ~180 ms at 30 fps — covers a fast rotation blur
+const _handHoldCounter  = [0, 0];        // frames remaining in hold for each slot
+const _handHoldLandmarks = [null, null]; // last valid landmarks array for each slot
+const _handHoldWristPos  = [null, null]; // last valid wrist [x,y,z] for each slot
+
 /**
  * Feed a label into the majority-vote latch and return the best label to use.
  * High-confidence labels (>= HANDEDNESS_LABEL_TRUST) update the vote buffer;
@@ -601,14 +616,17 @@ function committedHandedness(slot, rawLabel, confidence) {
 }
 
 /**
- * Clear the ring buffer and committed label for a single slot.
- * Called when a slot goes from present to absent so a subsequent phantom
- * in that slot starts with a clean buffer rather than stale committed state.
+ * Clear the ring buffer, committed label, and hold state for a single slot.
+ * Called when a slot has been absent long enough (hold exhausted) or when all
+ * hands go away, so a subsequent phantom starts with a completely clean state.
  */
 function resetHandSlot(slot) {
   _handednessHistory[slot] = [];
   _handednessCommitted[slot] = null;
   _prevSlotPresent[slot] = false;
+  _handHoldCounter[slot] = 0;
+  _handHoldLandmarks[slot] = null;
+  _handHoldWristPos[slot] = null;
 }
 
 // ─── Worker message handler ───────────────────────────────────────────────────
@@ -782,6 +800,8 @@ self.onmessage = async function (e) {
 
         // Collect candidate assignments (may include nulls from failed vote)
         const candidates = []; // { slot, label, landmarks, wristPos }
+        // Track which slots were populated from live detection this frame
+        const liveSlotsPresent = new Set();
 
         for (let i = 0; i < currentHandCount; i++) {
           const handLandmarks = handResult.landmarks[i];
@@ -795,10 +815,13 @@ self.onmessage = async function (e) {
           // Phantom hands from gesture-induced false positives are almost always
           // low-quality detections; catching them here prevents them from ever
           // entering the vote buffer or producing avatar motion.
+          //
+          // EXCEPTION — grace-period hold: if this slot already has a committed
+          // label and stored landmarks (a real hand was present), a fast rotation
+          // can cause a temporary confidence dip. In that case we still skip the
+          // low-quality live detection but activate the hold (handled below).
           if (confidence < HAND_DETECTION_MIN_SCORE) {
-            // Don't reset the slot — the real hand (if present) may reuse it.
-            // Just skip this detection silently.
-            continue;
+            continue; // handled by hold logic below
           }
 
           // ── Layers 2+3: vote latch with confidence-aware label trust ─────────
@@ -812,16 +835,52 @@ self.onmessage = async function (e) {
           const w = handLandmarks[0];
           const wristPos = w ? [w.x, w.y, w.z] : null;
 
+          // Store landmarks as the new "last good" for this slot's hold buffer.
+          _handHoldLandmarks[i] = handLandmarks;
+          _handHoldWristPos[i]  = wristPos;
+          _handHoldCounter[i]   = 0; // reset countdown — detection is live
+
           _prevSlotPresent[i] = true;
+          liveSlotsPresent.add(i);
           candidates.push({ slot: i, label, landmarks: handLandmarks, wristPos });
         }
 
-        // Per-slot reset: if a slot that was present last frame is now absent
-        // (because the detection was dropped by the quality gate or the hand truly
-        // left), clear its ring buffer so the next appearance starts fresh.
-        const currentSlotsPresent = new Set(candidates.map(c => c.slot));
+        // ── Grace-period hold ─────────────────────────────────────────────────
+        // For slots that were present last frame but produced no live candidate
+        // this frame (quality-gated out or genuinely gone), check if we have
+        // stored landmarks to hold. If yes and the hold hasn't expired, inject a
+        // synthetic candidate using the last good data so the avatar doesn't blink.
         for (let s = 0; s < 2; s++) {
-          if (_prevSlotPresent[s] && !currentSlotsPresent.has(s)) {
+          if (_prevSlotPresent[s] && !liveSlotsPresent.has(s)) {
+            const committedLabel = _handednessCommitted[s];
+            if (committedLabel !== null && _handHoldLandmarks[s] !== null) {
+              // Still within the grace window — hold the last good frame.
+              if (_handHoldCounter[s] < HAND_HOLD_FRAMES) {
+                _handHoldCounter[s]++;
+                candidates.push({
+                  slot: s,
+                  label: committedLabel,
+                  landmarks: _handHoldLandmarks[s],
+                  wristPos:  _handHoldWristPos[s],
+                  isHeld: true,
+                });
+                // Keep slot marked present so the next frame can continue holding.
+                liveSlotsPresent.add(s);
+              } else {
+                // Hold expired — the hand is genuinely gone. Clean up.
+                resetHandSlot(s);
+              }
+            } else {
+              // No committed state (phantom that was quality-gated) — just reset.
+              resetHandSlot(s);
+            }
+          }
+        }
+
+        // Per-slot reset: if a slot that was present last frame produced nothing
+        // at all (no live candidate AND no active hold), clear its buffers.
+        for (let s = 0; s < 2; s++) {
+          if (_prevSlotPresent[s] && !liveSlotsPresent.has(s)) {
             resetHandSlot(s);
           }
         }
