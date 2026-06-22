@@ -537,6 +537,7 @@ function App() {
         avatarKey={avatarKey}
         setAvatarReady={setAvatarReady}
         isFlipped={isFlipped}
+        setIsFlipped={setIsFlipped}
         playbackBlob={playbackBlob}
         motionLoading={motionLoading}
       />

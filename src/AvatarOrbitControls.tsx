@@ -18,11 +18,13 @@ import { Vector3 } from "three";
 interface AvatarOrbitControlsProps {
   target?: [number, number, number];
   enableZoom?: boolean;
+  isFlipped?: boolean;
 }
 
 const AvatarOrbitControls: React.FC<AvatarOrbitControlsProps> = ({
   target = [0, 1.62, 0],
   enableZoom = true,
+  isFlipped = false,
 }) => {
   const controlsRef = useRef<any>(null);
 
@@ -35,6 +37,11 @@ const AvatarOrbitControls: React.FC<AvatarOrbitControlsProps> = ({
   const minDistance = new Vector3(0, 1.68, minZ).distanceTo(targetVector);
   const maxDistance = new Vector3(0, 1.68, maxZ).distanceTo(targetVector);
 
+  // When the canvas is CSS-flipped (scaleX -1), mouse drag left/right is visually
+  // inverted — a rightward drag moves the camera left on screen. Negating
+  // rotateSpeed restores intuitive drag direction for the viewer.
+  const rotateSpeed = isFlipped ? -1 : 1;
+
   return (
     <OrbitControls
       ref={controlsRef}
@@ -45,6 +52,7 @@ const AvatarOrbitControls: React.FC<AvatarOrbitControlsProps> = ({
       maxPolarAngle={Math.PI / 2}
       minDistance={minDistance}
       maxDistance={maxDistance}
+      rotateSpeed={rotateSpeed}
     />
   );
 };
