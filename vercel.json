@@ -13,7 +13,7 @@
           "value": "facemocap.vercel.app"
         }
       ],
-      "destination": "https://facemocap.radframes.com/$1",
+      "destination": "https://www.miniface.org/$1",
       "permanent": true
     },
     {
@@ -24,7 +24,29 @@
           "value": "facemocap.radframes.app"
         }
       ],
-      "destination": "https://facemocap.radframes.com/$1",
+      "destination": "https://www.miniface.org/$1",
+      "permanent": true
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "facemocap.radframes.com"
+        }
+      ],
+      "destination": "https://www.miniface.org/$1",
+      "permanent": true
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "miniface.org"
+        }
+      ],
+      "destination": "https://www.miniface.org/$1",
       "permanent": true
     }
   ]

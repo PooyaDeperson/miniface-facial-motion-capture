@@ -1,0 +1,159 @@
+/*
+ * playerui.css
+ * Player controls — custom-only rules.
+ * Utility classes (flex-row, items-center, gap-2, p-2, br-8, pos-fixed,
+ * pos-rel, pos-abs, inset-0, flex-1, overflow-hidden, z-rec, bg-primary,
+ * bg-brand-soft, text-primary, text-secondary, text-brand, icon-size-32,
+ * icon-size-24, w-full, h-full) are applied directly in the TSX via App.css.
+ * Only rules that have NO equivalent utility class live here.
+ */
+
+/* ===========================
+   OUTER CONTAINER
+   Centres the pill horizontally inside the pos-fixed slot.
+   left-50 in App.css does translateX(-50%) + translateY(6px) which is wrong
+   here, so we override with a dedicated rule.
+   =========================== */
+
+.playback-controls {
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  min-width: 620px;
+  backdrop-filter: blur(3px);
+}
+/* Mobile: full-screen */
+@media (max-width: 768px) {
+.playback-controls {
+    
+  min-width: calc(100vw - 32px);
+  max-width: calc(100vw - 32px);
+
+}
+}
+/* ===========================
+   INNER PILL WRAPPER
+   display/flex-direction/align-items/gap/padding/border-radius all covered
+   by utility classes on the element. Only the visual shell is custom.
+   =========================== */
+
+.player-controls-wrapper {
+  background-color: var(--gray-100-op50);
+  width: 100%;
+}
+
+/* ===========================
+   TIMELINE CONTAINER
+   flex-1 / pos-rel / overflow-hidden / br-8 come from utility classes.
+   Only the fixed height, min-width and cursor are custom.
+   =========================== */
+
+.player-timeline-container {
+  height: 42px;
+  min-width: 120px;
+  cursor: var(--cursor-drag);
+  background-color: var(--gray-100);
+}
+
+/* ===========================
+   NATIVE <progress> — full reset + brand fill
+   inset-0 / w-full / h-full applied as utility classes on the element.
+   =========================== */
+
+.player-progress {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: var(--cursor-drag);
+}
+
+.player-progress:active {
+  cursor: var(--cursor-dragging);
+}
+
+/* WebKit / Blink */
+.player-progress::-webkit-progress-bar {
+  background: transparent;
+}
+
+.player-progress::-webkit-progress-value {
+  background-color: var(--purple-100);
+}
+
+/* firefox */
+.player-progress::-moz-progress-bar {
+  background-color: var(--purple-100);
+}
+
+.player-progress:hover::-webkit-progress-value {
+  background-color: var(--purple-200);
+}
+
+/* firefox */
+.player-progress:hover::-moz-progress-bar {
+  background-color: var(--purple-200);
+}
+
+/* ===========================
+   PLAYHEAD — 8 × 8 dot
+   pos-abs applied as utility class on the element.
+   =========================== */
+
+.player-timeline-playhead {
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background-color: var(--purple-700);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 20;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+/* ===========================
+   TIME / NAME LABELS
+   pos-abs / top-50percent applied as utility on the element.
+   Only font tweaks and pointer-events are custom.
+   =========================== */
+
+.player-timeline-label {
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 15;
+  letter-spacing: 0.3px;
+  line-height: 1;
+  color: var(--text-secondary);
+}
+
+.player-timeline-label.start-time {
+  left: 8px;
+}
+
+.player-timeline-label.end-time {
+  right: 8px;
+}
+
+.player-timeline-label.file-name {
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-brand);
+}
