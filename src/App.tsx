@@ -477,7 +477,26 @@ function App() {
 
   // ── Select motion from library ────────────────────────────────────────────
   const handleSelectMotion = useCallback((blob: Blob, file: DriveMotionFile) => {
-    const targetAvatarUrl = file.avatarUrl ?? null;
+    // Normalise the stored avatarUrl to a same-origin pathname so that motions
+    // recorded on a different domain (e.g. https://preview.miniface.org) don't
+    // try to fetch the GLB from that foreign origin, which returns a 401 HTML
+    // page and crashes the GLTF loader / WebGL context.
+    const rawAvatarUrl = file.avatarUrl ?? null;
+    let targetAvatarUrl: string | null = null;
+    if (rawAvatarUrl) {
+      try {
+        const parsed = new URL(rawAvatarUrl, window.location.origin);
+        // If it points to a different origin, keep only the pathname so the
+        // loader fetches it from the current host.
+        targetAvatarUrl =
+          parsed.origin !== window.location.origin
+            ? parsed.pathname
+            : rawAvatarUrl;
+      } catch {
+        // Not a valid URL — treat it as a relative path as-is.
+        targetAvatarUrl = rawAvatarUrl;
+      }
+    }
 
     // If the motion was recorded on a different avatar (or we know its avatar
     // URL and it differs from current), swap the avatar first. The skeleton
