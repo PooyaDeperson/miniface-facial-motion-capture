@@ -454,6 +454,16 @@ function wristPosToWorld(pos: [number, number, number], out: Vector3): void {
 // increase above 1 to exaggerate the hint distance from the shoulder.
 const POSE_TO_AVATAR_SCALE = 1.0;
 
+// Additional downward bias applied to the elbow hint after converting from pose
+// space to Three.js world space. When the user holds their hands facing the
+// camera, MediaPipe reports the elbow as only slightly below the shoulder
+// (small positive dy in pose space), which after negating Y maps to a hint
+// nearly level with the shoulder. The IK solver then resolves the arm in a
+// near-T-pose (elbow out to the side at ~90°). Adding this bias pulls the hint
+// further below the shoulder, forcing the elbow to bend naturally downward.
+// Increase to push the elbow lower; decrease toward 0 for a more T-pose result.
+const ELBOW_HINT_DOWN_BIAS = 0.35; // world units (~metres)
+
   /**
   * Convert a PoseLandmarker shoulder→elbow offset vector (metres, hip-origin
   * coordinate system) to a Three.js world-space elbow hint position.
@@ -480,6 +490,7 @@ const POSE_TO_AVATAR_SCALE = 1.0;
   out.copy(shoulderWorldPos);
   out.x +=  offset[0] * POSE_TO_AVATAR_SCALE; // no flip: mirrored webcam aligns +X
   out.y += -offset[1] * POSE_TO_AVATAR_SCALE; // negate: pose +Y is down, Three.js +Y is up
+  out.y -= ELBOW_HINT_DOWN_BIAS;              // pull hint below shoulder to avoid T-pose
   out.z +=  offset[2] * POSE_TO_AVATAR_SCALE;
   }
 
