@@ -3,34 +3,16 @@
  * Licensed under the MIT License with Attribution.
  */
 
-import { useState, useEffect } from "react";
-import { supabase } from "../supabaseClient";
 import type { User } from "@supabase/supabase-js";
 import IconButton from "./IconButton";
 
 interface AuthButtonProps {
+  user: User | null;
   onDriveConnected?: () => void;
   onLoginRequest?: () => void;
 }
 
-export default function AuthButton({ onDriveConnected, onLoginRequest }: AuthButtonProps) {
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    if (!supabase) return;
-
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => {
-      listener.subscription.unsubscribe();
-    };
-  }, []);
+export default function AuthButton({ user, onDriveConnected: _onDriveConnected, onLoginRequest }: AuthButtonProps) {
 
   const handleLoginClick = () => {
     if (onLoginRequest) {

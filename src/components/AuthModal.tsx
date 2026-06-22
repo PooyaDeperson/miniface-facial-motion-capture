@@ -18,11 +18,17 @@ interface AuthModalProps {
    * message to encourage the user to grant Drive access.
    */
   hasPendingMotion?: boolean;
+  /**
+   * The already-resolved user from the parent. Passing this avoids the
+   * async-flash where the modal briefly shows the signed-out view while
+   * waiting for getSession() to resolve.
+   */
+  initialUser?: User | null;
 }
 
-export default function AuthModal({ onClose, onDriveConnected, hasPendingMotion = false }: AuthModalProps) {
+export default function AuthModal({ onClose, onDriveConnected, hasPendingMotion = false, initialUser = null }: AuthModalProps) {
   const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(initialUser);
   const [error, setError] = useState<string | null>(null);
   const [driveConnected, setDriveConnected] = useState(() => hasDriveAccess());
   // Tracks that sign-out was explicitly requested so the auth state listener
@@ -32,10 +38,9 @@ export default function AuthModal({ onClose, onDriveConnected, hasPendingMotion 
   useEffect(() => {
     if (!supabase) return;
 
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
-      setDriveConnected(hasDriveAccess());
-    });
+    // No need to call getSession() here — initialUser is passed from App so
+    // the correct user is already in state from the very first render, which
+    // prevents the signed-out→signed-in flash.
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       // Ignore auth state changes that happen as a result of our own sign-out.

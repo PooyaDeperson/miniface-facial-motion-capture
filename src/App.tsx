@@ -31,6 +31,7 @@ import IconButton from "./components/IconButton";
 import { supabase } from "./supabaseClient";
 import { hasDriveAccess, clearDriveTokens, listDriveMotions, uploadToDrive, subscribeMotionUploaded, subscribeQuotaExceeded, subscribeNoDriveScope, DriveQuotaError, BulkSyncProgress, DRIVE_SCOPE } from "./useDriveSync";
 import type { DriveMotionFile } from "./useDriveSync";
+import type { User } from "@supabase/supabase-js";
 
 function App() {
   const [url, setUrl] = useState<string | null>(null);
@@ -98,6 +99,26 @@ function App() {
 
   // ── Drive scope state (drive token can appear after sign-in redirect) ─────
   const [hasDrive, setHasDrive] = useState(() => hasDriveAccess());
+
+  // ── Single authoritative user state ──────────────────────────────────────
+  // Tracked here at the App level so AuthButton and AuthModal both receive the
+  // same already-resolved user — eliminating the async flash in AuthModal where
+  // it would render the signed-out view for a frame before getSession resolved.
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    if (!supabase) return;
+    // Seed immediately from the existing session (sync in Supabase JS v2).
+    supabase.auth.getSession().then(({ data }) => {
+      setCurrentUser(data.session?.user ?? null);
+    });
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUser(session?.user ?? null);
+    });
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   // Poll for Drive access after component mounts (handles OAuth redirect case)
   useEffect(() => {
@@ -570,6 +591,7 @@ function App() {
           />
         )}
         <AuthButton
+          user={currentUser}
           onDriveConnected={() => setHasDrive(hasDriveAccess())}
           onLoginRequest={() => setShowAuthModal(true)}
         />
@@ -694,6 +716,7 @@ function App() {
       {/* Auth modal — triggered from library empty state or other call sites */}
       {showAuthModal && (
         <AuthModal
+          initialUser={currentUser}
           onClose={() => setShowAuthModal(false)}
           onDriveConnected={() => {
             setShowAuthModal(false);
