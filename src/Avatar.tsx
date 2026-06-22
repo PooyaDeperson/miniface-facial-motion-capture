@@ -472,7 +472,7 @@ const POSE_TO_AVATAR_SCALE = 1.0;
 // negative values push the cap below shoulder. Tune this to set how high the
 // user can raise their elbow before the animation stops following further.
 // e.g. 0.0 = T-pose ceiling, -0.05 = 10 deg below shoulder, 0.05 = 10 deg above
-const ELBOW_HINT_MAX_RISE = 0.0; // world units; applied to both arms
+const ELBOW_HINT_MAX_RISE = -0.05; // world units; applied to both arms
 
 /**
  * Convert a PoseLandmarker shoulder→elbow offset vector (metres, hip-origin
