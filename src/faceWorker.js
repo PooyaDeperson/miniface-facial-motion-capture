@@ -550,9 +550,9 @@ const HANDEDNESS_MIN_CONFIDENCE = 0.75;
 const HANDEDNESS_VOTE_WINDOW = 5;  // frames kept per hand slot
 const HANDEDNESS_VOTE_REQUIRED = 3; // minimum agreement to commit a label
 
-// Per-slot ring buffers — reset automatically whenever the hand count changes.
+// Per-slot ring buffers — reset only when hands go from visible to none.
 const _handednessHistory = [[], []]; // index 0 and 1 → slot for up to 2 hands
-let _prevHandCount = 0;              // lets us detect when MediaPipe drops/adds hands
+let _prevHandCount = 0;              // tracks last hand count; used only for zero-reset
 
 /**
  * Apply the majority-vote latch to a raw label string.
@@ -676,14 +676,7 @@ self.onmessage = async function (e) {
       let rightWristPos = null; // [x,y,z] normalized, avatar's Right hand
 
       if (handResult?.landmarks?.length) {
-        // Reset ring buffers when the number of detected hands changes so stale
-        // history from a previous single-hand session doesn't corrupt a new one.
-        const currentHandCount = handResult.landmarks.length;
-        if (currentHandCount !== _prevHandCount) {
-          _handednessHistory[0] = [];
-          _handednessHistory[1] = [];
-          _prevHandCount = currentHandCount;
-        }
+        _prevHandCount = handResult.landmarks.length;
 
         // Collect candidate assignments (may include nulls from failed vote)
         const candidates = []; // { label, landmarks, wristPos }
