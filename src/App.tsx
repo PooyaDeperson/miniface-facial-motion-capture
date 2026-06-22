@@ -19,6 +19,7 @@ import PlaybackControls from "./components/PlaybackControls";
 import MotionLibrary from "./components/MotionLibrary";
 import MotionLibraryButton from "./components/MotionLibraryButton";
 import FaceTracking from "./FaceTracking";
+import TrackingLoader from "./components/TrackingLoader";
 import AvatarCanvas from "./AvatarCanvas";
 import { discardRecording, subscribePlaybackReady } from "./useMotionRecorder";
 import AuthButton from "./components/AuthButton";
@@ -48,6 +49,8 @@ function App() {
 
   // ── Motion Library state ──────────────────────────────────────────────────
   const [libraryOpen, setLibraryOpen] = useState(false);
+  /** True during the 220ms slide-out so the panel can animate before unmounting */
+  const [libraryClosing, setLibraryClosing] = useState(false);
   /** True while the motion library button has been clicked — replaces it with the live button */
   const [libraryButtonActive, setLibraryButtonActive] = useState(false);
   const [libraryMotionCount, setLibraryMotionCount] = useState(0);
@@ -398,6 +401,15 @@ function App() {
     // Library stays open so logged-in users can browse their history
   }, [handlePhaseChange]);
 
+  // ── Close library with slide-out animation ───────────────────────────────
+  const closeLibrary = useCallback(() => {
+    setLibraryClosing(true);
+    setTimeout(() => {
+      setLibraryOpen(false);
+      setLibraryClosing(false);
+    }, 230); // matches slide-out-right duration (220ms) + tiny buffer
+  }, []);
+
   // ── Start live capture from inside library panel or player ───────────────
   const handleStartLive = useCallback(() => {
     const wasInPlayback = !!playbackBlob;
@@ -411,14 +423,14 @@ function App() {
     setActiveMotionName(undefined);
     pendingPlaybackRef.current = null;
     handlePhaseChange("idle");
-    setLibraryOpen(false);
+    closeLibrary();
     setLibraryButtonActive(false);
     // Only reinitiate mediapipe when coming out of playback — if we were
     // already in live mode, there is no need to reset it
     if (wasInPlayback) {
       setMediapipeReady(false);
     }
-  }, [recordingPhase, handlePhaseChange, playbackBlob]);
+  }, [recordingPhase, handlePhaseChange, playbackBlob, closeLibrary]);
 
   // ── When library opens, stop recording gracefully and re-check auth ─────────
   const handleOpenLibrary = useCallback(() => {
@@ -516,11 +528,7 @@ function App() {
         setIsFlipped={setIsFlipped}
       />
 
-      {avatarReady && videoStream && !mediapipeReady && !isInPlayback && (
-        <div className="reveal fade mediapipe-loader pos-fixed top-0 left-0 w-full h-full flex items-center justify-center bg-black bg-opacity-70 z-999">
-          <p className="text-white text-2xl animate-pulse">Keep smiling...</p>
-        </div>
-      )}
+      <TrackingLoader visible={avatarReady && videoStream != null && !mediapipeReady && !isInPlayback} />
 
       {avatarReady && videoStream && !isInPlayback && (
         <FaceTracking
@@ -537,6 +545,7 @@ function App() {
         avatarKey={avatarKey}
         setAvatarReady={setAvatarReady}
         isFlipped={isFlipped}
+        setIsFlipped={setIsFlipped}
         playbackBlob={playbackBlob}
         motionLoading={motionLoading}
       />
@@ -560,20 +569,23 @@ function App() {
             motionCount={hasDrive ? libraryMotionCount : 0}
           />
         )}
-        <AuthButton onDriveConnected={() => setHasDrive(hasDriveAccess())} />
-        {/* Library auth popup — shown to guests when they click the library button */}
-        {showLibraryAuthPopup && !hasDrive && (
-          <LibraryAuthPopup
-            onClose={() => setShowLibraryAuthPopup(false)}
-            onDriveConnected={() => {
-              setShowLibraryAuthPopup(false);
-              setHasDrive(hasDriveAccess());
-            }}
-            /* Replace with your image URL when ready — e.g. imgSrc="/images/library-preview.png" */
-            imgSrc={undefined}
-          />
-        )}
+        <AuthButton
+          onDriveConnected={() => setHasDrive(hasDriveAccess())}
+          onLoginRequest={() => setShowAuthModal(true)}
+        />
       </div>
+
+      {/* Library auth popup — rendered at App root so it escapes all nested stacking contexts */}
+      {showLibraryAuthPopup && !hasDrive && (
+        <LibraryAuthPopup
+          onClose={() => setShowLibraryAuthPopup(false)}
+          onDriveConnected={() => {
+            setShowLibraryAuthPopup(false);
+            setHasDrive(hasDriveAccess());
+          }}
+          imgSrc={undefined}
+        />
+      )}
 
       <ColorSwitcher disabled={isSwitcherDisabled || isInPlayback} />
       <AvatarSwitcher activeUrl={url} onAvatarChange={handleAvatarChange} disabled={isSwitcherDisabled || isInPlayback || libraryOpen} />
@@ -610,10 +622,11 @@ function App() {
         />
       )}
 
-      {/* Motion Library panel — always rendered when open, works for both logged-in and guest */}
-      {libraryOpen && (
+      {/* Motion Library panel — kept mounted during closing animation, then unmounted */}
+      {(libraryOpen || libraryClosing) && (
         <MotionLibrary
-          onClose={() => setLibraryOpen(false)}
+          onClose={closeLibrary}
+          isClosing={libraryClosing}
           activeMotionId={activeMotionId}
           onSelectMotion={handleSelectMotion}
           onStartLive={handleStartLive}

@@ -25,6 +25,9 @@ export default function AuthModal({ onClose, onDriveConnected, hasPendingMotion 
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [driveConnected, setDriveConnected] = useState(() => hasDriveAccess());
+  // Tracks that sign-out was explicitly requested so the auth state listener
+  // does not flip the modal back to the signed-out view before reload fires.
+  const signingOutRef = { current: false };
 
   useEffect(() => {
     if (!supabase) return;
@@ -35,6 +38,10 @@ export default function AuthModal({ onClose, onDriveConnected, hasPendingMotion 
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Ignore auth state changes that happen as a result of our own sign-out.
+      // Without this guard, Supabase fires SIGNED_OUT which would immediately
+      // switch the popup to the "sign in" view before window.location.reload().
+      if (signingOutRef.current) return;
       setUser(session?.user ?? null);
       // Small delay to allow supabaseClient.ts to store tokens first
       setTimeout(() => {
@@ -74,7 +81,13 @@ export default function AuthModal({ onClose, onDriveConnected, hasPendingMotion 
 
   const handleSignOut = async () => {
     if (!supabase) return;
+    // Mark sign-out in progress so the onAuthStateChange listener does not
+    // flip the modal to the signed-out view before the page reloads.
+    signingOutRef.current = true;
     setLoading(true);
+    // Close the modal immediately so the user never sees the sign-in popup
+    // flash up while Supabase processes the sign-out in the background.
+    onClose();
     await supabase.auth.signOut();
     window.location.reload();
   };
