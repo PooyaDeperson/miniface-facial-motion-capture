@@ -561,7 +561,10 @@ function App() {
             motionCount={hasDrive ? libraryMotionCount : 0}
           />
         )}
-        <AuthButton onDriveConnected={() => setHasDrive(hasDriveAccess())} />
+        <AuthButton
+          onDriveConnected={() => setHasDrive(hasDriveAccess())}
+          onLoginRequest={() => setShowAuthModal(true)}
+        />
       </div>
 
       {/* Library auth popup — rendered at App root so it escapes all nested stacking contexts */}
