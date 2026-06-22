@@ -307,7 +307,7 @@ function applyFingerBones(
   }
 }
 
-// ─── Arm IK ─────────────────────���─────────────────────────────────────────────
+// ─── Arm IK ─────────────────────����─────────────────────────────────────────────
 // We map the MediaPipe wrist landmark (normalized image coords) to a 3-D world
 // target, then solve a standard 2-bone IK chain:
 //   Shoulder (LeftArm / RightArm)  →  Elbow (LeftForeArm / RightForeArm)  →  Wrist (LeftHand / RightHand)
@@ -785,11 +785,23 @@ function Avatar({ url, onLoaded }: AvatarProps) {
     const boneSnapshot: Record<string, [number, number, number, number]> = {};
 
     const BONES_TO_SNAPSHOT = [
-      // Arm IK chain
+      // Arm IK chain (LeftArm/RightArm: pure IK output; LeftForeArm/RightForeArm:
+      // IK output PLUS 50% forearm twist from applyFingerBones — the twist is
+      // postmultiplied onto foreArm.quaternion AFTER solveArmIK runs, so the only
+      // way to get the correct final value is to read bone.quaternion after both
+      // passes finish).
       { name: "LeftArm",          active: !!leftWristPos  },
       { name: "LeftForeArm",      active: !!leftWristPos  },
       { name: "RightArm",         active: !!rightWristPos },
       { name: "RightForeArm",     active: !!rightWristPos },
+      // Wrist (LeftHand / RightHand): final value is
+      //   conjug(halfTwist) × (parentInv × wristWorldQuat)
+      // i.e. the world→local conversion PLUS the counter-twist that undoes the
+      // 50% twist applied to the forearm. The raw "Wrist" entry in FingerQuats
+      // is the unprocessed world-space quaternion from the worker — writing that
+      // straight to the bone skips both steps and causes over-twist in the GLB.
+      { name: "LeftHand",         active: !!leftWristPos  },
+      { name: "RightHand",        active: !!rightWristPos },
       // Thumb bones (rest * splay * bend — cannot be reconstructed from raw data)
       { name: "LeftHandThumb1",   active: !!leftWristPos  },
       { name: "LeftHandThumb2",   active: !!leftWristPos  },

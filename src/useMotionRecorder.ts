@@ -67,6 +67,7 @@ export interface MotionFrame {
    *
    * Currently includes:
    *   • LeftArm, LeftForeArm, RightArm, RightForeArm  — arm IK chain
+   *   • LeftHand, RightHand                            — world→local + counter-twist
    *   • LeftHandThumb1-3, RightHandThumb1-3            — restLocal × splay × bend
    *
    * Absent on frames where the corresponding hand was not detected.
@@ -454,14 +455,22 @@ export async function buildAndExportGLB(): Promise<void> {
     const frameKey = side === "Left" ? "leftFingers" : "rightFingers";
 
     // ── wrist / Hand bone ──────────────────────────────────────────────────
+    // The wrist bone's final local quaternion is:
+    //   conjug(halfTwist) × (parentInv × wristWorldQuat)
+    // i.e. the raw world-space "Wrist" entry from FingerQuats converted to
+    // forearm-local space AND counter-twisted by the 50% forearm twist.
+    // Reading fingerData["Wrist"] would give only the unprocessed world-space
+    // value — skipping both steps and causing over-twist in the exported GLB.
+    // Avatar.tsx snapshots bone.quaternion after all passes into armBones, so
+    // we read from there instead.
     const wristBoneName = `${side}Hand`;
     const wristBone = nodes[wristBoneName];
     if (wristBone) {
       const quatValues = new Float32Array(frames.length * 4);
+      const fallback = wristBone.quaternion;
       let hasMotion = false;
       for (let i = 0; i < frames.length; i++) {
-        const fingerData = frames[i][frameKey];
-        const q = fingerData ? (fingerData as any)["Wrist"] : null;
+        const q = frames[i].armBones?.[wristBoneName];
         if (q) {
           quatValues[i * 4 + 0] = q[0];
           quatValues[i * 4 + 1] = q[1];
@@ -469,7 +478,11 @@ export async function buildAndExportGLB(): Promise<void> {
           quatValues[i * 4 + 3] = q[3];
           if (Math.abs(q[3]) < 0.9999) hasMotion = true;
         } else {
-          quatValues[i * 4 + 3] = 1;
+          // Hand not visible this frame — hold rest pose.
+          quatValues[i * 4 + 0] = fallback.x;
+          quatValues[i * 4 + 1] = fallback.y;
+          quatValues[i * 4 + 2] = fallback.z;
+          quatValues[i * 4 + 3] = fallback.w;
         }
       }
       if (hasMotion) {
