@@ -3,7 +3,7 @@
  * Licensed under the MIT License with Attribution.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase, isSupabaseAvailable } from "../supabaseClient";
 import { hasDriveAccess, DRIVE_SCOPE } from "../useDriveSync";
 import type { User } from "@supabase/supabase-js";
@@ -18,29 +18,45 @@ interface AuthModalProps {
    * message to encourage the user to grant Drive access.
    */
   hasPendingMotion?: boolean;
+  /**
+   * The already-resolved user from the parent. Passing this avoids the
+   * async-flash where the modal briefly shows the signed-out view while
+   * waiting for getSession() to resolve.
+   */
+  initialUser?: User | null;
 }
 
-export default function AuthModal({ onClose, onDriveConnected, hasPendingMotion = false }: AuthModalProps) {
+export default function AuthModal({ onClose, onDriveConnected, hasPendingMotion = false, initialUser = null }: AuthModalProps) {
   const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [driveConnected, setDriveConnected] = useState(() => hasDriveAccess());
+  // Tracks that sign-out was explicitly requested so the auth state listener
+  // does not flip the modal back to the signed-out view before reload fires.
+  const signingOutRef = useRef(false);
+
+  // Use the prop directly — no local user state at all. This prevents the
+  // classic useState(prop) trap where the state is seeded once at mount and
+  // ignores later prop updates.
+  const user = initialUser;
 
   useEffect(() => {
     if (!supabase) return;
 
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
-      setDriveConnected(hasDriveAccess());
-    });
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (signingOutRef.current) return;
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      // Only react to a real new sign-in, not the INITIAL_SESSION replay that
+      // Supabase fires immediately when the listener is registered. Treating
+      // INITIAL_SESSION as a sign-in was the cause of the modal auto-closing:
+      // it would detect Drive access and call onDriveConnected(), dismissing
+      // the popup before the user even saw it.
+      if (event !== "SIGNED_IN") return;
+
       // Small delay to allow supabaseClient.ts to store tokens first
       setTimeout(() => {
         const connected = hasDriveAccess();
         setDriveConnected(connected);
-        if (connected) onDriveConnected?.();
+        if (session?.user && connected) onDriveConnected?.();
       }, 100);
     });
 
@@ -74,7 +90,13 @@ export default function AuthModal({ onClose, onDriveConnected, hasPendingMotion 
 
   const handleSignOut = async () => {
     if (!supabase) return;
+    // Mark sign-out in progress so the onAuthStateChange listener does not
+    // flip the modal to the signed-out view before the page reloads.
+    signingOutRef.current = true;
     setLoading(true);
+    // Close the modal immediately so the user never sees the sign-in popup
+    // flash up while Supabase processes the sign-out in the background.
+    onClose();
     await supabase.auth.signOut();
     window.location.reload();
   };

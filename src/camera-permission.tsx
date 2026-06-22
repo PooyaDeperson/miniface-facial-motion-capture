@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2025 Pooya Moradi M. poamrd@gmail.com https://github.com/PooyaDeperson
  * Licensed under the MIT License with Attribution.
@@ -29,8 +30,8 @@ const VideoIcon = (
 interface CameraPermissionsProps {
   onStreamReady: (stream: MediaStream) => void;
   disabled?: boolean;
-  isFlipped: boolean;
-  setIsFlipped: (value: boolean) => void;
+  isFlipped?: boolean;
+  setIsFlipped?: (v: boolean) => void;
 }
 
 export default function CameraPermissions({ onStreamReady, disabled, isFlipped, setIsFlipped }: CameraPermissionsProps) {
@@ -132,18 +133,17 @@ export default function CameraPermissions({ onStreamReady, disabled, isFlipped, 
 
   return (
     <>
-      {/* Permission popup at root level - above the control div */}
       {permissionState === "prompt" && (
         <PermissionPopup
           variant="prompt"
           title="pssst… give camera access to animate!"
-          subtitle="use your camera for fun face animation! by tapping 'let's go & allow,' you agree to camera and cookie use."
-          buttonText="let's go & allow"
+          subtitle="use your camera for fun face animation! by tapping 'let’s go & allow,' you agree to camera and cookie use."
+          buttonText="let’s go & allow"
           onClick={() => requestCamera(selectedCamera || undefined)}
           showButton
         />
       )}
-      
+
       {permissionState === "denied" && (() => {
         const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
         return (
@@ -189,7 +189,7 @@ export default function CameraPermissions({ onStreamReady, disabled, isFlipped, 
         )}
         <button
           className="flex video-flip-switcher icon-holder br-12 tab-button size-30 mb:size-48"
-          onClick={() => setIsFlipped(!isFlipped)}
+          onClick={() => setIsFlipped && setIsFlipped(!isFlipped)}
         >
           <span className={`has-icon icon-size-18 flip-icon ${isFlipped ? "flipped" : ""}`}></span>
         </button>

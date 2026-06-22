@@ -19,6 +19,7 @@ import PlaybackControls from "./components/PlaybackControls";
 import MotionLibrary from "./components/MotionLibrary";
 import MotionLibraryButton from "./components/MotionLibraryButton";
 import FaceTracking from "./FaceTracking";
+import TrackingLoader from "./components/TrackingLoader";
 import AvatarCanvas from "./AvatarCanvas";
 import { discardRecording, subscribePlaybackReady } from "./useMotionRecorder";
 import AuthButton from "./components/AuthButton";
@@ -28,8 +29,10 @@ import LibraryAuthPopup from "./components/LibraryAuthPopup";
 import PermissionPopup from "./components/PermissionPopup";
 import IconButton from "./components/IconButton";
 import { supabase } from "./supabaseClient";
-import { hasDriveAccess, clearDriveTokens, listDriveMotions, uploadToDrive, subscribeMotionUploaded, subscribeQuotaExceeded, subscribeNoDriveScope, DriveQuotaError, BulkSyncProgress, DRIVE_SCOPE } from "./useDriveSync";
+import { hasDriveAccess, clearDriveTokens, listDriveMotions, uploadToDrive, subscribeMotionUploaded, subscribeQuotaExceeded, subscribeNoDriveScope, subscribeUploadFailed, DriveQuotaError, BulkSyncProgress, DRIVE_SCOPE } from "./useDriveSync";
 import type { DriveMotionFile } from "./useDriveSync";
+import { getAllAvatars } from "./avatarMetadata";
+import type { User } from "@supabase/supabase-js";
 
 function App() {
   const [url, setUrl] = useState<string | null>(null);
@@ -48,6 +51,8 @@ function App() {
 
   // ── Motion Library state ──────────────────────────────────────────────────
   const [libraryOpen, setLibraryOpen] = useState(false);
+  /** True during the 220ms slide-out so the panel can animate before unmounting */
+  const [libraryClosing, setLibraryClosing] = useState(false);
   /** True while the motion library button has been clicked — replaces it with the live button */
   const [libraryButtonActive, setLibraryButtonActive] = useState(false);
   const [libraryMotionCount, setLibraryMotionCount] = useState(0);
@@ -95,6 +100,26 @@ function App() {
 
   // ── Drive scope state (drive token can appear after sign-in redirect) ─────
   const [hasDrive, setHasDrive] = useState(() => hasDriveAccess());
+
+  // ── Single authoritative user state ──────────────────────────────────────
+  // Tracked here at the App level so AuthButton and AuthModal both receive the
+  // same already-resolved user — eliminating the async flash in AuthModal where
+  // it would render the signed-out view for a frame before getSession resolved.
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    if (!supabase) return;
+    // Seed immediately from the existing session (sync in Supabase JS v2).
+    supabase.auth.getSession().then(({ data }) => {
+      setCurrentUser(data.session?.user ?? null);
+    });
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUser(session?.user ?? null);
+    });
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   // Poll for Drive access after component mounts (handles OAuth redirect case)
   useEffect(() => {
@@ -353,6 +378,27 @@ function App() {
     return () => clearTimeout(t);
   }, [libraryRefreshKey]);
 
+  // ── Subscribe to Drive upload failures ───────────────────────────────────
+  // uploadToDrive() can be called from useMotionRecorder (where App.tsx has
+  // no direct .catch() handle). Without this, a failed upload leaves
+  // driveUploadStatus stuck at "uploading" and the pending card stuck in the
+  // "saving…" spinner forever. On reload the card is gone and nothing is in
+  // Drive — the motion is lost silently.
+  useEffect(() => {
+    return subscribeUploadFailed((err) => {
+      const isAuth = err.name === "DriveAuthError";
+      setDriveUploadStatus(isAuth ? "idle" : "error");
+      // Clear the stuck optimistic card so the library doesn't show a phantom
+      // "saving…" entry that can never resolve.
+      setPendingMotion(null);
+      if (isAuth) {
+        // Token expired mid-upload — clear stale Drive state so the user is
+        // prompted to reconnect on their next action.
+        setHasDrive(false);
+      }
+    });
+  }, []);
+
   // ── Playback controls (bridging out of R3F canvas) ──���─────────────────────
   const getPlaybackControls = useCallback(() =>
     (window as any).__playbackControls ?? null,
@@ -398,6 +444,15 @@ function App() {
     // Library stays open so logged-in users can browse their history
   }, [handlePhaseChange]);
 
+  // ── Close library with slide-out animation ───────────────────────────────
+  const closeLibrary = useCallback(() => {
+    setLibraryClosing(true);
+    setTimeout(() => {
+      setLibraryOpen(false);
+      setLibraryClosing(false);
+    }, 230); // matches slide-out-right duration (220ms) + tiny buffer
+  }, []);
+
   // ── Start live capture from inside library panel or player ───────────────
   const handleStartLive = useCallback(() => {
     const wasInPlayback = !!playbackBlob;
@@ -411,14 +466,14 @@ function App() {
     setActiveMotionName(undefined);
     pendingPlaybackRef.current = null;
     handlePhaseChange("idle");
-    setLibraryOpen(false);
+    closeLibrary();
     setLibraryButtonActive(false);
     // Only reinitiate mediapipe when coming out of playback — if we were
     // already in live mode, there is no need to reset it
     if (wasInPlayback) {
       setMediapipeReady(false);
     }
-  }, [recordingPhase, handlePhaseChange, playbackBlob]);
+  }, [recordingPhase, handlePhaseChange, playbackBlob, closeLibrary]);
 
   // ── When library opens, stop recording gracefully and re-check auth ─────────
   const handleOpenLibrary = useCallback(() => {
@@ -444,7 +499,30 @@ function App() {
 
   // ── Select motion from library ────────────────────────────────────────────
   const handleSelectMotion = useCallback((blob: Blob, file: DriveMotionFile) => {
-    const targetAvatarUrl = file.avatarUrl ?? null;
+    // Resolve the stored avatarUrl to a canonical current URL.
+    //
+    // Recordings may have been made with:
+    //   (a) old local paths    – "/avatar/avatar3.glb"
+    //   (b) Cloudinary URLs    – "https://res.cloudinary.com/da1zca4wj/.../avatar-braids.glb"
+    //   (c) preview-domain URLs – "https://preview.miniface.org/avatar/avatar3.glb"  (401s)
+    //
+    // Strategy: extract the filename from whatever was stored and look it up in
+    // the current AVATAR_METADATA registry. If a match is found, use that
+    // canonical URL (always up-to-date Cloudinary). If not found, fall back to
+    // the stored value so unknown avatars still attempt to load.
+    const rawAvatarUrl = file.avatarUrl ?? null;
+    let targetAvatarUrl: string | null = null;
+    if (rawAvatarUrl) {
+      const storedFilename = rawAvatarUrl.split("/").pop()?.split("?")[0] ?? "";
+      const allAvatars = getAllAvatars();
+      const matched = allAvatars.find((a) => {
+        const registryFilename = a.avatarPath.split("/").pop()?.split("?")[0] ?? "";
+        // Match on the bare GLB filename (e.g. "avatar-braids.glb" or "avatar3.glb").
+        // Also handle old naming like "avatar3.glb" → not in new registry, fall through.
+        return registryFilename === storedFilename;
+      });
+      targetAvatarUrl = matched ? matched.avatarPath : rawAvatarUrl;
+    }
 
     // If the motion was recorded on a different avatar (or we know its avatar
     // URL and it differs from current), swap the avatar first. The skeleton
@@ -516,11 +594,7 @@ function App() {
         setIsFlipped={setIsFlipped}
       />
 
-      {avatarReady && videoStream && !mediapipeReady && !isInPlayback && (
-        <div className="reveal fade mediapipe-loader pos-fixed top-0 left-0 w-full h-full flex items-center justify-center bg-black bg-opacity-70 z-999">
-          <p className="text-white text-2xl animate-pulse">Keep smiling...</p>
-        </div>
-      )}
+      <TrackingLoader visible={avatarReady && videoStream != null && !mediapipeReady && !isInPlayback} />
 
       {avatarReady && videoStream && !isInPlayback && (
         <FaceTracking
@@ -537,6 +611,7 @@ function App() {
         avatarKey={avatarKey}
         setAvatarReady={setAvatarReady}
         isFlipped={isFlipped}
+        setIsFlipped={setIsFlipped}
         playbackBlob={playbackBlob}
         motionLoading={motionLoading}
       />
@@ -560,20 +635,24 @@ function App() {
             motionCount={hasDrive ? libraryMotionCount : 0}
           />
         )}
-        <AuthButton onDriveConnected={() => setHasDrive(hasDriveAccess())} />
-        {/* Library auth popup — shown to guests when they click the library button */}
-        {showLibraryAuthPopup && !hasDrive && (
-          <LibraryAuthPopup
-            onClose={() => setShowLibraryAuthPopup(false)}
-            onDriveConnected={() => {
-              setShowLibraryAuthPopup(false);
-              setHasDrive(hasDriveAccess());
-            }}
-            /* Replace with your image URL when ready — e.g. imgSrc="/images/library-preview.png" */
-            imgSrc={undefined}
-          />
-        )}
+        <AuthButton
+          user={currentUser}
+          onDriveConnected={() => setHasDrive(hasDriveAccess())}
+          onLoginRequest={() => setShowAuthModal(true)}
+        />
       </div>
+
+      {/* Library auth popup — rendered at App root so it escapes all nested stacking contexts */}
+      {showLibraryAuthPopup && !hasDrive && (
+        <LibraryAuthPopup
+          onClose={() => setShowLibraryAuthPopup(false)}
+          onDriveConnected={() => {
+            setShowLibraryAuthPopup(false);
+            setHasDrive(hasDriveAccess());
+          }}
+          imgSrc={undefined}
+        />
+      )}
 
       <ColorSwitcher disabled={isSwitcherDisabled || isInPlayback} />
       <AvatarSwitcher activeUrl={url} onAvatarChange={handleAvatarChange} disabled={isSwitcherDisabled || isInPlayback || libraryOpen} />
@@ -610,10 +689,11 @@ function App() {
         />
       )}
 
-      {/* Motion Library panel — always rendered when open, works for both logged-in and guest */}
-      {libraryOpen && (
+      {/* Motion Library panel — kept mounted during closing animation, then unmounted */}
+      {(libraryOpen || libraryClosing) && (
         <MotionLibrary
-          onClose={() => setLibraryOpen(false)}
+          onClose={closeLibrary}
+          isClosing={libraryClosing}
           activeMotionId={activeMotionId}
           onSelectMotion={handleSelectMotion}
           onStartLive={handleStartLive}
@@ -681,6 +761,7 @@ function App() {
       {/* Auth modal — triggered from library empty state or other call sites */}
       {showAuthModal && (
         <AuthModal
+          initialUser={currentUser}
           onClose={() => setShowAuthModal(false)}
           onDriveConnected={() => {
             setShowAuthModal(false);

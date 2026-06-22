@@ -39,6 +39,7 @@ import {
 } from "three";
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter";
 import type { SecondaryMotionSystem } from "./SecondaryMotionSystem";
+import type { FingerQuats } from "./FaceTracking";
 
 // ─── playback notification (module-level) ─────────────────────────────────────
 // After a successful export App.tsx needs the GLB blob + a generated ID so it
@@ -86,6 +87,23 @@ export interface MotionFrame {
    * registered; omitted entirely when no secondary chains are active.
    */
   secondaryBones?: Record<string, [number, number, number, number]>;
+  /** Finger bone quaternions for left/right hand. Null when hand not visible. */
+  leftFingers?:  FingerQuats;
+  rightFingers?: FingerQuats;
+  /**
+   * Direct bone.quaternion snapshots for bones whose final animated value
+   * CANNOT be reconstructed by the exporter from the other MotionFrame fields.
+   * Snapshotted in Avatar.tsx AFTER all animation is applied (IK, twist,
+   * finger composition, RestPoseSmoother). Keyed by exact bone name.
+   *
+   * Currently includes:
+   *   • LeftArm, LeftForeArm, RightArm, RightForeArm  — arm IK chain
+   *   • LeftHand, RightHand                            — world→local + counter-twist
+   *   • LeftHandThumb1-3, RightHandThumb1-3            — restLocal × splay × bend
+   *
+   * Absent on frames where the corresponding hand was not detected.
+   */
+  armBones?: Record<string, [number, number, number, number]>;
 }
 
 export interface RecorderState {
@@ -238,7 +256,7 @@ export function stopRecording(): void {
       .slice(0, 19)
       .replace("T", "_")
       .replace(/:/g, "-");
-    const fileName = `facial_capture_${timestamp}.glb`;
+    const fileName = `miniface.org_${timestamp}.glb`;
     const snapshotAvatarUrl = _avatarUrl ?? undefined;
     buildGLBBlob()
       .then(({ blob, durationSeconds }) => {
@@ -280,7 +298,10 @@ export function discardRecording(): void {
  */
 export function captureFrame(
   currentBlendshapes: Array<{ categoryName: string; score: number }>,
-  headEuler: [number, number, number]
+  headEuler: [number, number, number],
+  leftFingers?: FingerQuats,
+  rightFingers?: FingerQuats,
+  armBones?: Record<string, [number, number, number, number]>
 ): void {
   if (!_isRecording) return;
 
@@ -298,7 +319,15 @@ export function captureFrame(
     ? _secondarySystem.snapshotBoneQuaternions()
     : undefined;
 
-  _frames.push({ t, blendshapes: bsMap, headEuler, secondaryBones });
+  _frames.push({
+    t,
+    blendshapes: bsMap,
+    headEuler,
+    secondaryBones,
+    leftFingers:  leftFingers  ?? undefined,
+    rightFingers: rightFingers ?? undefined,
+    armBones,
+  });
 
   // Notify UI listeners at ~1 Hz (assuming ~30 fps)
   if (_frames.length % 30 === 0) _notify();
@@ -452,6 +481,150 @@ export async function buildGLBBlob(): Promise<{ blob: Blob; durationSeconds: num
         quatValues[i * 4 + 2] = q ? q[2] : 0;
         quatValues[i * 4 + 3] = q ? q[3] : 1;
       }
+      tracks.push(
+        new QuaternionKeyframeTrack(
+          `${boneName}.quaternion`,
+          times,
+          quatValues
+        )
+      );
+    }
+  }
+
+  // ── direct bone snapshot tracks (arm IK chain) ────────────────────────────
+  // LeftArm / LeftForeArm / RightArm / RightForeArm are driven by the IK solver
+  // and forearm twist distribution and cannot be reconstructed from any other
+  // MotionFrame field. Avatar.tsx snapshots them from bone.quaternion after all
+  // animation is applied. Thumb bones are handled in the finger section below.
+  const ARM_BONE_NAMES = ["LeftArm", "LeftForeArm", "RightArm", "RightForeArm"] as const;
+
+  for (const boneName of ARM_BONE_NAMES) {
+    const bone = nodes[boneName];
+    if (!bone) continue; // non-RPM rig — skip
+
+    const quatValues = new Float32Array(frames.length * 4);
+    // Read the bone's current local quaternion as a fallback (rest pose).
+    const fallback = bone.quaternion;
+
+    for (let i = 0; i < frames.length; i++) {
+      const q = frames[i].armBones?.[boneName];
+      if (q) {
+        quatValues[i * 4 + 0] = q[0];
+        quatValues[i * 4 + 1] = q[1];
+        quatValues[i * 4 + 2] = q[2];
+        quatValues[i * 4 + 3] = q[3];
+      } else {
+        // Hand not visible this frame — hold rest pose.
+        quatValues[i * 4 + 0] = fallback.x;
+        quatValues[i * 4 + 1] = fallback.y;
+        quatValues[i * 4 + 2] = fallback.z;
+        quatValues[i * 4 + 3] = fallback.w;
+      }
+    }
+
+    tracks.push(
+      new QuaternionKeyframeTrack(`${boneName}.quaternion`, times, quatValues)
+    );
+  }
+
+  // ── finger bone tracks ─────────────────────────────────────────────────────
+  // Build QuaternionKeyframeTrack for every finger + wrist bone that had at
+  // least one non-identity frame.  We only emit tracks when a hand was seen,
+  // so files stay lean for face-only recordings.
+  //
+  // "Wrist" maps to the Hand bone (LeftHand / RightHand) — no "Hand" suffix.
+  const FINGER_KEYS = [
+    "Thumb1","Thumb2","Thumb3","Thumb4",
+    "Index1","Index2","Index3","Index4",
+    "Middle1","Middle2","Middle3","Middle4",
+    "Ring1","Ring2","Ring3","Ring4",
+    "Pinky1","Pinky2","Pinky3","Pinky4",
+  ] as const;
+
+  for (const side of ["Left", "Right"] as const) {
+    const frameKey = side === "Left" ? "leftFingers" : "rightFingers";
+
+    // ── wrist / Hand bone ──────────────────────────────────────────────────
+    // The wrist bone's final local quaternion is:
+    //   conjug(halfTwist) × (parentInv × wristWorldQuat)
+    // i.e. the raw world-space "Wrist" entry from FingerQuats converted to
+    // forearm-local space AND counter-twisted by the 50% forearm twist.
+    // Reading fingerData["Wrist"] would give only the unprocessed world-space
+    // value — skipping both steps and causing over-twist in the exported GLB.
+    // Avatar.tsx snapshots bone.quaternion after all passes into armBones, so
+    // we read from there instead.
+    const wristBoneName = `${side}Hand`;
+    const wristBone = nodes[wristBoneName];
+    if (wristBone) {
+      const quatValues = new Float32Array(frames.length * 4);
+      const fallback = wristBone.quaternion;
+      let hasMotion = false;
+      for (let i = 0; i < frames.length; i++) {
+        const q = frames[i].armBones?.[wristBoneName];
+        if (q) {
+          quatValues[i * 4 + 0] = q[0];
+          quatValues[i * 4 + 1] = q[1];
+          quatValues[i * 4 + 2] = q[2];
+          quatValues[i * 4 + 3] = q[3];
+          if (Math.abs(q[3]) < 0.9999) hasMotion = true;
+        } else {
+          // Hand not visible this frame — hold rest pose.
+          quatValues[i * 4 + 0] = fallback.x;
+          quatValues[i * 4 + 1] = fallback.y;
+          quatValues[i * 4 + 2] = fallback.z;
+          quatValues[i * 4 + 3] = fallback.w;
+        }
+      }
+      if (hasMotion) {
+        tracks.push(new QuaternionKeyframeTrack(`${wristBoneName}.quaternion`, times, quatValues));
+      }
+    }
+
+    // ── finger joints ──────────────────────────────────────────────────────
+    for (const key of FINGER_KEYS) {
+      const boneName = `${side}Hand${key}`;
+      const bone = nodes[boneName];
+      if (!bone) continue; // non-RPM rig — skip
+
+      // Thumb bones are stored in armBones (boneSnapshot) rather than in the
+      // raw FingerQuats, because their final skeleton value is a composed
+      // product of restLocal × abduction × bend — not just the raw bend
+      // quaternion from the worker. Reading the raw FingerQuats entry for a
+      // thumb would replay only the bend component and produce the wrong pose.
+      // Avatar.tsx snapshots the post-composition bone.quaternion directly into
+      // armBones for all three thumb bones on both hands.
+      const isThumb = key.startsWith("Thumb");
+
+      const quatValues = new Float32Array(frames.length * 4);
+      let hasMotion = false;
+
+      for (let i = 0; i < frames.length; i++) {
+        let q: number[] | null = null;
+
+        if (isThumb) {
+          // Prefer the direct bone snapshot (includes rest + splay + bend).
+          const snap = frames[i].armBones?.[boneName];
+          q = snap ? Array.from(snap) : null;
+        } else {
+          // Non-thumb: raw FingerQuats entry is correct (identity rest pose).
+          const fingerData = frames[i][frameKey];
+          q = fingerData ? (fingerData as any)[key] : null;
+        }
+
+        if (q) {
+          quatValues[i * 4 + 0] = q[0];
+          quatValues[i * 4 + 1] = q[1];
+          quatValues[i * 4 + 2] = q[2];
+          quatValues[i * 4 + 3] = q[3];
+          if (Math.abs(q[3]) < 0.9999) hasMotion = true;
+        } else {
+          // Hand not detected this frame — use identity quaternion.
+          quatValues[i * 4 + 3] = 1;
+        }
+      }
+
+      if (!hasMotion) continue; // skip bones that never moved
+
       tracks.push(
         new QuaternionKeyframeTrack(
           `${boneName}.quaternion`,

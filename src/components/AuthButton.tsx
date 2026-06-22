@@ -3,42 +3,29 @@
  * Licensed under the MIT License with Attribution.
  */
 
-import { useState, useEffect } from "react";
-import { supabase } from "../supabaseClient";
 import type { User } from "@supabase/supabase-js";
-import AuthModal from "./AuthModal";
 import IconButton from "./IconButton";
 
 interface AuthButtonProps {
+  user: User | null;
   onDriveConnected?: () => void;
+  onLoginRequest?: () => void;
 }
 
-export default function AuthButton({ onDriveConnected }: AuthButtonProps) {
-  const [user, setUser] = useState<User | null>(null);
-  const [showModal, setShowModal] = useState(false);
+export default function AuthButton({ user, onDriveConnected: _onDriveConnected, onLoginRequest }: AuthButtonProps) {
 
-  useEffect(() => {
-    if (!supabase) return;
-
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => {
-      listener.subscription.unsubscribe();
-    };
-  }, []);
+  const handleLoginClick = () => {
+    if (onLoginRequest) {
+      onLoginRequest();
+    }
+  };
 
   return (
     <>
       {user?.user_metadata?.avatar_url ? (
         <button
           className="tab-button br-12 reveal fade anim-delay-1"
-          onClick={() => setShowModal(true)}
+          onClick={handleLoginClick}
           aria-label="Account"
         >
           <img
@@ -55,11 +42,9 @@ export default function AuthButton({ onDriveConnected }: AuthButtonProps) {
           tooltip={true}
           tooltipText="Connect"
           tooltipPosition="pos-bottom-right"
-          onClick={() => setShowModal(true)}
+          onClick={handleLoginClick}
         />
       )}
-
-      {showModal && <AuthModal onClose={() => setShowModal(false)} onDriveConnected={onDriveConnected} />}
     </>
   );
 }
