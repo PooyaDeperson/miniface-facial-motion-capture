@@ -454,45 +454,49 @@ function wristPosToWorld(pos: [number, number, number], out: Vector3): void {
 // increase above 1 to exaggerate the hint distance from the shoulder.
 const POSE_TO_AVATAR_SCALE = 1.0;
 
-// Additional downward bias applied to the elbow hint after converting from pose
-// space to Three.js world space. When the user holds their hands facing the
-// camera, MediaPipe reports the elbow as only slightly below the shoulder
-// (small positive dy in pose space), which after negating Y maps to a hint
-// nearly level with the shoulder. The IK solver then resolves the arm in a
-// near-T-pose (elbow out to the side at ~90°). Adding this bias pulls the hint
-// further below the shoulder, forcing the elbow to bend naturally downward.
-// Increase to push the elbow lower; decrease toward 0 for a more T-pose result.
-const ELBOW_HINT_DOWN_BIAS = 0.35; // world units (~metres)
+// Minimum distance the elbow hint must sit below the shoulder in world Y.
+// MediaPipe tends to report a near-zero elbow drop when the user holds their
+// hands facing the camera (pose +Y is down, so a small positive dy converts to
+// almost zero Three.js drop). This floor prevents the hint from drifting back
+// up to shoulder level (which would collapse the IK into a T-pose) while still
+// allowing the tracked Y to drive the elbow freely whenever the user actually
+// raises or lowers their arm past this threshold.
+const ELBOW_HINT_MIN_DROP = 0.2; // world units (~metres); increase to force elbow lower
 
-  /**
-  * Convert a PoseLandmarker shoulder→elbow offset vector (metres, hip-origin
-  * coordinate system) to a Three.js world-space elbow hint position.
-  *
-  * PoseLandmarker world landmark axes (confirmed by observation):
-  *   +X = user's right (mirrored webcam → same as avatar +X)
-  *   +Y = DOWN  (same convention as normalized image landmarks, NOT world-up)
-  *   +Z = toward camera
-  *
-  * Three.js world coordinate axes (avatar facing camera):
-  *   +X = avatar's left (= user's right in mirrored webcam feed)  → same, no flip
-  *   +Y = UP                                                        → negate Y
-  *   +Z = toward camera                                             → same
-  *
-  * @param shoulderWorldPos  Avatar's shoulder bone world position (from bone).
-  * @param offset            [dx,dy,dz] shoulder→elbow in pose world space.
-  * @param out               Output Vector3 (written in-place).
-  */
-  function poseElbowToHint(
+/**
+ * Convert a PoseLandmarker shoulder→elbow offset vector (metres, hip-origin
+ * coordinate system) to a Three.js world-space elbow hint position.
+ *
+ * PoseLandmarker world landmark axes (confirmed by observation):
+ *   +X = user's right (mirrored webcam → same as avatar +X)
+ *   +Y = DOWN  (same convention as normalized image landmarks, NOT world-up)
+ *   +Z = toward camera
+ *
+ * Three.js world coordinate axes (avatar facing camera):
+ *   +X = avatar's left (= user's right in mirrored webcam feed)  → same, no flip
+ *   +Y = UP                                                        → negate Y
+ *   +Z = toward camera                                             → same
+ *
+ * @param shoulderWorldPos  Avatar's shoulder bone world position (from bone).
+ * @param offset            [dx,dy,dz] shoulder→elbow in pose world space.
+ * @param out               Output Vector3 (written in-place).
+ */
+function poseElbowToHint(
   shoulderWorldPos: Vector3,
   offset: [number, number, number],
   out: Vector3
-  ): void {
+): void {
   out.copy(shoulderWorldPos);
   out.x +=  offset[0] * POSE_TO_AVATAR_SCALE; // no flip: mirrored webcam aligns +X
   out.y += -offset[1] * POSE_TO_AVATAR_SCALE; // negate: pose +Y is down, Three.js +Y is up
-  out.y -= ELBOW_HINT_DOWN_BIAS;              // pull hint below shoulder to avoid T-pose
   out.z +=  offset[2] * POSE_TO_AVATAR_SCALE;
-  }
+  // Apply a minimum-drop floor: the hint may never float closer than
+  // ELBOW_HINT_MIN_DROP below the shoulder.  This prevents the T-pose
+  // artefact when the tracked drop is near zero, while fully preserving
+  // upward/downward elbow motion when the user actually moves their arm.
+  const maxAllowedY = shoulderWorldPos.y - ELBOW_HINT_MIN_DROP;
+  if (out.y > maxAllowedY) out.y = maxAllowedY;
+}
 
 /**
  * 2-bone IK solver using the law of cosines.
