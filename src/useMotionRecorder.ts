@@ -256,7 +256,7 @@ export function stopRecording(): void {
       .slice(0, 19)
       .replace("T", "_")
       .replace(/:/g, "-");
-    const fileName = `facial_capture_${timestamp}.glb`;
+    const fileName = `miniface.org_${timestamp}.glb`;
     const snapshotAvatarUrl = _avatarUrl ?? undefined;
     buildGLBBlob()
       .then(({ blob, durationSeconds }) => {
