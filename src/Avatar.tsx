@@ -43,28 +43,28 @@ const quaternionSmoother = new QuaternionSmoother();
 // Finger smoothers — one per hand, tuned independently via FINGER_TAU.
 // Kept separate from the face/neck smoothers so you can tweak finger
 // responsiveness without affecting blendshape or head-rotation behaviour.
-const leftFingerSmoother  = new FingerSmoother();
+const leftFingerSmoother = new FingerSmoother();
 const rightFingerSmoother = new FingerSmoother();
 
 // IK target smoothers — one per hand, tuned via ARM_IK_TAU (= FINGER_TAU).
 // Smooth the raw MediaPipe wrist world-position before passing it to
 // solveArmIK so the entire arm chain damps jitter with the same envelope
 // as the finger rotations.
-const leftIKSmoother  = new IKTargetSmoother();
+const leftIKSmoother = new IKTargetSmoother();
 const rightIKSmoother = new IKTargetSmoother();
 
 // Elbow hint smoothers — one per arm, tuned via ARM_ELBOW_TAU.
 // Smooth the raw shoulder→elbow offset from PoseLandmarker before converting
 // it to the IK elbow hint, damping the noisier pose landmarks independently
 // from the hand wrist smoothers.
-const leftElbowSmoother  = new IKTargetSmoother(ARM_ELBOW_TAU);
+const leftElbowSmoother = new IKTargetSmoother(ARM_ELBOW_TAU);
 const rightElbowSmoother = new IKTargetSmoother(ARM_ELBOW_TAU);
 
 // Rest-pose / in-frame bone smoothers — one per hand.
 // smoothFromBones() uses IN_FRAME_TAU (hand visible).
 // smoothToRest()   uses REST_POSE_TAU (hand out of frame).
 // Both taus are set via the constructor defaults; tune them in smoothing.ts.
-const leftRestPoseSmoother  = new RestPoseSmoother(IN_FRAME_TAU, REST_POSE_TAU);
+const leftRestPoseSmoother = new RestPoseSmoother(IN_FRAME_TAU, REST_POSE_TAU);
 const rightRestPoseSmoother = new RestPoseSmoother(IN_FRAME_TAU, REST_POSE_TAU);
 
 // Reusable Quaternion and Euler instances — allocated once, mutated each frame
@@ -102,7 +102,7 @@ const _thumbComposed = new Quaternion();
 // pushing the thumb away from the pinky. Increase to splay further out.
 // Kept equal so the right thumb base mirrors the left exactly (rest poses are
 // already perfect mirrors, so the same magnitude yields symmetric splay).
-const THUMB_ABDUCTION_RAD_LEFT  = 0.80; // ~46°
+const THUMB_ABDUCTION_RAD_LEFT = 0.80; // ~46°
 const THUMB_ABDUCTION_RAD_RIGHT = 0.80; // ~46° (matches left)
 const _thumbAbduction = new Quaternion();
 
@@ -124,20 +124,20 @@ const _handRestQuats: Record<string, Quaternion> = {};
 // ─── Bones that belong to each hand (arm chain + fingers) ────────────────────
 const LEFT_HAND_BONES = [
   "LeftArm", "LeftForeArm", "LeftHand",
-  "LeftHandThumb1",  "LeftHandThumb2",  "LeftHandThumb3",
-  "LeftHandIndex1",  "LeftHandIndex2",  "LeftHandIndex3",
+  "LeftHandThumb1", "LeftHandThumb2", "LeftHandThumb3",
+  "LeftHandIndex1", "LeftHandIndex2", "LeftHandIndex3",
   "LeftHandMiddle1", "LeftHandMiddle2", "LeftHandMiddle3",
-  "LeftHandRing1",   "LeftHandRing2",   "LeftHandRing3",
-  "LeftHandPinky1",  "LeftHandPinky2",  "LeftHandPinky3",
+  "LeftHandRing1", "LeftHandRing2", "LeftHandRing3",
+  "LeftHandPinky1", "LeftHandPinky2", "LeftHandPinky3",
 ] as const;
 
 const RIGHT_HAND_BONES = [
   "RightArm", "RightForeArm", "RightHand",
-  "RightHandThumb1",  "RightHandThumb2",  "RightHandThumb3",
-  "RightHandIndex1",  "RightHandIndex2",  "RightHandIndex3",
+  "RightHandThumb1", "RightHandThumb2", "RightHandThumb3",
+  "RightHandIndex1", "RightHandIndex2", "RightHandIndex3",
   "RightHandMiddle1", "RightHandMiddle2", "RightHandMiddle3",
-  "RightHandRing1",   "RightHandRing2",   "RightHandRing3",
-  "RightHandPinky1",  "RightHandPinky2",  "RightHandPinky3",
+  "RightHandRing1", "RightHandRing2", "RightHandRing3",
+  "RightHandPinky1", "RightHandPinky2", "RightHandPinky3",
 ] as const;
 
 /**
@@ -301,7 +301,7 @@ function applyFingerBones(
         // pose splays via +Z on the left hand and −Z on the right, so we push
         // further in that same per-hand direction (away from the pinky).
         const splaySign = prefix === "Left" ? 1 : -1;
-        const splayRad  = prefix === "Left" ? THUMB_ABDUCTION_RAD_LEFT : THUMB_ABDUCTION_RAD_RIGHT;
+        const splayRad = prefix === "Left" ? THUMB_ABDUCTION_RAD_LEFT : THUMB_ABDUCTION_RAD_RIGHT;
         _thumbAbduction.set(0, 0, Math.sin((splaySign * splayRad) / 2), Math.cos(splayRad / 2));
         _thumbComposed.multiply(_thumbAbduction);
       }
@@ -478,9 +478,14 @@ function poseElbowToHint(
   out: Vector3
 ): void {
   out.copy(shoulderWorldPos);
-  out.x +=  offset[0] * POSE_TO_AVATAR_SCALE;       // no flip: mirrored webcam aligns +X
-  out.y += -offset[1] * POSE_TO_AVATAR_SCALE * 3.2; // amplified: pose +Y is down; scale >1 pulls elbow below shoulder at rest while still tracking up/down motion
-  out.z +=  offset[2] * POSE_TO_AVATAR_SCALE;
+  out.x += offset[0] * POSE_TO_AVATAR_SCALE;       // no flip: mirrored webcam aligns +X
+  // pose +Y is DOWN, so offset[1] > 0 means elbow is below shoulder.
+  // Apply a larger scale when pulling the hint DOWN (offset[1] > 0) to
+  // counteract the T-pose artefact, but use 1.0 when pushing UP (offset[1] < 0)
+  // so raising the elbow to shoulder level is not over-amplified.
+  const yScale = offset[1] > 0 ? 3.2 : 1.0; // tune 3.2 to adjust resting-down position; 1.0 keeps upward motion 1:1
+  out.y += -offset[1] * POSE_TO_AVATAR_SCALE * yScale;
+  out.z += offset[2] * POSE_TO_AVATAR_SCALE;
 }
 
 /**
@@ -809,9 +814,9 @@ function Avatar({ url, onLoaded }: AvatarProps) {
     // Smooth raw finger/wrist quaternions through their own FingerSmoother
     // instances (FINGER_TAU) before driving the skeleton, so hand jitter is
     // damped independently from blendshapes and head/neck rotation.
-    const smoothedLeft  = leftFingerBones  ? leftFingerSmoother.smooth(leftFingerBones  as unknown as Record<string, number[] | null>, delta) : null;
+    const smoothedLeft = leftFingerBones ? leftFingerSmoother.smooth(leftFingerBones as unknown as Record<string, number[] | null>, delta) : null;
     const smoothedRight = rightFingerBones ? rightFingerSmoother.smooth(rightFingerBones as unknown as Record<string, number[] | null>, delta) : null;
-    applyFingerBones(nodes, "Left",  smoothedLeft  as any);
+    applyFingerBones(nodes, "Left", smoothedLeft as any);
     applyFingerBones(nodes, "Right", smoothedRight as any);
 
     // ── REST_POSE_TAU smoothing for in-frame hand bones ────────────────────
@@ -820,7 +825,7 @@ function Avatar({ url, onLoaded }: AvatarProps) {
     // bone from its smoothed state toward that target using the same REST_POSE_TAU
     // constant as the snap-back. This means entering and leaving the frame both
     // feel equally gradual — one constant controls both directions.
-    if (leftWristPos)  leftRestPoseSmoother.smoothFromBones(nodes, LEFT_HAND_BONES, delta);
+    if (leftWristPos) leftRestPoseSmoother.smoothFromBones(nodes, LEFT_HAND_BONES, delta);
     if (rightWristPos) rightRestPoseSmoother.smoothFromBones(nodes, RIGHT_HAND_BONES, delta);
 
     // ── capture frame (WYSIWYG) ────────────────────────────────────────────
@@ -853,25 +858,25 @@ function Avatar({ url, onLoaded }: AvatarProps) {
       // postmultiplied onto foreArm.quaternion AFTER solveArmIK runs, so the only
       // way to get the correct final value is to read bone.quaternion after both
       // passes finish).
-      { name: "LeftArm",          active: !!leftWristPos  },
-      { name: "LeftForeArm",      active: !!leftWristPos  },
-      { name: "RightArm",         active: !!rightWristPos },
-      { name: "RightForeArm",     active: !!rightWristPos },
+      { name: "LeftArm", active: !!leftWristPos },
+      { name: "LeftForeArm", active: !!leftWristPos },
+      { name: "RightArm", active: !!rightWristPos },
+      { name: "RightForeArm", active: !!rightWristPos },
       // Wrist (LeftHand / RightHand): final value is
       //   conjug(halfTwist) × (parentInv × wristWorldQuat)
       // i.e. the world→local conversion PLUS the counter-twist that undoes the
       // 50% twist applied to the forearm. The raw "Wrist" entry in FingerQuats
       // is the unprocessed world-space quaternion from the worker — writing that
       // straight to the bone skips both steps and causes over-twist in the GLB.
-      { name: "LeftHand",         active: !!leftWristPos  },
-      { name: "RightHand",        active: !!rightWristPos },
+      { name: "LeftHand", active: !!leftWristPos },
+      { name: "RightHand", active: !!rightWristPos },
       // Thumb bones (rest * splay * bend — cannot be reconstructed from raw data)
-      { name: "LeftHandThumb1",   active: !!leftWristPos  },
-      { name: "LeftHandThumb2",   active: !!leftWristPos  },
-      { name: "LeftHandThumb3",   active: !!leftWristPos  },
-      { name: "RightHandThumb1",  active: !!rightWristPos },
-      { name: "RightHandThumb2",  active: !!rightWristPos },
-      { name: "RightHandThumb3",  active: !!rightWristPos },
+      { name: "LeftHandThumb1", active: !!leftWristPos },
+      { name: "LeftHandThumb2", active: !!leftWristPos },
+      { name: "LeftHandThumb3", active: !!leftWristPos },
+      { name: "RightHandThumb1", active: !!rightWristPos },
+      { name: "RightHandThumb2", active: !!rightWristPos },
+      { name: "RightHandThumb3", active: !!rightWristPos },
     ];
 
     for (const { name, active } of BONES_TO_SNAPSHOT) {
