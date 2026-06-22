@@ -28,31 +28,35 @@ interface AuthModalProps {
 
 export default function AuthModal({ onClose, onDriveConnected, hasPendingMotion = false, initialUser = null }: AuthModalProps) {
   const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState<User | null>(initialUser);
   const [error, setError] = useState<string | null>(null);
   const [driveConnected, setDriveConnected] = useState(() => hasDriveAccess());
   // Tracks that sign-out was explicitly requested so the auth state listener
   // does not flip the modal back to the signed-out view before reload fires.
   const signingOutRef = useRef(false);
 
+  // Use the prop directly — no local user state at all. This prevents the
+  // classic useState(prop) trap where the state is seeded once at mount and
+  // ignores later prop updates.
+  const user = initialUser;
+
   useEffect(() => {
     if (!supabase) return;
 
-    // No need to call getSession() here — initialUser is passed from App so
-    // the correct user is already in state from the very first render, which
-    // prevents the signed-out→signed-in flash.
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      // Ignore auth state changes that happen as a result of our own sign-out.
-      // Without this guard, Supabase fires SIGNED_OUT which would immediately
-      // switch the popup to the "sign in" view before window.location.reload().
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (signingOutRef.current) return;
-      setUser(session?.user ?? null);
+
+      // Only react to a real new sign-in, not the INITIAL_SESSION replay that
+      // Supabase fires immediately when the listener is registered. Treating
+      // INITIAL_SESSION as a sign-in was the cause of the modal auto-closing:
+      // it would detect Drive access and call onDriveConnected(), dismissing
+      // the popup before the user even saw it.
+      if (event !== "SIGNED_IN") return;
+
       // Small delay to allow supabaseClient.ts to store tokens first
       setTimeout(() => {
         const connected = hasDriveAccess();
         setDriveConnected(connected);
-        if (connected) onDriveConnected?.();
+        if (session?.user && connected) onDriveConnected?.();
       }, 100);
     });
 
