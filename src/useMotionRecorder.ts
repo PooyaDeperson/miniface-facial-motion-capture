@@ -60,9 +60,16 @@ export interface MotionFrame {
   leftFingers?:  FingerQuats;
   rightFingers?: FingerQuats;
   /**
-   * Arm bone local quaternions snapshotted AFTER IK + forearm twist distribution.
-   * Keyed by exact bone name: "LeftArm", "LeftForeArm", "RightArm", "RightForeArm".
-   * Absent on frames where hand tracking was not active (arm at rest).
+   * Direct bone.quaternion snapshots for bones whose final animated value
+   * CANNOT be reconstructed by the exporter from the other MotionFrame fields.
+   * Snapshotted in Avatar.tsx AFTER all animation is applied (IK, twist,
+   * finger composition, RestPoseSmoother). Keyed by exact bone name.
+   *
+   * Currently includes:
+   *   • LeftArm, LeftForeArm, RightArm, RightForeArm  — arm IK chain
+   *   • LeftHandThumb1-3, RightHandThumb1-3            — restLocal × splay × bend
+   *
+   * Absent on frames where the corresponding hand was not detected.
    */
   armBones?: Record<string, [number, number, number, number]>;
 }
@@ -393,14 +400,11 @@ export async function buildAndExportGLB(): Promise<void> {
     }
   }
 
-  // ── arm bone tracks (LeftArm, LeftForeArm, RightArm, RightForeArm) ───────
-  // These bones are driven by the IK solver + forearm twist distribution in
-  // Avatar.tsx. They are NOT derivable from headEuler or finger data, so they
-  // must be snapshotted as local quaternions from the live bones each frame.
-  // We read them from armBones which is populated after solveArmIK + twist.
-  // Frames where a hand was absent will have no armBones entry for that side,
-  // so we fall back to the bone's current (rest/last-known) local quaternion
-  // stored in _nodes — guaranteeing the track stays valid at every timestamp.
+  // ── direct bone snapshot tracks (arm IK chain) ────────────────────────────
+  // LeftArm / LeftForeArm / RightArm / RightForeArm are driven by the IK solver
+  // and forearm twist distribution and cannot be reconstructed from any other
+  // MotionFrame field. Avatar.tsx snapshots them from bone.quaternion after all
+  // animation is applied. Thumb bones are handled in the finger section below.
   const ARM_BONE_NAMES = ["LeftArm", "LeftForeArm", "RightArm", "RightForeArm"] as const;
 
   for (const boneName of ARM_BONE_NAMES) {
@@ -479,21 +483,39 @@ export async function buildAndExportGLB(): Promise<void> {
       const bone = nodes[boneName];
       if (!bone) continue; // non-RPM rig — skip
 
+      // Thumb bones are stored in armBones (boneSnapshot) rather than in the
+      // raw FingerQuats, because their final skeleton value is a composed
+      // product of restLocal × abduction × bend — not just the raw bend
+      // quaternion from the worker. Reading the raw FingerQuats entry for a
+      // thumb would replay only the bend component and produce the wrong pose.
+      // Avatar.tsx snapshots the post-composition bone.quaternion directly into
+      // armBones for all three thumb bones on both hands.
+      const isThumb = key.startsWith("Thumb");
+
       const quatValues = new Float32Array(frames.length * 4);
       let hasMotion = false;
 
       for (let i = 0; i < frames.length; i++) {
-        const fingerData = frames[i][frameKey];
-        const q = fingerData ? (fingerData as any)[key] : null;
+        let q: number[] | null = null;
+
+        if (isThumb) {
+          // Prefer the direct bone snapshot (includes rest + splay + bend).
+          const snap = frames[i].armBones?.[boneName];
+          q = snap ? Array.from(snap) : null;
+        } else {
+          // Non-thumb: raw FingerQuats entry is correct (identity rest pose).
+          const fingerData = frames[i][frameKey];
+          q = fingerData ? (fingerData as any)[key] : null;
+        }
+
         if (q) {
           quatValues[i * 4 + 0] = q[0];
           quatValues[i * 4 + 1] = q[1];
           quatValues[i * 4 + 2] = q[2];
           quatValues[i * 4 + 3] = q[3];
-          // Check if meaningfully non-identity
           if (Math.abs(q[3]) < 0.9999) hasMotion = true;
         } else {
-          // Hand not detected this frame — use identity quaternion
+          // Hand not detected this frame — use identity quaternion.
           quatValues[i * 4 + 3] = 1;
         }
       }

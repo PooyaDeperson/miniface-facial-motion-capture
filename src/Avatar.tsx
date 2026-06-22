@@ -307,7 +307,7 @@ function applyFingerBones(
   }
 }
 
-// ─── Arm IK ─────────────────────��─────────────────────────────────────────────
+// ─── Arm IK ─────────────────────���─────────────────────────────────────────────
 // We map the MediaPipe wrist landmark (normalized image coords) to a 3-D world
 // target, then solve a standard 2-bone IK chain:
 //   Shoulder (LeftArm / RightArm)  →  Elbow (LeftForeArm / RightForeArm)  →  Wrist (LeftHand / RightHand)
@@ -761,22 +761,49 @@ function Avatar({ url, onLoaded }: AvatarProps) {
     if (rightWristPos) rightRestPoseSmoother.smoothFromBones(nodes, RIGHT_HAND_BONES, delta);
 
     // ── capture frame (WYSIWYG) ────────────────────────────────────────────
-    // Snapshot arm bone local quaternions AFTER IK + forearm twist + RestPose
-    // smoothing have all been applied. This is the exact state written to the
-    // skeleton this frame, matching what the user sees in the live preview.
-    // We only include a side if its wrist was detected (avoids rest-pose noise).
-    const armBoneSnapshot: Record<string, [number, number, number, number]> = {};
-    const ARM_BONES_TO_CAPTURE = [
-      { name: "LeftArm",      active: !!leftWristPos },
-      { name: "LeftForeArm",  active: !!leftWristPos },
-      { name: "RightArm",     active: !!rightWristPos },
-      { name: "RightForeArm", active: !!rightWristPos },
+    // Snapshot bone local quaternions AFTER all animation (IK, forearm twist,
+    // finger bending, thumb rest+splay+bend composition, RestPoseSmoother) has
+    // been applied. Reading directly from bone.quaternion is the only correct
+    // approach for any bone whose recorded value is NOT a simple copy of the
+    // input data:
+    //
+    //   • Arm bones (LeftArm, LeftForeArm, RightArm, RightForeArm): driven by
+    //     solveArmIK + forearm twist distribution — no closed-form formula to
+    //     reconstruct from raw MediaPipe data in the exporter.
+    //
+    //   • Thumb bones (LeftHandThumb1-3, RightHandThumb1-3): final value is
+    //     restLocal × (optional abduction) × bend — neither restLocal nor the
+    //     abduction offset are accessible inside useMotionRecorder. Replaying the
+    //     raw bend quaternion alone gives the wrong orientation (no splay, wrong
+    //     abduction). Snapshot the post-composition value so the recording is
+    //     identical to what the user sees.
+    //
+    // All other finger bones (Index, Middle, Ring, Pinky) have an identity rest
+    // local quaternion so their raw FingerQuats entry IS the correct final value;
+    // they continue to be recorded via the existing smoothedLeft / smoothedRight
+    // FingerQuats path.
+    const boneSnapshot: Record<string, [number, number, number, number]> = {};
+
+    const BONES_TO_SNAPSHOT = [
+      // Arm IK chain
+      { name: "LeftArm",          active: !!leftWristPos  },
+      { name: "LeftForeArm",      active: !!leftWristPos  },
+      { name: "RightArm",         active: !!rightWristPos },
+      { name: "RightForeArm",     active: !!rightWristPos },
+      // Thumb bones (rest * splay * bend — cannot be reconstructed from raw data)
+      { name: "LeftHandThumb1",   active: !!leftWristPos  },
+      { name: "LeftHandThumb2",   active: !!leftWristPos  },
+      { name: "LeftHandThumb3",   active: !!leftWristPos  },
+      { name: "RightHandThumb1",  active: !!rightWristPos },
+      { name: "RightHandThumb2",  active: !!rightWristPos },
+      { name: "RightHandThumb3",  active: !!rightWristPos },
     ];
-    for (const { name, active } of ARM_BONES_TO_CAPTURE) {
+
+    for (const { name, active } of BONES_TO_SNAPSHOT) {
       const bone = (nodes as any)[name];
       if (bone && active) {
         const q = bone.quaternion;
-        armBoneSnapshot[name] = [q.x, q.y, q.z, q.w];
+        boneSnapshot[name] = [q.x, q.y, q.z, q.w];
       }
     }
 
@@ -785,7 +812,7 @@ function Avatar({ url, onLoaded }: AvatarProps) {
       [_smoothedEuler.x, _smoothedEuler.y, _smoothedEuler.z],
       smoothedLeft as FingerQuats ?? undefined,
       smoothedRight as FingerQuats ?? undefined,
-      Object.keys(armBoneSnapshot).length > 0 ? armBoneSnapshot : undefined
+      Object.keys(boneSnapshot).length > 0 ? boneSnapshot : undefined
     );
   });
 
