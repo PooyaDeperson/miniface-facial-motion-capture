@@ -479,7 +479,7 @@ function poseElbowToHint(
 ): void {
   out.copy(shoulderWorldPos);
   out.x +=  offset[0] * POSE_TO_AVATAR_SCALE;       // no flip: mirrored webcam aligns +X
-  out.y += -offset[1] * POSE_TO_AVATAR_SCALE * 2.5; // amplified: pose +Y is down; scale >1 pulls elbow below shoulder at rest while still tracking up/down motion
+  out.y += -offset[1] * POSE_TO_AVATAR_SCALE * 3.2; // amplified: pose +Y is down; scale >1 pulls elbow below shoulder at rest while still tracking up/down motion
   out.z +=  offset[2] * POSE_TO_AVATAR_SCALE;
 }
 
