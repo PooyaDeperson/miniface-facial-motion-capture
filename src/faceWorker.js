@@ -360,9 +360,7 @@ function fingerRotationsFromLandmarks(landmarks, isRight) {
       const maxRad = FINGER_JOINT_MAX_BEND_DEG[limitKey] * (Math.PI / 180);
       if (angle > maxRad) angle = maxRad;
     }
-    const angleDeg = (angle * 180 / Math.PI).toFixed(1);
     if (Math.abs(angle) < 1e-5) {
-      console.log("[v0] bend a=" + a + " b=" + b + " c=" + c + " axis=" + axis + " angle=0 → identity");
       return [0, 0, 0, 1];
     }
     const s = Math.sin(angle / 2);
@@ -377,24 +375,7 @@ function fingerRotationsFromLandmarks(landmarks, isRight) {
     } else {
       q = [s, 0, 0, w];  // rotation around local +X (default for fingers)
     }
-    console.log("[v0] bend a=" + a + " b=" + b + " c=" + c + " axis=" + axis + " angle=" + angleDeg + "°  quat=[" + q[0].toFixed(3) + "," + q[1].toFixed(3) + "," + q[2].toFixed(3) + "," + q[3].toFixed(3) + "]");
     return q;
-  }
-
-  // Log raw thumb landmark positions every ~30 frames to help debug direction
-  if (Math.random() < 0.03) {
-    const lm0 = landmarks[0], lm1 = landmarks[1], lm2 = landmarks[2], lm3 = landmarks[3], lm4 = landmarks[4];
-    if (lm0 && lm1 && lm2 && lm3 && lm4) {
-      console.log("[v0] THUMB landmarks (MP space) lm0(wrist)=", lm0.x.toFixed(3) + "," + lm0.y.toFixed(3) + "," + lm0.z.toFixed(3),
-        " lm1(CMC)=", lm1.x.toFixed(3) + "," + lm1.y.toFixed(3) + "," + lm1.z.toFixed(3),
-        " lm2(MCP)=", lm2.x.toFixed(3) + "," + lm2.y.toFixed(3) + "," + lm2.z.toFixed(3),
-        " lm3(IP)=", lm3.x.toFixed(3) + "," + lm3.y.toFixed(3) + "," + lm3.z.toFixed(3),
-        " lm4(TIP)=", lm4.x.toFixed(3) + "," + lm4.y.toFixed(3) + "," + lm4.z.toFixed(3));
-      const b1 = (bendAngle(landmarks, 0, 1, 2) * 180 / Math.PI).toFixed(1);
-      const b2 = (bendAngle(landmarks, 1, 2, 3) * 180 / Math.PI).toFixed(1);
-      const b3 = (bendAngle(landmarks, 2, 3, 4) * 180 / Math.PI).toFixed(1);
-      console.log("[v0] THUMB bend angles: Thumb1(wrist→CMC→MCP)=" + b1 + "°  Thumb2(CMC→MCP→IP)=" + b2 + "°  Thumb3(MCP→IP→TIP)=" + b3 + "°");
-    }
   }
 
   // Thumb curl axis differs per hand:
@@ -486,19 +467,12 @@ function wristQuatFromLandmarks(lm, isRight) {
   const sign = isRight ? 1 : -1;
   const rawZ = cross(measY, lat);
   const measZ = norm({ x: sign * rawZ.x, y: sign * rawZ.y, z: sign * rawZ.z });
-  console.log("[v0] SIGN=" + sign + " rawZ:", rawZ, "→ measZ:", measZ);
   if (!measZ) return null;
 
   // Re-orthogonalise X' = Y' × Z'  (ensures pure rotation)
   const rawX = cross(measY, measZ);
   const measX = norm(rawX);
   if (!measX) return null;
-
-  console.log("[v0] WRIST FRAME (hand=" + (isRight ? "RIGHT" : "LEFT") + ")");
-  console.log("[v0]   measured Y (wrist→midMCP):", measY);
-  console.log("[v0]   measured Z (palm normal):", measZ);
-  console.log("[v0]   measured X (lateral):", measX);
-  console.log("[v0]   landmarks: wrist=", wrist, "midMCP=", midMCP);
 
   // Rest-pose axes of this Hand bone (Three.js world space)
   const restDirs = isRight ? RIGHT_REST_DIRS : LEFT_REST_DIRS;
@@ -512,11 +486,6 @@ function wristQuatFromLandmarks(lm, isRight) {
   //   RightHand Z-axis (Bl): (0.834, 0.103, -0.542) → TJS: (0.834, -0.542, -0.103)
   const rX = isRight ? blToTjs(0.258, -0.941, 0.217) : blToTjs(0.258, 0.941, -0.217);
   const rZ = isRight ? blToTjs(0.834, 0.103, -0.542) : blToTjs(-0.834, 0.103, -0.542);
-
-  // ─── DEBUG: log the rest frame ────────────────────────────────────────
-  console.log("[v0]   rest Y (wrist→fingers):", rY);
-  console.log("[v0]   rest Z (palm normal):", rZ);
-  console.log("[v0]   rest X (lateral):", rX);
 
   // NOTE: The rest-pose data from Blender doesn't match the actual bind-pose
   // of the hand in the avatar skeleton. Instead of trying to rotate FROM the
@@ -554,12 +523,9 @@ function wristQuatFromLandmarks(lm, isRight) {
     qw = (measX.y - measY.x) / s; qx = (measZ.x + measX.z) / s;
     qy = (measY.z + measZ.y) / s; qz = 0.25 * s;
   }
-  console.log("[v0] Shepperd raw quat: qx=" + qx.toFixed(4) + " qy=" + qy.toFixed(4) + " qz=" + qz.toFixed(4) + " qw=" + qw.toFixed(4));
   const ql = Math.sqrt(qx * qx + qy * qy + qz * qz + qw * qw);
   if (ql < 1e-9) return null;
   const finalQuat = [qx / ql, qy / ql, qz / ql, qw / ql];
-
-  console.log("[v0]   final world quat (wrist):", finalQuat);
 
   return finalQuat;
 }

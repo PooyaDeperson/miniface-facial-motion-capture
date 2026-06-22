@@ -207,7 +207,6 @@ function applyFingerBones(
       _worldQuat.set(wristQ[0], wristQ[1], wristQ[2], wristQ[3]);
       handBone.parent.getWorldQuaternion(_parentInv).invert();
       _fingerQuat.multiplyQuaternions(_parentInv, _worldQuat);
-      console.log(`[v0] ${prefix}Hand (wrist): world quat=`, wristQ, "→ local=", { x: _fingerQuat.x, y: _fingerQuat.y, z: _fingerQuat.z, w: _fingerQuat.w });
       handBone.quaternion.copy(_fingerQuat);
 
       // ── Forearm twist distribution ─────────────────────────────────────
@@ -268,13 +267,6 @@ function applyFingerBones(
         // We premultiply the hand's local quat by the conjugate (inverse) of
         // _foreArmTwistLocal, which cancels out what the forearm just added.
         handBone.quaternion.premultiply(_foreArmTwistLocal.clone().conjugate());
-
-        console.log(
-          `[v0] ${prefix}ForeArm twist distribution (postmultiply, axis=local-Y):`,
-          `twistQuat=(x:${_twistQuat.x.toFixed(3)},y:${_twistQuat.y.toFixed(3)},z:${_twistQuat.z.toFixed(3)},w:${_twistQuat.w.toFixed(3)})`,
-          `50%=(x:${_foreArmTwistLocal.x.toFixed(3)},y:${_foreArmTwistLocal.y.toFixed(3)},z:${_foreArmTwistLocal.z.toFixed(3)},w:${_foreArmTwistLocal.w.toFixed(3)})`,
-          `hand counter-rotated by conjugate of 50% twist`
-        );
       }
     }
   }
@@ -286,20 +278,6 @@ function applyFingerBones(
     const boneName = `${prefix}Hand${key}`;
     const bone = nodes[boneName];
     if (!bone) continue;
-
-    // For thumb bones: log the bone's world-space local axes BEFORE applying the
-    // new quaternion, so we can see what +X / +Y / +Z actually point toward in
-    // world space.  This tells us which axis is the correct curl direction.
-    if (key === "Thumb1" || key === "Thumb2" || key === "Thumb3") {
-      const wq = new Quaternion();
-      bone.getWorldQuaternion(wq);
-      // Rotate canonical axes by the bone's world quaternion to get world-space axes
-      const localX = new Vector3(1, 0, 0).applyQuaternion(wq);
-      const localY = new Vector3(0, 1, 0).applyQuaternion(wq);
-      const localZ = new Vector3(0, 0, 1).applyQuaternion(wq);
-      console.log(`[v0] ${boneName} REST world axes: +X=(${localX.x.toFixed(2)},${localX.y.toFixed(2)},${localX.z.toFixed(2)})  +Y=(${localY.x.toFixed(2)},${localY.y.toFixed(2)},${localY.z.toFixed(2)})  +Z=(${localZ.x.toFixed(2)},${localZ.y.toFixed(2)},${localZ.z.toFixed(2)})`);
-      console.log(`[v0] ${boneName}: applying quat=[${qArr[0].toFixed(3)},${qArr[1].toFixed(3)},${qArr[2].toFixed(3)},${qArr[3].toFixed(3)}]  (if thumb opens outward on close, negate the active component)`);
-    }
 
     // qArr is the LOCAL bend rotation around the bone's own axis.
     _fingerQuat.set(qArr[0], qArr[1], qArr[2], qArr[3]);
@@ -322,10 +300,8 @@ function applyFingerBones(
       }
       _thumbComposed.multiply(_fingerQuat);
       bone.quaternion.copy(_thumbComposed);
-      console.log(`[v0] ${boneName}: rest*splay*bend quat=`, { x: _thumbComposed.x, y: _thumbComposed.y, z: _thumbComposed.z, w: _thumbComposed.w });
     } else {
       // Fingers: rest local is effectively identity, copy directly.
-      console.log(`[v0] ${boneName}: local bend quat=`, { x: _fingerQuat.x, y: _fingerQuat.y, z: _fingerQuat.z, w: _fingerQuat.w });
       bone.quaternion.copy(_fingerQuat);
     }
   }
@@ -461,7 +437,6 @@ function wristPosToWorld(pos: [number, number, number], out: Vector3): void {
   // MediaPipe wrist z ≈ 0 always (it's the hand-root origin), so result is
   // dominated by WORLD_Z_BASE which places the hands in front of the avatar.
   out.z = WORLD_Z_BASE - pos[2] * WORLD_Z_SCALE;
-  console.log("[v0] wristPosToWorld mp=", pos, "→ world=", { x: out.x.toFixed(3), y: out.y.toFixed(3), z: out.z.toFixed(3) });
 }
 
 /**
@@ -557,17 +532,7 @@ function solveArmIK(
   const upperArmWorldQuat = new Quaternion();
   upperArm.getWorldQuaternion(upperArmWorldQuat);
   foreArm.quaternion.copy(foreArmDesiredWorld).premultiply(upperArmWorldQuat.clone().invert());
-
-  console.log("[v0] solveArmIK elbowDir=", { x: elbowDir.x.toFixed(3), y: elbowDir.y.toFixed(3), z: elbowDir.z.toFixed(3) },
-    "elbowPos=", { x: _elbowPos.x.toFixed(3), y: _elbowPos.y.toFixed(3), z: _elbowPos.z.toFixed(3) },
-    "forearmDir=", { x: _boneDir.x.toFixed(3), y: _boneDir.y.toFixed(3), z: _boneDir.z.toFixed(3) });
 }
-
-// Throttle for arm bone position/rotation debug logs (log every ~30 frames)
-let _armLogCounter = 0;
-const _armLogThrottle = 30;
-const _logPos = new Vector3();
-const _logQuat = new Quaternion();
 
 function Avatar({ url, onLoaded }: AvatarProps) {
   const { scene } = useGLTF(url);
@@ -616,15 +581,6 @@ function Avatar({ url, onLoaded }: AvatarProps) {
     captureRestPose(nodes.RightArm, _rightArmRestDir, _rightArmRestWorldQuat);
     captureRestPose(nodes.LeftForeArm, _leftForeArmRestDir, _leftForeArmRestWorldQuat);
     captureRestPose(nodes.RightForeArm, _rightForeArmRestDir, _rightForeArmRestWorldQuat);
-    console.log("[v0] A-pose rest pose captured:");
-    console.log("[v0]   LeftArm restDir=", { x: _leftArmRestDir.x.toFixed(3), y: _leftArmRestDir.y.toFixed(3), z: _leftArmRestDir.z.toFixed(3) });
-    console.log("[v0]   RightArm restDir=", { x: _rightArmRestDir.x.toFixed(3), y: _rightArmRestDir.y.toFixed(3), z: _rightArmRestDir.z.toFixed(3) });
-    console.log("[v0]   LeftForeArm restDir=", { x: _leftForeArmRestDir.x.toFixed(3), y: _leftForeArmRestDir.y.toFixed(3), z: _leftForeArmRestDir.z.toFixed(3) });
-    console.log("[v0]   RightForeArm restDir=", { x: _rightForeArmRestDir.x.toFixed(3), y: _rightForeArmRestDir.y.toFixed(3), z: _rightForeArmRestDir.z.toFixed(3) });
-    console.log("[v0]   LeftArm restWorldQuat=", { x: _leftArmRestWorldQuat.x.toFixed(3), y: _leftArmRestWorldQuat.y.toFixed(3), z: _leftArmRestWorldQuat.z.toFixed(3), w: _leftArmRestWorldQuat.w.toFixed(3) });
-    console.log("[v0]   RightArm restWorldQuat=", { x: _rightArmRestWorldQuat.x.toFixed(3), y: _rightArmRestWorldQuat.y.toFixed(3), z: _rightArmRestWorldQuat.z.toFixed(3), w: _rightArmRestWorldQuat.w.toFixed(3) });
-    console.log("[v0]   LeftForeArm restWorldQuat=", { x: _leftForeArmRestWorldQuat.x.toFixed(3), y: _leftForeArmRestWorldQuat.y.toFixed(3), z: _leftForeArmRestWorldQuat.z.toFixed(3), w: _leftForeArmRestWorldQuat.w.toFixed(3) });
-    console.log("[v0]   RightForeArm restWorldQuat=", { x: _rightForeArmRestWorldQuat.x.toFixed(3), y: _rightForeArmRestWorldQuat.y.toFixed(3), z: _rightForeArmRestWorldQuat.z.toFixed(3), w: _rightForeArmRestWorldQuat.w.toFixed(3) });
 
     // ── Capture thumb REST local quaternions ──────────────────────────────
     // The thumb chain has a non-identity rest local orientation that must be
@@ -635,8 +591,6 @@ function Avatar({ url, onLoaded }: AvatarProps) {
         const bone = (nodes as any)[boneName];
         if (!bone) continue;
         _thumbRestLocal[boneName] = bone.quaternion.clone();
-        const q = _thumbRestLocal[boneName];
-        console.log(`[v0]   ${boneName} REST local quat=[${q.x.toFixed(3)},${q.y.toFixed(3)},${q.z.toFixed(3)},${q.w.toFixed(3)}]`);
       }
     }
 
@@ -648,9 +602,6 @@ function Avatar({ url, onLoaded }: AvatarProps) {
         _handRestQuats[name] = bone.quaternion.clone();
       }
     }
-
-    // Reset log counter on avatar change
-    _armLogCounter = 0;
 
     if (onLoaded) onLoaded();
   }, [nodes, url, onLoaded, scene]);
@@ -791,23 +742,6 @@ function Avatar({ url, onLoaded }: AvatarProps) {
       rightIKSmoother.reset();
     }
 
-    // ── arm bone world position/rotation debug logs (throttled) ───────────
-    _armLogCounter++;
-    if (_armLogCounter >= _armLogThrottle) {
-      _armLogCounter = 0;
-      const armBoneNames = ["LeftArm", "RightArm", "LeftForeArm", "RightForeArm", "LeftHand", "RightHand"] as const;
-      for (const name of armBoneNames) {
-        const bone = nodes[name];
-        if (!bone) continue;
-        bone.getWorldPosition(_logPos);
-        bone.getWorldQuaternion(_logQuat);
-        console.log(
-          `[v0] ARM BONE ${name}  pos=(${_logPos.x.toFixed(3)}, ${_logPos.y.toFixed(3)}, ${_logPos.z.toFixed(3)})` +
-          `  quat=(x:${_logQuat.x.toFixed(3)}, y:${_logQuat.y.toFixed(3)}, z:${_logQuat.z.toFixed(3)}, w:${_logQuat.w.toFixed(3)})`
-        );
-      }
-    }
-
     // ── finger bone animation ─────────────────────────────────────────���────
     // Smooth raw finger/wrist quaternions through their own FingerSmoother
     // instances (FINGER_TAU) before driving the skeleton, so hand jitter is
@@ -827,14 +761,16 @@ function Avatar({ url, onLoaded }: AvatarProps) {
     if (rightWristPos) rightRestPoseSmoother.smoothFromBones(nodes, RIGHT_HAND_BONES, delta);
 
     // ── capture frame (WYSIWYG) ────────────────────────────────────────────
-    // Pass the already-smoothed blendshapes and smoothed Euler so the recorded
-    // GLB matches exactly what is visible in the live preview — on both desktop
-    // and mobile. No second smoothing pass — smoothedBlendshapes is reused.
+    // Pass smoothedLeft / smoothedRight — the same post-FingerSmoother values
+    // that were applied to the skeleton via applyFingerBones — so the recording
+    // is a true WYSIWYG capture of what is visible in the live preview.
+    // Raw leftFingerBones / rightFingerBones are jitter-noisy; the smoother
+    // has already damped them by FINGER_TAU before this point.
     captureFrame(
       smoothedBlendshapes,
       [_smoothedEuler.x, _smoothedEuler.y, _smoothedEuler.z],
-      leftFingerBones,
-      rightFingerBones
+      smoothedLeft as FingerQuats ?? undefined,
+      smoothedRight as FingerQuats ?? undefined
     );
   });
 
