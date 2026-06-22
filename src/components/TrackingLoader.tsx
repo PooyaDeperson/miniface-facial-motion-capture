@@ -19,12 +19,13 @@ interface TrackingLoaderProps {
 }
 
 const MESSAGES = [
-  "show your face...",   // shown immediately
-  "detecting your face", // after 6 s
-  "fingers ready too",   // after 14 s
+  "show your face...",
+  "detecting your face",
+  "fingers ready too",
 ];
 
-const DELAYS = [6000, 14000];
+// How long each message is shown before moving to the next (ms)
+const INTERVAL = 5000;
 
 const TrackingLoader: React.FC<TrackingLoaderProps> = ({ visible }) => {
   const [messageIndex, setMessageIndex] = useState(0);
@@ -34,11 +35,11 @@ const TrackingLoader: React.FC<TrackingLoaderProps> = ({ visible }) => {
 
     setMessageIndex(0); // reset each time it becomes visible
 
-    const timers: NodeJS.Timeout[] = DELAYS.map((delay, i) =>
-      setTimeout(() => setMessageIndex(i + 1), delay)
-    );
+    const timer = setInterval(() => {
+      setMessageIndex((prev) => (prev + 1) % MESSAGES.length);
+    }, INTERVAL);
 
-    return () => timers.forEach(clearTimeout);
+    return () => clearInterval(timer);
   }, [visible]);
 
   if (!visible) return null;
