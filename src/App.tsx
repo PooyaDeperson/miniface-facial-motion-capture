@@ -29,7 +29,7 @@ import LibraryAuthPopup from "./components/LibraryAuthPopup";
 import PermissionPopup from "./components/PermissionPopup";
 import IconButton from "./components/IconButton";
 import { supabase } from "./supabaseClient";
-import { hasDriveAccess, clearDriveTokens, listDriveMotions, uploadToDrive, subscribeMotionUploaded, subscribeQuotaExceeded, subscribeNoDriveScope, DriveQuotaError, BulkSyncProgress, DRIVE_SCOPE } from "./useDriveSync";
+import { hasDriveAccess, clearDriveTokens, listDriveMotions, uploadToDrive, subscribeMotionUploaded, subscribeQuotaExceeded, subscribeNoDriveScope, subscribeUploadFailed, DriveQuotaError, BulkSyncProgress, DRIVE_SCOPE } from "./useDriveSync";
 import type { DriveMotionFile } from "./useDriveSync";
 import { getAllAvatars } from "./avatarMetadata";
 import type { User } from "@supabase/supabase-js";
@@ -377,6 +377,27 @@ function App() {
     const t = setTimeout(() => setPendingMotion(null), 4000);
     return () => clearTimeout(t);
   }, [libraryRefreshKey]);
+
+  // ── Subscribe to Drive upload failures ───────────────────────────────────
+  // uploadToDrive() can be called from useMotionRecorder (where App.tsx has
+  // no direct .catch() handle). Without this, a failed upload leaves
+  // driveUploadStatus stuck at "uploading" and the pending card stuck in the
+  // "saving…" spinner forever. On reload the card is gone and nothing is in
+  // Drive — the motion is lost silently.
+  useEffect(() => {
+    return subscribeUploadFailed((err) => {
+      const isAuth = err.name === "DriveAuthError";
+      setDriveUploadStatus(isAuth ? "idle" : "error");
+      // Clear the stuck optimistic card so the library doesn't show a phantom
+      // "saving…" entry that can never resolve.
+      setPendingMotion(null);
+      if (isAuth) {
+        // Token expired mid-upload — clear stale Drive state so the user is
+        // prompted to reconnect on their next action.
+        setHasDrive(false);
+      }
+    });
+  }, []);
 
   // ── Playback controls (bridging out of R3F canvas) ──���─────────────────────
   const getPlaybackControls = useCallback(() =>
