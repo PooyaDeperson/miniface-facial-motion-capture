@@ -15,17 +15,20 @@ import { Canvas } from "@react-three/fiber";
 import Avatar from "./Avatar";
 import AvatarOrbitControls from "./AvatarOrbitControls";
 import AvatarLoader from "./AvatarLoader";
+import DebugCamera from "./DebugCamera";
+import DebugJoints from "./DebugJoints";
 
 interface AvatarCanvasProps {
   url: string | null;
   avatarKey: number;
   setAvatarReady: (ready: boolean) => void;
-  isFlipped: boolean;
+  isFlipped?: boolean;
+  setIsFlipped?: (v: boolean) => void;
   playbackBlob?: Blob | null;
   motionLoading?: boolean;
 }
 
-const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarReady, isFlipped, playbackBlob, motionLoading }) => {
+const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarReady, isFlipped, setIsFlipped, playbackBlob, motionLoading }) => {
   const [loading, setLoading] = useState(true);
 
   const cameraPosition = [-0.0, 1.62, 1.09] as [number, number, number];
@@ -43,16 +46,25 @@ const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarRe
       {/* 2D Loader Overlay */}
       <AvatarLoader
         visible={loading || (motionLoading ?? false)}
-  initialMessage="Just a little patience..."
-  secondMessage="Someone’s on the way!"
-  thirdMessage="I promise, someone is coming..."
-  secondDelay={10000}
-  thirdDelay={20000}
-/>
+        initialMessage="Just a little patience..."
+        secondMessage="Someone's on the way!"
+        thirdMessage="I promise, someone is coming..."
+        secondDelay={10000}
+        thirdDelay={20000}
+      />
 
+      {/* Canvas flip button — positioned over the 3D canvas */}
+      <button
+        className="flex canvas-flip-switcher icon-holder br-12 tab-button size-30 mb:size-48 pos-abs z-9991"
+        style={{ bottom: 0, right: 0, margin: "1rem" }}
+        onClick={() => setIsFlipped && setIsFlipped(!isFlipped)}
+        title="Flip canvas"
+      >
+        <span className={`has-icon icon-size-18 flip-icon ${isFlipped ? "flipped" : ""}`}></span>
+      </button>
 
       <Canvas
-        className={`avatar-container mb:pos tb:avatar-pos bottom-0 pos-abs-important z-1 ${isFlipped ? "flipped-x" : ""}`}
+        className={`avatar-container mb:pos tb:avatar-pos bottom-0 pos-abs-important z-1${isFlipped ? " flipped-x" : ""}`}
         camera={{
           fov: 27,
           position: cameraPosition,
@@ -66,10 +78,9 @@ const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarRe
         <pointLight position={[-10, 0, 10]} intensity={50} castShadow />
         <pointLight position={[0, 0, 10]} intensity={0.5} castShadow />
 
-        <AvatarOrbitControls 
-        target={avatarCenter} 
-        enableZoom={true} 
-        isFlipped={isFlipped}/>
+        <AvatarOrbitControls target={avatarCenter} enableZoom={true} isFlipped={isFlipped} />
+        <DebugCamera />
+        <DebugJoints />
 
         {url && !motionLoading && (
           <Suspense fallback={null}>

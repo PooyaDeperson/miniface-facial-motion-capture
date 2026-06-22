@@ -6,16 +6,15 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
 import type { User } from "@supabase/supabase-js";
-import AuthModal from "./AuthModal";
 import IconButton from "./IconButton";
 
 interface AuthButtonProps {
   onDriveConnected?: () => void;
+  onLoginRequest?: () => void;
 }
 
-export default function AuthButton({ onDriveConnected }: AuthButtonProps) {
+export default function AuthButton({ onDriveConnected, onLoginRequest }: AuthButtonProps) {
   const [user, setUser] = useState<User | null>(null);
-  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -33,12 +32,18 @@ export default function AuthButton({ onDriveConnected }: AuthButtonProps) {
     };
   }, []);
 
+  const handleLoginClick = () => {
+    if (onLoginRequest) {
+      onLoginRequest();
+    }
+  };
+
   return (
     <>
       {user?.user_metadata?.avatar_url ? (
         <button
           className="tab-button br-12 reveal fade anim-delay-1"
-          onClick={() => setShowModal(true)}
+          onClick={handleLoginClick}
           aria-label="Account"
         >
           <img
@@ -55,11 +60,9 @@ export default function AuthButton({ onDriveConnected }: AuthButtonProps) {
           tooltip={true}
           tooltipText="Connect"
           tooltipPosition="pos-bottom-right"
-          onClick={() => setShowModal(true)}
+          onClick={handleLoginClick}
         />
       )}
-
-      {showModal && <AuthModal onClose={() => setShowModal(false)} onDriveConnected={onDriveConnected} />}
     </>
   );
 }

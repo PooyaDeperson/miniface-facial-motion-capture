@@ -43,6 +43,54 @@ export let isMobileTracking = false;
 /** True while the worker is actively delivering detection results. */
 export let isMediaPipeActive = false;
 
+// ─── Finger bone globals ──────────────────────────────────────────────────────
+// Each digit has 4 bones (e.g. LeftHandIndex1–4). Each value is
+// [x, y, z, w] quaternion or null when no hand is detected.
+// These are read by Avatar.tsx in the useFrame hot path.
+
+export type FingerQuats = {
+  Wrist:   [number,number,number,number] | null;
+  Thumb1:  [number,number,number,number] | null;
+  Thumb2:  [number,number,number,number] | null;
+  Thumb3:  [number,number,number,number] | null;
+  Index1:  [number,number,number,number] | null;
+  Index2:  [number,number,number,number] | null;
+  Index3:  [number,number,number,number] | null;
+  Middle1: [number,number,number,number] | null;
+  Middle2: [number,number,number,number] | null;
+  Middle3: [number,number,number,number] | null;
+  Ring1:   [number,number,number,number] | null;
+  Ring2:   [number,number,number,number] | null;
+  Ring3:   [number,number,number,number] | null;
+  Pinky1:  [number,number,number,number] | null;
+  Pinky2:  [number,number,number,number] | null;
+  Pinky3:  [number,number,number,number] | null;
+} | null;
+
+export let leftFingerBones:  FingerQuats = null;
+export let rightFingerBones: FingerQuats = null;
+
+/**
+ * Wrist landmark position in MediaPipe normalized image space.
+ * x: 0 (left edge) → 1 (right edge)
+ * y: 0 (top edge)  → 1 (bottom edge)
+ * z: depth, roughly 0 at arm's-length, negative = closer to camera
+ * null when the hand is not visible.
+ */
+export let leftWristPos:  [number, number, number] | null = null;
+export let rightWristPos: [number, number, number] | null = null;
+
+/**
+ * Shoulder→Elbow offset vector in PoseLandmarker world space (metres, hip-origin).
+ * Coordinate axes: +X = user's right, +Y = up, +Z = toward camera.
+ * null when the corresponding shoulder or elbow landmark has low visibility (<0.4)
+ * or when PoseLandmarker is unavailable (e.g. model load failure).
+ * Avatar.tsx converts this offset to Three.js world space and uses it as the
+ * live elbow hint for the 2-bone IK solver, replacing the hardcoded offset.
+ */
+export let leftElbowOffset:  [number, number, number] | null = null;
+export let rightElbowOffset: [number, number, number] | null = null;
+
 // ─── Mobile detection (main thread copy — still needed to choose worker mode) ─
 
 function isMobileDevice(): boolean {
@@ -63,7 +111,7 @@ function FaceTracking({
   videoStream: MediaStream;
   onMediapipeReady?: () => void;
   disabled?: boolean;
-  isFlipped: boolean;
+  isFlipped?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const workerRef = useRef<Worker | null>(null);
@@ -141,6 +189,12 @@ function FaceTracking({
             blendshapes: any[];
             matrixData: number[] | null;
             eulerData: [number, number, number] | null;
+            leftFingers:      FingerQuats;
+            rightFingers:     FingerQuats;
+            leftWristPos:     [number, number, number] | null;
+            rightWristPos:    [number, number, number] | null;
+            leftElbowOffset:  [number, number, number] | null;
+            rightElbowOffset: [number, number, number] | null;
           };
         };
 
@@ -159,6 +213,15 @@ function FaceTracking({
             payload.eulerData[2]
           );
         }
+
+        // Update finger bone globals — null means hand not visible this frame
+        leftFingerBones  = payload.leftFingers  ?? null;
+        rightFingerBones = payload.rightFingers ?? null;
+        leftWristPos     = payload.leftWristPos  ?? null;
+        rightWristPos    = payload.rightWristPos ?? null;
+        // Elbow direction offsets from PoseLandmarker — null when occluded or unavailable
+        leftElbowOffset  = payload.leftElbowOffset  ?? null;
+        rightElbowOffset = payload.rightElbowOffset ?? null;
 
         isMediaPipeActive = true;
 
@@ -212,6 +275,12 @@ function FaceTracking({
       isMediaPipeActive = false;
       headMatrix = null;
       blendshapes = [];
+      leftFingerBones  = null;
+      rightFingerBones = null;
+      leftWristPos     = null;
+      rightWristPos    = null;
+      leftElbowOffset  = null;
+      rightElbowOffset = null;
       onMediapipeReadyFiredRef.current = false;
     };
   }, [videoStream]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -219,8 +288,7 @@ function FaceTracking({
   return (
     <div
       id="video"
-      className={`camera-feed w-1 overflow-hidden tb:w-400 br-12 tb:br-24 m-4 ${disabled ? " switcher-disabled" : ""
-        }`}
+      className={`camera-feed w-1 overflow-hidden tb:w-400 br-12 tb:br-24 m-4 ${disabled ? " switcher-disabled" : ""}`}
     >
       <video
         ref={videoRef}

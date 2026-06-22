@@ -50,22 +50,37 @@
 
 
 /* icon setup */
-,
+.has-icon,
 .cd-icon {
   display: inline-block;
 }
 
--size-16 {
+.icon-size-16 {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-size-18 {
+  width: 18px;
+  height: 18px;
+}
+
+.icon-size-32 {
+  width: 32px;
+  height: 32px;
+}
+
+.icon-size-16 {
   min-width: 16px;
   min-height: 16px;
 }
 
--size-18 {
+.icon-size-18 {
   min-width: 18px;
   min-height: 18px;
 }
 
--size-32 {
+.icon-size-32-min {
   min-width: 32px;
   min-height: 32px;
 }
