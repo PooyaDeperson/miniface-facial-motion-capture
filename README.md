@@ -6,7 +6,7 @@
   
   **Real-time face tracking with 3D avatars in your browser** ✨
 
-  Try it at : https://facemocap.radframes.com/
+  Try it at : https://www.miniface.org/
   
  [![License: MIT-Attribution](https://img.shields.io/badge/License-MIT--Attribution-yellow.svg)](LICENSE.md)
  [![React](https://img.shields.io/badge/React-18.2.0-blue.svg)](https://reactjs.org/)
@@ -29,14 +29,14 @@
 ### Get Started
 ```bash
 # Clone the project
-git clone https://github.com/PooyaDeperson/facial-motion-capture.git
-cd facial-motion-capture
+git clone https://github.com/PooyaDeperson/miniface-facial-motion-capture.git
+cd miniface-facial-motion-capture
 
 # Install dependencies
 npm install
 
 # Start the service
-npm start
+npm run dev
 ```
 
 Visit `http://localhost:3000` to see the face tracking in action!
@@ -214,7 +214,7 @@ Each chain requires:
 ---
 
 ```
-facial-motion-capture/
+miniface-facial-motion-capture/
 ├── 📄 .gitignore          # Specifies intentionally untracked files to ignore
 ├── 📄 package.json        # Lists the project's dependencies and scripts
 ├── 📄 package-lock.json   # Records the exact version of each installed package

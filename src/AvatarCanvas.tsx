@@ -25,6 +25,12 @@ interface AvatarCanvasProps {
 }
 
 const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarReady }) => {
+  isFlipped: boolean;
+  playbackBlob?: Blob | null;
+  motionLoading?: boolean;
+}
+
+const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarReady, isFlipped, playbackBlob, motionLoading }) => {
   const [loading, setLoading] = useState(true);
 
   const cameraPosition = [-0.0, 1.62, 1.09] as [number, number, number];
@@ -40,8 +46,8 @@ const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarRe
   return (
     <>
       {/* 2D Loader Overlay */}
-<AvatarLoader
-  visible={loading}
+      <AvatarLoader
+        visible={loading || (motionLoading ?? false)}
   initialMessage="Just a little patience..."
   secondMessage="Someone’s on the way!"
   thirdMessage="I promise, someone is coming..."
@@ -69,7 +75,7 @@ const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarRe
         <DebugCamera />
         <DebugJoints />
 
-        {url && (
+        {url && !motionLoading && (
           <Suspense fallback={null}>
             <Avatar
               key={`${url}-${avatarKey}`}
@@ -78,6 +84,7 @@ const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarRe
                 setAvatarReady(true);
                 setLoading(false);
               }}
+              playbackBlob={playbackBlob}
             />
           </Suspense>
         )}

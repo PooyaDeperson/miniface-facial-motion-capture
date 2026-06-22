@@ -21,3 +21,14 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.vercel
+.env*.local
+local.env
+.env.example
+IMPLEMENTATION_SUMMARY.md
+IMPORT_TO_VERCEL.md
+NEXT_STEPS.md
+README_AVATAR_SETUP.md
+SETUP_CHECKLIST.md
+VERCEL_ENV_SETUP.md
+AVATAR_SETUP.md
