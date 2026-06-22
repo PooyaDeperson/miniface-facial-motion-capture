@@ -785,7 +785,11 @@ function Avatar({ url, onLoaded }: AvatarProps) {
       nodes.RightArm?.getWorldPosition(_shoulderPos);
       if (rightElbowOffset) {
         const smoothedOffset = rightElbowSmoother.smooth(rightElbowOffset, delta);
-        poseElbowToHint(_shoulderPos, smoothedOffset, _elbowHint);
+        // Negate X: in pose world space +X is the user's right, so rElbow.x - rShoulder.x
+        // is negative (elbow hangs to the user's left of the right shoulder). Without this
+        // flip the hint lands on the wrong side of the body and the IK shoots the elbow up.
+        const rightOffsetFlipped: [number, number, number] = [-smoothedOffset[0], smoothedOffset[1], smoothedOffset[2]];
+        poseElbowToHint(_shoulderPos, rightOffsetFlipped, _elbowHint);
       } else {
         // Hardcoded fallback: elbow wide-right, slightly down, mildly forward.
         _elbowHint.copy(_shoulderPos);
