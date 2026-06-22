@@ -188,7 +188,7 @@ async function driveFetch(
   return res;
 }
 
-// ─── errors ───────────────────────────────────────────────────────────────────
+// ─── errors ───────────────────────────────────────────���───────────────────────
 
 export class DriveAuthError extends Error {
   constructor(message: string) {
@@ -231,9 +231,21 @@ export async function uploadToDrive(
   durationSeconds?: number,
   avatarUrl?: string
 ): Promise<string> {
+  // Always store the avatarUrl as a bare pathname (no origin/host) so that
+  // motions recorded on one domain can be loaded correctly on any other domain
+  // without the GLB fetch hitting a foreign-origin 401.
+  let normalizedAvatarUrl: string | undefined;
+  if (avatarUrl) {
+    try {
+      normalizedAvatarUrl = new URL(avatarUrl, window.location.origin).pathname;
+    } catch {
+      normalizedAvatarUrl = avatarUrl;
+    }
+  }
+
   const appProperties: Record<string, string> = {};
   if (durationSeconds != null) appProperties.duration = String(durationSeconds);
-  if (avatarUrl) appProperties.avatarUrl = avatarUrl;
+  if (normalizedAvatarUrl) appProperties.avatarUrl = normalizedAvatarUrl;
 
   const metadata = {
     name: fileName,
@@ -275,7 +287,7 @@ export async function uploadToDrive(
     size: blob.size,
     modifiedTime: new Date().toISOString(),
     duration: durationSeconds,
-    avatarUrl,
+    avatarUrl: normalizedAvatarUrl,
   };
   _notifyUploaded(motionFile);
 
