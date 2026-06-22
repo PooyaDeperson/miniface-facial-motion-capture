@@ -454,34 +454,34 @@ function wristPosToWorld(pos: [number, number, number], out: Vector3): void {
 // increase above 1 to exaggerate the hint distance from the shoulder.
 const POSE_TO_AVATAR_SCALE = 1.0;
 
-/**
- * Convert a PoseLandmarker shoulder→elbow offset vector (metres, hip-origin
- * coordinate system) to a Three.js world-space elbow hint position.
- *
- * PoseLandmarker world coordinate axes:
- *   +X = user's right,  +Y = up,  +Z = toward camera
- *
- * Three.js world coordinate axes (avatar facing camera):
- *   +X = avatar's left (= user's left),  +Y = up,  +Z = toward camera
- *
- * Therefore: pose_x → -three_x  (flip X: user's right → avatar's left)
- *            pose_y →  three_y  (same up direction)
- *            pose_z →  three_z  (same depth direction)
- *
- * @param shoulderWorldPos  Avatar's shoulder bone world position (from bone).
- * @param offset            [dx,dy,dz] shoulder→elbow in pose world space.
- * @param out               Output Vector3 (written in-place).
- */
-function poseElbowToHint(
+  /**
+  * Convert a PoseLandmarker shoulder→elbow offset vector (metres, hip-origin
+  * coordinate system) to a Three.js world-space elbow hint position.
+  *
+  * PoseLandmarker world landmark axes (confirmed by observation):
+  *   +X = user's right (mirrored webcam → same as avatar +X)
+  *   +Y = DOWN  (same convention as normalized image landmarks, NOT world-up)
+  *   +Z = toward camera
+  *
+  * Three.js world coordinate axes (avatar facing camera):
+  *   +X = avatar's left (= user's right in mirrored webcam feed)  → same, no flip
+  *   +Y = UP                                                        → negate Y
+  *   +Z = toward camera                                             → same
+  *
+  * @param shoulderWorldPos  Avatar's shoulder bone world position (from bone).
+  * @param offset            [dx,dy,dz] shoulder→elbow in pose world space.
+  * @param out               Output Vector3 (written in-place).
+  */
+  function poseElbowToHint(
   shoulderWorldPos: Vector3,
   offset: [number, number, number],
   out: Vector3
-): void {
+  ): void {
   out.copy(shoulderWorldPos);
-  out.x += -offset[0] * POSE_TO_AVATAR_SCALE; // negate X: pose right → avatar -X
-  out.y +=  offset[1] * POSE_TO_AVATAR_SCALE;
+  out.x +=  offset[0] * POSE_TO_AVATAR_SCALE; // no flip: mirrored webcam aligns +X
+  out.y += -offset[1] * POSE_TO_AVATAR_SCALE; // negate: pose +Y is down, Three.js +Y is up
   out.z +=  offset[2] * POSE_TO_AVATAR_SCALE;
-}
+  }
 
 /**
  * 2-bone IK solver using the law of cosines.
