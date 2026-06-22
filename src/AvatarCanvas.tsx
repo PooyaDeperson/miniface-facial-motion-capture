@@ -64,7 +64,7 @@ const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarRe
       </button>
 
       <Canvas
-        className={`avatar-container mb:pos tb:avatar-pos bottom-0 pos-abs-important z-1${isFlipped ? " flipped-x" : ""}`}
+        className={`avatar-container mb:pos tb:avatar-pos bottom-0 pos-abs-important z-1 ${isFlipped ? " flipped-x" : ""}`}
         camera={{
           fov: 27,
           position: cameraPosition,

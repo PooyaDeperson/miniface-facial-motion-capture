@@ -1624,11 +1624,11 @@ svg {
 
   .avatar-container.mb\:pos {
 
-    --scale: 1.05;
-    /* 1 = normal, 1.1 = +10%, 0.9 = -10% */
-    transform: translateX(calc(-100% * (var(--scale) - 1))) scale(var(--scale));
-    transform-origin: left bottom;
-    transition: transform 0.3s ease;
+      transform: translateX(calc(-100% * (var(--scale)
+      --scale is not defined
+      - 1))) scale(var(--scale));
+              transform-origin: center bottom;
+              transition: transform .3s ease;
   }
 
   .mb\:camera-dropdown {

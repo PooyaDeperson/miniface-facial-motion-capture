@@ -19,6 +19,7 @@ import PlaybackControls from "./components/PlaybackControls";
 import MotionLibrary from "./components/MotionLibrary";
 import MotionLibraryButton from "./components/MotionLibraryButton";
 import FaceTracking from "./FaceTracking";
+import TrackingLoader from "./components/TrackingLoader";
 import AvatarCanvas from "./AvatarCanvas";
 import { discardRecording, subscribePlaybackReady } from "./useMotionRecorder";
 import AuthButton from "./components/AuthButton";
@@ -516,11 +517,7 @@ function App() {
         setIsFlipped={setIsFlipped}
       />
 
-      {avatarReady && videoStream && !mediapipeReady && !isInPlayback && (
-        <div className="reveal fade mediapipe-loader pos-fixed top-0 left-0 w-full h-full flex items-center justify-center bg-black bg-opacity-70 z-999">
-          <p className="text-white text-2xl animate-pulse">Keep smiling...</p>
-        </div>
-      )}
+      <TrackingLoader visible={avatarReady && videoStream != null && !mediapipeReady && !isInPlayback} />
 
       {avatarReady && videoStream && !isInPlayback && (
         <FaceTracking
