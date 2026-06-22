@@ -30,10 +30,10 @@ const VideoIcon = (
 interface CameraPermissionsProps {
   onStreamReady: (stream: MediaStream) => void;
   disabled?: boolean;
+  isFlipped?: boolean;
+  setIsFlipped?: (v: boolean) => void;
 }
 
-export default function CameraPermissions({ onStreamReady, disabled }: CameraPermissionsProps) {
-  const [permissionState, setPermissionState] = useState<"prompt" | "denied" | "granted">("prompt");
 export default function CameraPermissions({ onStreamReady, disabled, isFlipped, setIsFlipped }: CameraPermissionsProps) {
   const [permissionState, setPermissionState] = useState<"prompt" | "denied" | "granted" | "inuse">("prompt");
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
@@ -164,17 +164,6 @@ export default function CameraPermissions({ onStreamReady, disabled, isFlipped, 
         );
       })()}
 
-      {permissionState === "granted" && cameras.length > 1 && (
-        <div className={`camera-selection cp-dropdown pos-abs reveal fade scaleIn top-0 right-0 tb:left-0 tb:display-table z-9991 m-6${disabled ? " switcher-disabled" : ""}`}>
-          <CustomDropdown
-            options={dropdownOptions}
-            value={selectedCamera}
-            onChange={handleCameraChange}
-            placeholder="Select camera"
-          />
-        </div>
-      )}
-
       {permissionState === "inuse" && (
         <PermissionPopup
           variant="denied"
@@ -200,7 +189,7 @@ export default function CameraPermissions({ onStreamReady, disabled, isFlipped, 
         )}
         <button
           className="flex video-flip-switcher icon-holder br-12 tab-button size-30 mb:size-48"
-          onClick={() => setIsFlipped(!isFlipped)}
+          onClick={() => setIsFlipped && setIsFlipped(!isFlipped)}
         >
           <span className={`has-icon icon-size-18 flip-icon ${isFlipped ? "flipped" : ""}`}></span>
         </button>

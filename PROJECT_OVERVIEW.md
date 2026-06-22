@@ -193,8 +193,7 @@ src/
 - `activeUrl: string | null`
 
 **Features:**
-- 5 predefined avatars (`/avatar/avatar-ponytail.glb` through `avatar-wavy.glb`)
-- 5 predefined avatars (`/avatar/avatar-ponytail.glb` through `avatar-braids.glb`)
+- 5 predefined avatars (ponytail, short, curly, wavy, braids) served from Cloudinary CDN via `avatarMetadata.ts`
 - Loads last selected avatar from localStorage on mount
 - Displays as button group (visually styled as "avatar1", "avatar2", etc.)
 - Disables active button to prevent re-selection

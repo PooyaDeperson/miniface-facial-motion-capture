@@ -1145,11 +1145,11 @@ button {
 
 /* =========================
    Reduced Motion Support
+========================= */
 
 @media (prefers-reduced-motion: reduce) {
   .reveal {
     animation: none;
-    /* skip animation, show element instantly */
     opacity: 1;
     transform: none;
   }
@@ -1651,6 +1651,9 @@ svg {
   .mb\:camera-dropdown>span.dropdown-text,
   .mb\:camera-dropdown>span.dropdown-icon {
     display: none;
+  }
+}
+
 @keyframes hide-right {
   0% {
     opacity: 1;
@@ -1734,6 +1737,8 @@ svg {
 /* pattern icon */
 .has-icon.color-icon {
   background: no-repeat center / contain var(--color-icon);
+}
+
 .anim-delay-3 {
   animation-delay: 300ms;
 }

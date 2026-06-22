@@ -17,7 +17,6 @@ import { captureFrame, setSceneForExport } from "./useMotionRecorder";
 import { useAnimationPlayer } from "./useAnimationPlayer";
 import { BlendshapeSmoother, FingerSmoother, IKTargetSmoother, QuaternionSmoother, RestPoseSmoother, IN_FRAME_TAU, REST_POSE_TAU, ARM_ELBOW_TAU } from "./smoothing";
 import { usePlaybackAnimation } from "./usePlaybackAnimation";
-import { BlendshapeSmoother, QuaternionSmoother } from "./smoothing";
 import { getAvatarMetadata } from "./avatarMetadata";
 import { useSecondaryMotion } from "./useSecondaryMotion";
 
@@ -607,7 +606,6 @@ function solveArmIK(
   foreArm.quaternion.copy(foreArmDesiredWorld).premultiply(upperArmWorldQuat.clone().invert());
 }
 
-function Avatar({ url, onLoaded }: AvatarProps) {
 function Avatar({ url, onLoaded, playbackBlob }: AvatarProps) {
   const { scene } = useGLTF(url);
   const { nodes } = useGraph(scene);

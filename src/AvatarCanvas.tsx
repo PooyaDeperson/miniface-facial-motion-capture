@@ -22,10 +22,7 @@ interface AvatarCanvasProps {
   url: string | null;
   avatarKey: number;
   setAvatarReady: (ready: boolean) => void;
-}
-
-const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarReady }) => {
-  isFlipped: boolean;
+  isFlipped?: boolean;
   playbackBlob?: Blob | null;
   motionLoading?: boolean;
 }

@@ -106,10 +106,12 @@ function FaceTracking({
   videoStream,
   onMediapipeReady,
   disabled,
+  isFlipped,
 }: {
   videoStream: MediaStream;
   onMediapipeReady?: () => void;
   disabled?: boolean;
+  isFlipped?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const workerRef = useRef<Worker | null>(null);
@@ -284,19 +286,9 @@ function FaceTracking({
   }, [videoStream]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <video
-      ref={videoRef}
-      autoPlay
-      playsInline
-      muted
-      id="video"
-      className={`camera-feed w-1 tb:w-400 br-12 tb:br-24 m-4${disabled ? " switcher-disabled" : ""}`}
-      style={{}}
-    />
     <div
       id="video"
-      className={`camera-feed w-1 overflow-hidden tb:w-400 br-12 tb:br-24 m-4 ${disabled ? " switcher-disabled" : ""
-        }`}
+      className={`camera-feed w-1 overflow-hidden tb:w-400 br-12 tb:br-24 m-4 ${disabled ? " switcher-disabled" : ""}`}
     >
       <video
         ref={videoRef}
