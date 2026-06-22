@@ -454,6 +454,13 @@ function wristPosToWorld(pos: [number, number, number], out: Vector3): void {
 // increase above 1 to exaggerate the hint distance from the shoulder.
 const POSE_TO_AVATAR_SCALE = 1.0;
 
+// Maximum height (in world units) the elbow hint is allowed to rise above the
+// shoulder position. ARM_BONE_LEN ≈ 0.28 m, so 0 = shoulder level (T-pose cap),
+// negative values push the cap below shoulder. Tune this to set how high the
+// user can raise their elbow before the animation stops following further.
+// e.g. 0.0 = T-pose ceiling, -0.05 = 10 deg below shoulder, 0.05 = 10 deg above
+const ELBOW_HINT_MAX_RISE = 0.0; // world units; applied to both arms
+
 /**
  * Convert a PoseLandmarker shoulder→elbow offset vector (metres, hip-origin
  * coordinate system) to a Three.js world-space elbow hint position.
@@ -754,6 +761,8 @@ function Avatar({ url, onLoaded }: AvatarProps) {
       if (leftElbowOffset) {
         const smoothedOffset = leftElbowSmoother.smooth(leftElbowOffset, delta);
         poseElbowToHint(_shoulderPos, smoothedOffset, _elbowHint);
+        // Cap: never let the hint rise more than ELBOW_MAX_RISE_DEG above shoulder level.
+        _elbowHint.y = Math.min(_elbowHint.y, _shoulderPos.y + ELBOW_HINT_MAX_RISE);
       } else {
         // Hardcoded fallback: elbow wide-left, slightly down, mildly forward.
         _elbowHint.copy(_shoulderPos);
@@ -785,11 +794,11 @@ function Avatar({ url, onLoaded }: AvatarProps) {
       nodes.RightArm?.getWorldPosition(_shoulderPos);
       if (rightElbowOffset) {
         const smoothedOffset = rightElbowSmoother.smooth(rightElbowOffset, delta);
-        // For the right arm the IK bend axis flips sign when the hint rises above
-        // the shoulder (cross product direction reverses), shooting the elbow up.
-        // Clamp offset[1] to a minimum of 0 so the hint never goes above shoulder level.
-        const rightOffsetClamped: [number, number, number] = [smoothedOffset[0], Math.max(0, smoothedOffset[1]), smoothedOffset[2]];
-        poseElbowToHint(_shoulderPos, rightOffsetClamped, _elbowHint);
+        poseElbowToHint(_shoulderPos, smoothedOffset, _elbowHint);
+        // Cap: never let the hint rise more than ELBOW_HINT_MAX_RISE above shoulder level.
+        // This prevents the IK bend axis from flipping sign on the right arm (which would
+        // shoot the elbow upward) while still allowing natural upward elbow motion.
+        _elbowHint.y = Math.min(_elbowHint.y, _shoulderPos.y + ELBOW_HINT_MAX_RISE);
       } else {
         // Hardcoded fallback: elbow wide-right, slightly down, mildly forward.
         _elbowHint.copy(_shoulderPos);
