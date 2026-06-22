@@ -530,12 +530,55 @@ function wristQuatFromLandmarks(lm, isRight) {
   return finalQuat;
 }
 
+// ─── Handedness stabilisation ────────────────────────────────────────────────
+//
+// MediaPipe occasionally mis-classifies a hand as the wrong side for 1-2 frames,
+// which causes the avatar's arm to flash/jump then snap back.  Three layers of
+// defence are applied here — all purely within the worker so they are zero-cost
+// to the rest of the pipeline and add no latency to normal, correct frames.
+//
+// Layer 1 – Confidence gate
+//   Ignore any hand detection whose handedness confidence is below this threshold.
+//   Low-confidence reads are almost always the source of mis-classifications.
+const HANDEDNESS_MIN_CONFIDENCE = 0.75;
+
+// Layer 2 – Majority-vote latch (ring buffer)
+//   Track the last N handedness labels for each detected hand slot (0 or 1).
+//   A label is only committed to the output once it has appeared in the majority
+//   of the last HANDEDNESS_VOTE_WINDOW frames.  A single bad frame cannot flip
+//   the assignment.
+const HANDEDNESS_VOTE_WINDOW = 5;  // frames kept per hand slot
+const HANDEDNESS_VOTE_REQUIRED = 3; // minimum agreement to commit a label
+
+// Per-slot ring buffers — reset automatically whenever the hand count changes.
+const _handednessHistory = [[], []]; // index 0 and 1 → slot for up to 2 hands
+let _prevHandCount = 0;              // lets us detect when MediaPipe drops/adds hands
+
+/**
+ * Apply the majority-vote latch to a raw label string.
+ * @param {number} slot        - hand index (0 or 1)
+ * @param {string} rawLabel    - "Left" | "Right" from MediaPipe
+ * @returns {string|null}      - committed label, or null if no majority yet
+ */
+function committedHandedness(slot, rawLabel) {
+  const buf = _handednessHistory[slot];
+  buf.push(rawLabel);
+  if (buf.length > HANDEDNESS_VOTE_WINDOW) buf.shift();
+
+  let leftCount = 0, rightCount = 0;
+  for (const l of buf) l === "Left" ? leftCount++ : rightCount++;
+
+  if (leftCount >= HANDEDNESS_VOTE_REQUIRED) return "Left";
+  if (rightCount >= HANDEDNESS_VOTE_REQUIRED) return "Right";
+  return null; // no strong majority yet — skip this hand this frame
+}
+
 // ─── Worker message handler ───────────────────────────────────────────────────
 
 self.onmessage = async function (e) {
   const { type } = e.data;
 
-  // ── INIT ──────────────────────────────────────────────────────────────────
+  // ── INIT ─────────────────────────────────────────���────────────────────────
   if (type === "INIT") {
     isMobile = !!e.data.isMobile;
 
@@ -620,31 +663,96 @@ self.onmessage = async function (e) {
       // bone quaternions for each.  MediaPipe reports handedness from the
       // camera's point of view (already accounting for the mirror flip), so
       // "Right" = the user's right hand = avatar's Right side.
+      //
+      // Three stabilisation layers guard against transient mis-classifications:
+      //   1. Confidence gate    – skip detections below HANDEDNESS_MIN_CONFIDENCE
+      //   2. Majority-vote latch – commit a label only after N/W frames agree
+      //   3. Spatial sanity swap – if both hands visible, ensure left wrist is
+      //                            truly to the LEFT of the right wrist in image
+      //                            space; swap assignments if they are crossed.
       let leftFingers = null; // avatar's Left hand  (MediaPipe "Left")
       let rightFingers = null; // avatar's Right hand (MediaPipe "Right")
       let leftWristPos = null; // [x,y,z] normalized, avatar's Left hand
       let rightWristPos = null; // [x,y,z] normalized, avatar's Right hand
 
       if (handResult?.landmarks?.length) {
+        // Reset ring buffers when the number of detected hands changes so stale
+        // history from a previous single-hand session doesn't corrupt a new one.
+        const currentHandCount = handResult.landmarks.length;
+        if (currentHandCount !== _prevHandCount) {
+          _handednessHistory[0] = [];
+          _handednessHistory[1] = [];
+          _prevHandCount = currentHandCount;
+        }
+
+        // Collect candidate assignments (may include nulls from failed vote)
+        const candidates = []; // { label, landmarks, wristPos }
+
         for (let i = 0; i < handResult.landmarks.length; i++) {
           const handLandmarks = handResult.landmarks[i];
-          const handedness = handResult.handednesses?.[i]?.[0]?.categoryName ?? "";
+          const handednessEntry = handResult.handednesses?.[i]?.[0];
 
-          const rotations = fingerRotationsFromLandmarks(handLandmarks, handedness === "Right");
+          // ── Layer 1: confidence gate ─────────────────────────────────────────
+          const confidence = handednessEntry?.score ?? 0;
+          if (confidence < HANDEDNESS_MIN_CONFIDENCE) continue;
+
+          const rawLabel = handednessEntry?.categoryName ?? "";
+
+          // ── Layer 2: majority-vote latch ─────────────────────────────────────
+          const label = committedHandedness(i, rawLabel);
+          if (label === null) continue; // no strong majority yet
 
           // lm[0] is the wrist landmark — use it for IK positioning.
-          // MediaPipe coords: x 0-1 left-to-right (image), y 0-1 top-to-bottom, z depth (neg = closer).
           const w = handLandmarks[0];
           const wristPos = w ? [w.x, w.y, w.z] : null;
 
-          // No swap needed: MediaPipe already accounts for the camera mirror.
-          if (handedness === "Left") {
-            leftFingers = rotations;
+          candidates.push({ label, landmarks: handLandmarks, wristPos });
+        }
+
+        // ── Layer 3: spatial sanity swap ─────────────────────────────────────
+        // When both hands are committed, verify their wrist X positions match
+        // the expected layout in image space (image-x: 0=left edge, 1=right edge).
+        // In a mirrored/selfie view the user's right hand appears on the LEFT
+        // side of the image (lower image-x), so:
+        //   avatar Right wrist image-x  <  avatar Left wrist image-x
+        // If the committed labels violate this, swap them.
+        if (candidates.length === 2) {
+          const c0 = candidates[0];
+          const c1 = candidates[1];
+          if (c0.wristPos && c1.wristPos) {
+            // Find which candidate claims to be Right and which claims Left
+            const idxRight = c0.label === "Right" ? 0 : 1;
+            const idxLeft  = c0.label === "Left"  ? 0 : 1;
+            const rightX = candidates[idxRight].wristPos[0];
+            const leftX  = candidates[idxLeft].wristPos[0];
+            // In a mirrored feed rightX should be less than leftX.
+            // If it's significantly reversed, the labels are swapped.
+            if (rightX - leftX > 0.15) {
+              // Swap labels (don't alter ring buffers — let them self-correct)
+              candidates[idxRight].label = "Left";
+              candidates[idxLeft].label  = "Right";
+            }
+          }
+        }
+
+        // Commit candidates to left/right output
+        for (const { label, landmarks, wristPos } of candidates) {
+          const rotations = fingerRotationsFromLandmarks(landmarks, label === "Right");
+          if (label === "Left") {
+            leftFingers  = rotations;
             leftWristPos = wristPos;
           } else {
-            rightFingers = rotations;
+            rightFingers  = rotations;
             rightWristPos = wristPos;
           }
+        }
+      } else {
+        // No hands detected this frame — reset hand count so next appearance
+        // starts with clean ring buffers
+        if (_prevHandCount !== 0) {
+          _handednessHistory[0] = [];
+          _handednessHistory[1] = [];
+          _prevHandCount = 0;
         }
       }
 
