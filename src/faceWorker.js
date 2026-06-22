@@ -538,39 +538,54 @@ function wristQuatFromLandmarks(lm, isRight) {
 // to the rest of the pipeline and add no latency to normal, correct frames.
 //
 // Layer 1 – Confidence gate
-//   Ignore any hand detection whose handedness confidence is below this threshold.
-//   Low-confidence reads are almost always the source of mis-classifications.
-const HANDEDNESS_MIN_CONFIDENCE = 0.75;
+//   Only LOW-confidence frames (below HANDEDNESS_LABEL_TRUST) should be treated
+//   as unreliable for the *label* — the finger geometry itself is still valid.
+//   We never skip the whole hand; we just don't let a low-confidence label
+//   override the last committed assignment.
+const HANDEDNESS_LABEL_TRUST = 0.5; // below this → label is distrusted, use last committed
 
 // Layer 2 – Majority-vote latch (ring buffer)
 //   Track the last N handedness labels for each detected hand slot (0 or 1).
-//   A label is only committed to the output once it has appeared in the majority
-//   of the last HANDEDNESS_VOTE_WINDOW frames.  A single bad frame cannot flip
-//   the assignment.
+//   Only high-confidence labels are fed into the vote so bad frames don't
+//   corrupt the buffer, but the hand is NEVER dropped just because the label
+//   is uncertain — we fall back to the last committed label instead.
 const HANDEDNESS_VOTE_WINDOW = 5;  // frames kept per hand slot
 const HANDEDNESS_VOTE_REQUIRED = 3; // minimum agreement to commit a label
 
 // Per-slot ring buffers — reset only when hands go from visible to none.
 const _handednessHistory = [[], []]; // index 0 and 1 → slot for up to 2 hands
+const _handednessCommitted = [null, null]; // last successfully committed label per slot
 let _prevHandCount = 0;              // tracks last hand count; used only for zero-reset
 
 /**
- * Apply the majority-vote latch to a raw label string.
+ * Feed a label into the majority-vote latch and return the best label to use.
+ * High-confidence labels update the vote buffer; low-confidence ones skip the
+ * vote but still return the last committed label so the hand is never dropped.
+ *
  * @param {number} slot        - hand index (0 or 1)
  * @param {string} rawLabel    - "Left" | "Right" from MediaPipe
- * @returns {string|null}      - committed label, or null if no majority yet
+ * @param {number} confidence  - MediaPipe handedness score (0-1)
+ * @returns {string|null}      - label to use, or null if no committed label yet
  */
-function committedHandedness(slot, rawLabel) {
-  const buf = _handednessHistory[slot];
-  buf.push(rawLabel);
-  if (buf.length > HANDEDNESS_VOTE_WINDOW) buf.shift();
+function committedHandedness(slot, rawLabel, confidence) {
+  // Only feed trustworthy labels into the vote buffer
+  if (confidence >= HANDEDNESS_LABEL_TRUST) {
+    const buf = _handednessHistory[slot];
+    buf.push(rawLabel);
+    if (buf.length > HANDEDNESS_VOTE_WINDOW) buf.shift();
 
-  let leftCount = 0, rightCount = 0;
-  for (const l of buf) l === "Left" ? leftCount++ : rightCount++;
+    let leftCount = 0, rightCount = 0;
+    for (const l of buf) l === "Left" ? leftCount++ : rightCount++;
 
-  if (leftCount >= HANDEDNESS_VOTE_REQUIRED) return "Left";
-  if (rightCount >= HANDEDNESS_VOTE_REQUIRED) return "Right";
-  return null; // no strong majority yet — skip this hand this frame
+    if (leftCount >= HANDEDNESS_VOTE_REQUIRED) {
+      _handednessCommitted[slot] = "Left";
+    } else if (rightCount >= HANDEDNESS_VOTE_REQUIRED) {
+      _handednessCommitted[slot] = "Right";
+    }
+  }
+
+  // Return the committed label (may be null on the very first frames)
+  return _handednessCommitted[slot];
 }
 
 // ─── Worker message handler ───────────────────────────────────────────────────
@@ -685,15 +700,14 @@ self.onmessage = async function (e) {
           const handLandmarks = handResult.landmarks[i];
           const handednessEntry = handResult.handednesses?.[i]?.[0];
 
-          // ── Layer 1: confidence gate ─────────────────────────────────────────
           const confidence = handednessEntry?.score ?? 0;
-          if (confidence < HANDEDNESS_MIN_CONFIDENCE) continue;
-
           const rawLabel = handednessEntry?.categoryName ?? "";
 
-          // ── Layer 2: majority-vote latch ─────────────────────────────────────
-          const label = committedHandedness(i, rawLabel);
-          if (label === null) continue; // no strong majority yet
+          // ── Layers 1+2: vote latch with confidence-aware label trust ─────────
+          // Low-confidence frames don't update the vote buffer but still fall
+          // back to the last committed label so the hand is never dropped mid-rotation.
+          const label = committedHandedness(i, rawLabel, confidence);
+          if (label === null) continue; // no committed label yet (very first frames only)
 
           // lm[0] is the wrist landmark — use it for IK positioning.
           const w = handLandmarks[0];
@@ -745,6 +759,8 @@ self.onmessage = async function (e) {
         if (_prevHandCount !== 0) {
           _handednessHistory[0] = [];
           _handednessHistory[1] = [];
+          _handednessCommitted[0] = null;
+          _handednessCommitted[1] = null;
           _prevHandCount = 0;
         }
       }
