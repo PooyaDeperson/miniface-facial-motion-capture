@@ -12,10 +12,10 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useGraph } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import { Euler, Mesh, Object3D, Quaternion, Vector3 } from "three";
-import { blendshapes, rotation, headMesh, headMatrix, isMobileTracking, isMediaPipeActive, leftFingerBones, rightFingerBones, leftWristPos, rightWristPos, type FingerQuats } from "./FaceTracking";
+import { blendshapes, rotation, headMesh, headMatrix, isMobileTracking, isMediaPipeActive, leftFingerBones, rightFingerBones, leftWristPos, rightWristPos, leftElbowOffset, rightElbowOffset, type FingerQuats } from "./FaceTracking";
 import { captureFrame, setSceneForExport } from "./useMotionRecorder";
 import { useAnimationPlayer } from "./useAnimationPlayer";
-import { BlendshapeSmoother, FingerSmoother, IKTargetSmoother, QuaternionSmoother, RestPoseSmoother, IN_FRAME_TAU, REST_POSE_TAU } from "./smoothing";
+import { BlendshapeSmoother, FingerSmoother, IKTargetSmoother, QuaternionSmoother, RestPoseSmoother, IN_FRAME_TAU, REST_POSE_TAU, ARM_ELBOW_TAU } from "./smoothing";
 import { getAvatarMetadata } from "./avatarMetadata";
 import { useSecondaryMotion } from "./useSecondaryMotion";
 
@@ -52,6 +52,13 @@ const rightFingerSmoother = new FingerSmoother();
 // as the finger rotations.
 const leftIKSmoother  = new IKTargetSmoother();
 const rightIKSmoother = new IKTargetSmoother();
+
+// Elbow hint smoothers — one per arm, tuned via ARM_ELBOW_TAU.
+// Smooth the raw shoulder→elbow offset from PoseLandmarker before converting
+// it to the IK elbow hint, damping the noisier pose landmarks independently
+// from the hand wrist smoothers.
+const leftElbowSmoother  = new IKTargetSmoother(ARM_ELBOW_TAU);
+const rightElbowSmoother = new IKTargetSmoother(ARM_ELBOW_TAU);
 
 // Rest-pose / in-frame bone smoothers — one per hand.
 // smoothFromBones() uses IN_FRAME_TAU (hand visible).
@@ -307,7 +314,7 @@ function applyFingerBones(
   }
 }
 
-// ─── Arm IK ─────────────────────����─────────────────────────────────────────────
+// ─── Arm IK ─────────────────────�����─────────────────────────────────────────────
 // We map the MediaPipe wrist landmark (normalized image coords) to a 3-D world
 // target, then solve a standard 2-bone IK chain:
 //   Shoulder (LeftArm / RightArm)  →  Elbow (LeftForeArm / RightForeArm)  →  Wrist (LeftHand / RightHand)
@@ -439,6 +446,43 @@ function wristPosToWorld(pos: [number, number, number], out: Vector3): void {
   out.z = WORLD_Z_BASE - pos[2] * WORLD_Z_SCALE;
 }
 
+// Scale applied to the PoseLandmarker shoulder→elbow offset when mapping it to
+// Three.js world space.  Pose world landmarks are in metres with the human body
+// proportions; the avatar skeleton is also roughly metre-scale, but the avatar's
+// shoulder bone origin can differ from the pose shoulder landmark origin.
+// 1.0 gives a 1:1 scale that faithfully follows the tracked elbow direction;
+// increase above 1 to exaggerate the hint distance from the shoulder.
+const POSE_TO_AVATAR_SCALE = 1.0;
+
+/**
+ * Convert a PoseLandmarker shoulder→elbow offset vector (metres, hip-origin
+ * coordinate system) to a Three.js world-space elbow hint position.
+ *
+ * PoseLandmarker world coordinate axes:
+ *   +X = user's right,  +Y = up,  +Z = toward camera
+ *
+ * Three.js world coordinate axes (avatar facing camera):
+ *   +X = avatar's left (= user's left),  +Y = up,  +Z = toward camera
+ *
+ * Therefore: pose_x → -three_x  (flip X: user's right → avatar's left)
+ *            pose_y →  three_y  (same up direction)
+ *            pose_z →  three_z  (same depth direction)
+ *
+ * @param shoulderWorldPos  Avatar's shoulder bone world position (from bone).
+ * @param offset            [dx,dy,dz] shoulder→elbow in pose world space.
+ * @param out               Output Vector3 (written in-place).
+ */
+function poseElbowToHint(
+  shoulderWorldPos: Vector3,
+  offset: [number, number, number],
+  out: Vector3
+): void {
+  out.copy(shoulderWorldPos);
+  out.x += -offset[0] * POSE_TO_AVATAR_SCALE; // negate X: pose right → avatar -X
+  out.y +=  offset[1] * POSE_TO_AVATAR_SCALE;
+  out.z +=  offset[2] * POSE_TO_AVATAR_SCALE;
+}
+
 /**
  * 2-bone IK solver using the law of cosines.
  *
@@ -564,6 +608,8 @@ function Avatar({ url, onLoaded }: AvatarProps) {
     rightFingerSmoother.reset();
     leftIKSmoother.reset();
     rightIKSmoother.reset();
+    leftElbowSmoother.reset();
+    rightElbowSmoother.reset();
 
     // Reset forearm twist continuity so the unwrapped half-twist angle starts
     // fresh and doesn't carry a stale value from a previous avatar/session.
@@ -696,13 +742,20 @@ function Avatar({ url, onLoaded }: AvatarProps) {
     if (leftWristPos) {
       const smoothedLeftPos = leftIKSmoother.smooth(leftWristPos, delta);
       wristPosToWorld(smoothedLeftPos, _ikTarget);
-      // Elbow hint: out to the LEFT side (+X), slightly below shoulder, and
-      // forward — creating the triangular forearm shape of a seated user with
-      // elbows wide (elbow far left, wrist raised toward center/screen).
-      nodes.LeftArm?.getWorldPosition(_elbowHint);
-      _elbowHint.x += 0.65; // push elbow hint far left (avatar left = +X)
-      _elbowHint.y -= 0.2;  // slight downward offset
-      _elbowHint.z += 0.2;  // mild forward bias
+      // Elbow hint: use live-tracked elbow position from PoseLandmarker when
+      // available; fall back to the hardcoded offset when pose data is absent
+      // (model unavailable, arm occluded, or low-confidence landmark).
+      nodes.LeftArm?.getWorldPosition(_shoulderPos);
+      if (leftElbowOffset) {
+        const smoothedOffset = leftElbowSmoother.smooth(leftElbowOffset, delta);
+        poseElbowToHint(_shoulderPos, smoothedOffset, _elbowHint);
+      } else {
+        // Hardcoded fallback: elbow wide-left, slightly down, mildly forward.
+        _elbowHint.copy(_shoulderPos);
+        _elbowHint.x += 0.65;
+        _elbowHint.y -= 0.2;
+        _elbowHint.z += 0.2;
+      }
       solveArmIK(
         nodes.LeftArm, nodes.LeftForeArm,
         _ikTarget, _elbowHint,
@@ -717,15 +770,24 @@ function Avatar({ url, onLoaded }: AvatarProps) {
       // Reset smoothers so re-entry seeds from the first new frame, not stale state.
       leftFingerSmoother.reset();
       leftIKSmoother.reset();
+      leftElbowSmoother.reset();
     }
     if (rightWristPos) {
       const smoothedRightPos = rightIKSmoother.smooth(rightWristPos, delta);
       wristPosToWorld(smoothedRightPos, _ikTarget);
-      // Elbow hint: out to the RIGHT side (-X), slightly below shoulder, forward.
-      nodes.RightArm?.getWorldPosition(_elbowHint);
-      _elbowHint.x -= 0.65; // push elbow hint far right (avatar right = -X)
-      _elbowHint.y -= 0.2;  // slight downward offset
-      _elbowHint.z += 0.2;  // mild forward bias
+      // Elbow hint: use live-tracked elbow position from PoseLandmarker when
+      // available; fall back to the hardcoded offset when pose data is absent.
+      nodes.RightArm?.getWorldPosition(_shoulderPos);
+      if (rightElbowOffset) {
+        const smoothedOffset = rightElbowSmoother.smooth(rightElbowOffset, delta);
+        poseElbowToHint(_shoulderPos, smoothedOffset, _elbowHint);
+      } else {
+        // Hardcoded fallback: elbow wide-right, slightly down, mildly forward.
+        _elbowHint.copy(_shoulderPos);
+        _elbowHint.x -= 0.65;
+        _elbowHint.y -= 0.2;
+        _elbowHint.z += 0.2;
+      }
       solveArmIK(
         nodes.RightArm, nodes.RightForeArm,
         _ikTarget, _elbowHint,
@@ -740,6 +802,7 @@ function Avatar({ url, onLoaded }: AvatarProps) {
       // Reset smoothers so re-entry seeds from the first new frame, not stale state.
       rightFingerSmoother.reset();
       rightIKSmoother.reset();
+      rightElbowSmoother.reset();
     }
 
     // ── finger bone animation ─────────────────────────────────────────���────

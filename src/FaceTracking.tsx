@@ -80,6 +80,17 @@ export let rightFingerBones: FingerQuats = null;
 export let leftWristPos:  [number, number, number] | null = null;
 export let rightWristPos: [number, number, number] | null = null;
 
+/**
+ * Shoulder→Elbow offset vector in PoseLandmarker world space (metres, hip-origin).
+ * Coordinate axes: +X = user's right, +Y = up, +Z = toward camera.
+ * null when the corresponding shoulder or elbow landmark has low visibility (<0.4)
+ * or when PoseLandmarker is unavailable (e.g. model load failure).
+ * Avatar.tsx converts this offset to Three.js world space and uses it as the
+ * live elbow hint for the 2-bone IK solver, replacing the hardcoded offset.
+ */
+export let leftElbowOffset:  [number, number, number] | null = null;
+export let rightElbowOffset: [number, number, number] | null = null;
+
 // ─── Mobile detection (main thread copy — still needed to choose worker mode) ─
 
 function isMobileDevice(): boolean {
@@ -176,10 +187,12 @@ function FaceTracking({
             blendshapes: any[];
             matrixData: number[] | null;
             eulerData: [number, number, number] | null;
-            leftFingers:   FingerQuats;
-            rightFingers:  FingerQuats;
-            leftWristPos:  [number, number, number] | null;
-            rightWristPos: [number, number, number] | null;
+            leftFingers:      FingerQuats;
+            rightFingers:     FingerQuats;
+            leftWristPos:     [number, number, number] | null;
+            rightWristPos:    [number, number, number] | null;
+            leftElbowOffset:  [number, number, number] | null;
+            rightElbowOffset: [number, number, number] | null;
           };
         };
 
@@ -204,6 +217,9 @@ function FaceTracking({
         rightFingerBones = payload.rightFingers ?? null;
         leftWristPos     = payload.leftWristPos  ?? null;
         rightWristPos    = payload.rightWristPos ?? null;
+        // Elbow direction offsets from PoseLandmarker — null when occluded or unavailable
+        leftElbowOffset  = payload.leftElbowOffset  ?? null;
+        rightElbowOffset = payload.rightElbowOffset ?? null;
 
         isMediaPipeActive = true;
 
@@ -261,6 +277,8 @@ function FaceTracking({
       rightFingerBones = null;
       leftWristPos     = null;
       rightWristPos    = null;
+      leftElbowOffset  = null;
+      rightElbowOffset = null;
       onMediapipeReadyFiredRef.current = false;
     };
   }, [videoStream]); // eslint-disable-line react-hooks/exhaustive-deps

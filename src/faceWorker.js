@@ -16,11 +16,12 @@
 // package rather than relying on importScripts + a CDN UMD bundle.
 /* eslint-disable no-restricted-globals */
 
-import { FaceLandmarker, HandLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
+import { FaceLandmarker, HandLandmarker, PoseLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let faceLandmarker = null;
 let handLandmarker = null;
+let poseLandmarker = null;
 let isMobile = false;
 
 // ─── OffscreenCanvas for detectForVideo ──────────────────────────────────────
@@ -600,7 +601,7 @@ self.onmessage = async function (e) {
     try {
       const filesetResolver = await FilesetResolver.forVisionTasks("/wasm");
 
-      // Initialise both detectors in parallel for faster startup
+      // Initialise face and hand detectors in parallel for faster startup
       [faceLandmarker, handLandmarker] = await Promise.all([
         FaceLandmarker.createFromOptions(filesetResolver, {
           baseOptions: {
@@ -621,6 +622,23 @@ self.onmessage = async function (e) {
           runningMode: "VIDEO",
         }),
       ]);
+
+      // Initialise PoseLandmarker separately — non-fatal if it fails so the
+      // rest of tracking continues without live elbow data (falls back to the
+      // hardcoded elbow hint in Avatar.tsx).
+      try {
+        poseLandmarker = await PoseLandmarker.createFromOptions(filesetResolver, {
+          baseOptions: {
+            modelAssetPath: "/models/pose_landmarker_lite.task",
+            delegate: isMobile ? "CPU" : "GPU",
+          },
+          numPoses: 1,
+          runningMode: "VIDEO",
+          outputSegmentationMasks: false,
+        });
+      } catch (poseErr) {
+        poseLandmarker = null;
+      }
 
       self.postMessage({ type: "READY" });
     } catch (err) {
@@ -645,10 +663,13 @@ self.onmessage = async function (e) {
       ctx.drawImage(bitmap, 0, 0);
       bitmap.close(); // release GPU/CPU memory immediately
 
-      // Run face and hand detection on the same canvas frame simultaneously
+      // Run face, hand, and pose detection on the same canvas frame simultaneously
       const faceResult = faceLandmarker.detectForVideo(canvas, timestamp);
       const handResult = handLandmarker
         ? handLandmarker.detectForVideo(canvas, timestamp)
+        : null;
+      const poseResult = poseLandmarker
+        ? poseLandmarker.detectForVideo(canvas, timestamp)
         : null;
 
       if (
@@ -689,6 +710,48 @@ self.onmessage = async function (e) {
       let rightFingers = null; // avatar's Right hand (MediaPipe "Right")
       let leftWristPos = null; // [x,y,z] normalized, avatar's Left hand
       let rightWristPos = null; // [x,y,z] normalized, avatar's Right hand
+
+      // ── Pose: elbow direction offsets (world landmarks, hip-origin, metres) ──
+      // We send the vector from shoulder→elbow in PoseLandmarker world space so
+      // Avatar.tsx can compute the live elbow hint without absolute-position drift.
+      //   User's left:  shoulder=11, elbow=13  →  avatar's Left arm
+      //   User's right: shoulder=12, elbow=14  →  avatar's Right arm
+      // Visibility gate (0.4) avoids jumpy hints when a shoulder/elbow is occluded.
+      const POSE_VIS_THRESHOLD = 0.4;
+      let leftElbowOffset = null;   // [dx,dy,dz] shoulder→elbow, pose world space
+      let rightElbowOffset = null;
+
+      if (poseResult?.worldLandmarks?.length > 0) {
+        const wl = poseResult.worldLandmarks[0];
+        // Left arm: landmarks 11 (left shoulder) + 13 (left elbow)
+        const lShoulder = wl[11];
+        const lElbow    = wl[13];
+        if (
+          lShoulder && lElbow &&
+          (lShoulder.visibility ?? 1) >= POSE_VIS_THRESHOLD &&
+          (lElbow.visibility    ?? 1) >= POSE_VIS_THRESHOLD
+        ) {
+          leftElbowOffset = [
+            lElbow.x - lShoulder.x,
+            lElbow.y - lShoulder.y,
+            lElbow.z - lShoulder.z,
+          ];
+        }
+        // Right arm: landmarks 12 (right shoulder) + 14 (right elbow)
+        const rShoulder = wl[12];
+        const rElbow    = wl[14];
+        if (
+          rShoulder && rElbow &&
+          (rShoulder.visibility ?? 1) >= POSE_VIS_THRESHOLD &&
+          (rElbow.visibility    ?? 1) >= POSE_VIS_THRESHOLD
+        ) {
+          rightElbowOffset = [
+            rElbow.x - rShoulder.x,
+            rElbow.y - rShoulder.y,
+            rElbow.z - rShoulder.z,
+          ];
+        }
+      }
 
       if (handResult?.landmarks?.length) {
         _prevHandCount = handResult.landmarks.length;
@@ -767,7 +830,7 @@ self.onmessage = async function (e) {
 
       self.postMessage({
         type: "RESULT",
-        payload: { blendshapes, matrixData, eulerData, leftFingers, rightFingers, leftWristPos, rightWristPos },
+        payload: { blendshapes, matrixData, eulerData, leftFingers, rightFingers, leftWristPos, rightWristPos, leftElbowOffset, rightElbowOffset },
       });
     } catch (_err) {
       // Swallow per-frame errors (e.g. procrustes solver failures on mobile)
