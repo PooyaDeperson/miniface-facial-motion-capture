@@ -31,6 +31,7 @@ import IconButton from "./components/IconButton";
 import { supabase } from "./supabaseClient";
 import { hasDriveAccess, clearDriveTokens, listDriveMotions, uploadToDrive, subscribeMotionUploaded, subscribeQuotaExceeded, subscribeNoDriveScope, DriveQuotaError, BulkSyncProgress, DRIVE_SCOPE } from "./useDriveSync";
 import type { DriveMotionFile } from "./useDriveSync";
+import { getAllAvatars } from "./avatarMetadata";
 import type { User } from "@supabase/supabase-js";
 
 function App() {
@@ -477,25 +478,29 @@ function App() {
 
   // ── Select motion from library ────────────────────────────────────────────
   const handleSelectMotion = useCallback((blob: Blob, file: DriveMotionFile) => {
-    // Normalise the stored avatarUrl to a same-origin pathname so that motions
-    // recorded on a different domain (e.g. https://preview.miniface.org) don't
-    // try to fetch the GLB from that foreign origin, which returns a 401 HTML
-    // page and crashes the GLTF loader / WebGL context.
+    // Resolve the stored avatarUrl to a canonical current URL.
+    //
+    // Recordings may have been made with:
+    //   (a) old local paths    – "/avatar/avatar3.glb"
+    //   (b) Cloudinary URLs    – "https://res.cloudinary.com/da1zca4wj/.../avatar-braids.glb"
+    //   (c) preview-domain URLs – "https://preview.miniface.org/avatar/avatar3.glb"  (401s)
+    //
+    // Strategy: extract the filename from whatever was stored and look it up in
+    // the current AVATAR_METADATA registry. If a match is found, use that
+    // canonical URL (always up-to-date Cloudinary). If not found, fall back to
+    // the stored value so unknown avatars still attempt to load.
     const rawAvatarUrl = file.avatarUrl ?? null;
     let targetAvatarUrl: string | null = null;
     if (rawAvatarUrl) {
-      try {
-        const parsed = new URL(rawAvatarUrl, window.location.origin);
-        // If it points to a different origin, keep only the pathname so the
-        // loader fetches it from the current host.
-        targetAvatarUrl =
-          parsed.origin !== window.location.origin
-            ? parsed.pathname
-            : rawAvatarUrl;
-      } catch {
-        // Not a valid URL — treat it as a relative path as-is.
-        targetAvatarUrl = rawAvatarUrl;
-      }
+      const storedFilename = rawAvatarUrl.split("/").pop()?.split("?")[0] ?? "";
+      const allAvatars = getAllAvatars();
+      const matched = allAvatars.find((a) => {
+        const registryFilename = a.avatarPath.split("/").pop()?.split("?")[0] ?? "";
+        // Match on the bare GLB filename (e.g. "avatar-braids.glb" or "avatar3.glb").
+        // Also handle old naming like "avatar3.glb" → not in new registry, fall through.
+        return registryFilename === storedFilename;
+      });
+      targetAvatarUrl = matched ? matched.avatarPath : rawAvatarUrl;
     }
 
     // If the motion was recorded on a different avatar (or we know its avatar
