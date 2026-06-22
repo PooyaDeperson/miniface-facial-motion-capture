@@ -454,15 +454,6 @@ function wristPosToWorld(pos: [number, number, number], out: Vector3): void {
 // increase above 1 to exaggerate the hint distance from the shoulder.
 const POSE_TO_AVATAR_SCALE = 1.0;
 
-// Minimum distance the elbow hint must sit below the shoulder in world Y.
-// MediaPipe tends to report a near-zero elbow drop when the user holds their
-// hands facing the camera (pose +Y is down, so a small positive dy converts to
-// almost zero Three.js drop). This floor prevents the hint from drifting back
-// up to shoulder level (which would collapse the IK into a T-pose) while still
-// allowing the tracked Y to drive the elbow freely whenever the user actually
-// raises or lowers their arm past this threshold.
-const ELBOW_HINT_MIN_DROP = 0.2; // world units (~metres); increase to force elbow lower
-
 /**
  * Convert a PoseLandmarker shoulder→elbow offset vector (metres, hip-origin
  * coordinate system) to a Three.js world-space elbow hint position.
@@ -487,15 +478,9 @@ function poseElbowToHint(
   out: Vector3
 ): void {
   out.copy(shoulderWorldPos);
-  out.x +=  offset[0] * POSE_TO_AVATAR_SCALE; // no flip: mirrored webcam aligns +X
-  out.y += -offset[1] * POSE_TO_AVATAR_SCALE; // negate: pose +Y is down, Three.js +Y is up
+  out.x +=  offset[0] * POSE_TO_AVATAR_SCALE;       // no flip: mirrored webcam aligns +X
+  out.y += -offset[1] * POSE_TO_AVATAR_SCALE * 2.5; // amplified: pose +Y is down; scale >1 pulls elbow below shoulder at rest while still tracking up/down motion
   out.z +=  offset[2] * POSE_TO_AVATAR_SCALE;
-  // Apply a minimum-drop floor: the hint may never float closer than
-  // ELBOW_HINT_MIN_DROP below the shoulder.  This prevents the T-pose
-  // artefact when the tracked drop is near zero, while fully preserving
-  // upward/downward elbow motion when the user actually moves their arm.
-  const maxAllowedY = shoulderWorldPos.y - ELBOW_HINT_MIN_DROP;
-  if (out.y > maxAllowedY) out.y = maxAllowedY;
 }
 
 /**
