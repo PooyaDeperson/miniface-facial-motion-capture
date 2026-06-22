@@ -49,6 +49,8 @@ function App() {
 
   // ── Motion Library state ──────────────────────────────────────────────────
   const [libraryOpen, setLibraryOpen] = useState(false);
+  /** True during the 220ms slide-out so the panel can animate before unmounting */
+  const [libraryClosing, setLibraryClosing] = useState(false);
   /** True while the motion library button has been clicked — replaces it with the live button */
   const [libraryButtonActive, setLibraryButtonActive] = useState(false);
   const [libraryMotionCount, setLibraryMotionCount] = useState(0);
@@ -399,6 +401,15 @@ function App() {
     // Library stays open so logged-in users can browse their history
   }, [handlePhaseChange]);
 
+  // ── Close library with slide-out animation ───────────────────────────────
+  const closeLibrary = useCallback(() => {
+    setLibraryClosing(true);
+    setTimeout(() => {
+      setLibraryOpen(false);
+      setLibraryClosing(false);
+    }, 230); // matches slide-out-right duration (220ms) + tiny buffer
+  }, []);
+
   // ── Start live capture from inside library panel or player ───────────────
   const handleStartLive = useCallback(() => {
     const wasInPlayback = !!playbackBlob;
@@ -412,14 +423,14 @@ function App() {
     setActiveMotionName(undefined);
     pendingPlaybackRef.current = null;
     handlePhaseChange("idle");
-    setLibraryOpen(false);
+    closeLibrary();
     setLibraryButtonActive(false);
     // Only reinitiate mediapipe when coming out of playback — if we were
     // already in live mode, there is no need to reset it
     if (wasInPlayback) {
       setMediapipeReady(false);
     }
-  }, [recordingPhase, handlePhaseChange, playbackBlob]);
+  }, [recordingPhase, handlePhaseChange, playbackBlob, closeLibrary]);
 
   // ── When library opens, stop recording gracefully and re-check auth ─────────
   const handleOpenLibrary = useCallback(() => {
@@ -611,10 +622,11 @@ function App() {
         />
       )}
 
-      {/* Motion Library panel — always rendered when open, works for both logged-in and guest */}
-      {libraryOpen && (
+      {/* Motion Library panel — kept mounted during closing animation, then unmounted */}
+      {(libraryOpen || libraryClosing) && (
         <MotionLibrary
-          onClose={() => setLibraryOpen(false)}
+          onClose={closeLibrary}
+          isClosing={libraryClosing}
           activeMotionId={activeMotionId}
           onSelectMotion={handleSelectMotion}
           onStartLive={handleStartLive}

@@ -408,6 +408,52 @@
 } */
 
 /* =========================================
+   SKELETON LOADER CARDS
+   Same footprint as .motion-file-container.
+   A shimmer sweep runs across the background.
+========================================= */
+
+@keyframes ml-shimmer {
+  0%   { background-position: -200px 0; }
+  100% { background-position: 200px 0; }
+}
+
+.ml-skeleton-card {
+  min-width: 57px;
+  max-width: 57px;
+  min-height: 72px;
+  max-height: 72px;
+  width: 57px;
+  height: 72px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  flex-shrink: 0;
+  background: linear-gradient(
+    90deg,
+    var(--gray-200) 0px,
+    var(--gray-300) 60px,
+    var(--gray-200) 120px
+  );
+  background-size: 400px 100%;
+  animation: ml-shimmer 1.4s ease-in-out infinite;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* =========================================
+   PANEL SLIDE-OUT ANIMATION
+========================================= */
+
+@keyframes slide-out-right {
+  from { transform: translateX(0);    opacity: 1; }
+  to   { transform: translateX(110%); opacity: 0; }
+}
+
+.motion-library-panel.is-closing {
+  animation: slide-out-right 220ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+/* =========================================
    EMPTY PLACEHOLDER SLOTS
    Identical size/shape to .ml-motion-card but
    dashed border + white/transparent background.

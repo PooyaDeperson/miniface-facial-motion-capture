@@ -36,6 +36,7 @@ import "./motionlibrary.css";
 
 export interface MotionLibraryProps {
   onClose: () => void;
+  isClosing?: boolean;
   activeMotionId?: string | null;
   onSelectMotion: (blob: Blob, file: DriveMotionFile) => void;
   onStartLive: () => void;
@@ -91,6 +92,7 @@ function calcEmptySlots(realCount: number): number {
 
 const MotionLibrary: React.FC<MotionLibraryProps> = ({
   onClose,
+  isClosing = false,
   activeMotionId,
   onSelectMotion,
   onStartLive,
@@ -272,6 +274,19 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
     ]
     : motions;
 
+  // ─── render skeleton loader cards ────────────────────────────────────────
+
+  const SKELETON_COUNT = 8;
+
+  const renderSkeletons = () =>
+    Array.from({ length: SKELETON_COUNT }, (_, i) => (
+      <div
+        key={`skeleton-${i}`}
+        className="ml-skeleton-card"
+        aria-hidden="true"
+      />
+    ));
+
   // ─── render a single empty placeholder slot ───────────────────────────────
 
   const renderEmptySlot = (index: number) => (
@@ -398,7 +413,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
 
       {/* Panel */}
       <aside
-        className="motion-library-panel reveal slide-left"
+        className={clsx("motion-library-panel reveal slide-left", isClosing && "is-closing")}
         aria-label="Motion library"
       >
         {/* ── Header: only refresh icon-button ── */}
@@ -495,11 +510,7 @@ const MotionLibrary: React.FC<MotionLibraryProps> = ({
         {/* ── Logged-in motion list ── */}
         {isLoggedIn && (
           <div className="ml-list motion-list-container gap-4 flex flex-col-reverse items-center" role="list">
-            {loading && displayMotions.length === 0 && (
-              <div className="ml-loading" aria-busy="true">
-                <span className="rec-spinner rec-spinner-xs" aria-hidden="true" />
-              </div>
-            )}
+            {loading && displayMotions.length === 0 && renderSkeletons()}
             {/* {!loading && displayMotions.length === 0 && !loadError && (
               <p className="ml-empty">no motions</p>
             )} */}
