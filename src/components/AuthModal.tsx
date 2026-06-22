@@ -3,7 +3,7 @@
  * Licensed under the MIT License with Attribution.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase, isSupabaseAvailable } from "../supabaseClient";
 import { hasDriveAccess, DRIVE_SCOPE } from "../useDriveSync";
 import type { User } from "@supabase/supabase-js";
@@ -27,7 +27,7 @@ export default function AuthModal({ onClose, onDriveConnected, hasPendingMotion 
   const [driveConnected, setDriveConnected] = useState(() => hasDriveAccess());
   // Tracks that sign-out was explicitly requested so the auth state listener
   // does not flip the modal back to the signed-out view before reload fires.
-  const signingOutRef = { current: false };
+  const signingOutRef = useRef(false);
 
   useEffect(() => {
     if (!supabase) return;
