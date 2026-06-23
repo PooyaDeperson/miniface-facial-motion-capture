@@ -13,7 +13,7 @@ import { useFrame, useGraph } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import { Euler, Mesh, Object3D, Quaternion, Vector3 } from "three";
 import { blendshapes, rotation, headMesh, headMatrix, isMobileTracking, isMediaPipeActive, leftFingerBones, rightFingerBones, leftWristPos, rightWristPos, leftElbowOffset, rightElbowOffset, type FingerQuats } from "./FaceTracking";
-import { captureFrame, setSceneForExport } from "./useMotionRecorder";
+import { captureFrame, setSceneForExport, subscribeRecordingStart } from "./useMotionRecorder";
 import { useAnimationPlayer } from "./useAnimationPlayer";
 import { BlendshapeSmoother, FingerSmoother, IKTargetSmoother, QuaternionSmoother, RestPoseSmoother, IN_FRAME_TAU, REST_POSE_TAU, ARM_ELBOW_TAU } from "./smoothing";
 import { usePlaybackAnimation } from "./usePlaybackAnimation";
@@ -131,7 +131,7 @@ const _foreArmParentInv = new Quaternion();
 const _foreArmTwistLocal = new Quaternion();
 const _twistAxis = new Vector3();
 
-// ─── Per-hand rest-pose quaternion snapshots ─────────────────────────────────
+// ─── Per-hand rest-pose quaternion snapshots ───────���─────────────────────────
 // Captured once at avatar load time. Keyed by bone name.
 // When a hand leaves the frame we restore every arm + finger bone to this
 // snapshot so the avatar returns to its A-pose instead of freezing mid-gesture.
@@ -378,6 +378,11 @@ const _leftArmRestWorldQuat = new Quaternion();
 const _rightArmRestWorldQuat = new Quaternion();
 const _leftForeArmRestWorldQuat = new Quaternion();
 const _rightForeArmRestWorldQuat = new Quaternion();
+
+// Guard: true once captureRestPose has been called for all four arm bones.
+// Prevents IK from running on the very first useFrame tick before the scene
+// useEffect fires and captures the actual rest-pose world quaternions.
+let _armRestCaptured = false;
 
 // Scratch for rest-dir / rest-quat capture
 const _restHeadScratch = new Vector3();
@@ -646,6 +651,10 @@ function Avatar({ url, onLoaded, playbackBlob }: AvatarProps) {
     _prevHalfTwistAngle.Left = 0;
     _prevHalfTwistAngle.Right = 0;
 
+    // Clear the IK rest-capture guard while we recapture so no useFrame tick
+    // between here and the captureRestPose calls sees stale quaternions.
+    _armRestCaptured = false;
+
     // ── Capture A-pose rest pose for IK solver ────────────────────────────
     // Must be done after the scene is fully loaded and world matrices are up
     // to date. updateWorldMatrix(true,true) ensures the full hierarchy is
@@ -655,6 +664,9 @@ function Avatar({ url, onLoaded, playbackBlob }: AvatarProps) {
     captureRestPose(nodes.RightArm, _rightArmRestDir, _rightArmRestWorldQuat);
     captureRestPose(nodes.LeftForeArm, _leftForeArmRestDir, _leftForeArmRestWorldQuat);
     captureRestPose(nodes.RightForeArm, _rightForeArmRestDir, _rightForeArmRestWorldQuat);
+
+    // All four arm bones have been captured — allow IK to run from this point.
+    _armRestCaptured = true;
 
     // ── Capture thumb REST local quaternions ──────────────────────────────
     // The thumb chain has a non-identity rest local orientation that must be
@@ -679,6 +691,95 @@ function Avatar({ url, onLoaded, playbackBlob }: AvatarProps) {
 
     if (onLoaded) onLoaded();
   }, [nodes, url, onLoaded, scene]);
+
+  // ── Reset arm/finger state when a new recording starts ───────────────────
+  // When startRecording() fires, any mid-gesture smoother values from the live
+  // preview would otherwise seed the first recorded frame with a stale pose.
+  // We reset every arm/finger-related smoother and all elbow hint state here so
+  // recording always starts from a clean slate matching what MediaPipe delivers
+  // on its very next frame.  The subscription is stable for the lifetime of
+  // the Avatar component and does not depend on any props/state.
+  useEffect(() => {
+    const unsub = subscribeRecordingStart(() => {
+      // Reset all arm/finger smoothers so stale pre-recording state doesn't
+      // bleed into the first recorded frame.
+      leftFingerSmoother.reset();
+      rightFingerSmoother.reset();
+      leftIKSmoother.reset();
+      rightIKSmoother.reset();
+      leftElbowSmoother.reset();
+      rightElbowSmoother.reset();
+      leftRestPoseSmoother.reset();
+      rightRestPoseSmoother.reset();
+      _hasPrevHalfTwist.Left = false;
+      _hasPrevHalfTwist.Right = false;
+      _prevHalfTwistAngle.Left = 0;
+      _prevHalfTwistAngle.Right = 0;
+      _hasLeftElbowHint = false;
+      _hasRightElbowHint = false;
+
+      // Immediately snap all arm/hand/finger bones back to A-pose so the first
+      // recorded frame starts from rest rather than from whatever mid-gesture
+      // pose the skeleton was in before recording began.
+      // clearHandTracking() (called by startRecording) nulled out the globals,
+      // so the useFrame else-branches will smoothToRest on the next tick — but
+      // doing it here synchronously prevents a one-frame snapshot of the stale pose.
+      restoreHandRestPose(nodes, LEFT_HAND_BONES);
+      restoreHandRestPose(nodes, RIGHT_HAND_BONES);
+    });
+    return unsub;
+  }, [nodes]); // nodes is stable for the life of a loaded avatar
+
+  // ── Reset arm/finger state when playback ends (returning to live mode) ───
+  // When the user finishes playback and goes back to live mode, Three.js's
+  // AnimationMixer leaves every bone frozen in the last frame of the recorded
+  // clip (mixer.stopAllAction() does NOT restore bind-pose). The module-level
+  // smoothers also still hold state from the pre-playback live session, so
+  // their internal Quaternion map no longer matches the bones' actual poses.
+  //
+  // Consequences if we don't reset here:
+  //   • smoothToRest() seeds its SLERP from the stale map values (not from the
+  //     mixer-frozen bone), so the bone visually jumps to a wrong position.
+  //   • smoothFromBones() SLERPs from the old map toward the new IK target,
+  //     causing the arm to drift from an incorrect origin for several frames.
+  //   • On the next startRecording() the _notifyStart handler does snap bones
+  //     to rest — but only AFTER clearHandTracking() already nulled the wrist
+  //     globals, leaving a one-frame window where the recorder captures the
+  //     mixer-frozen pose.
+  //
+  // The fix: as soon as playbackBlob transitions non-null → null, snap all
+  // arm/hand/finger bones back to A-pose and reset every smoother so the live
+  // session always starts from a clean, known state.
+  const prevPlaybackBlobRef = useRef<Blob | null | undefined>(playbackBlob);
+  useEffect(() => {
+    const wasPlaying = prevPlaybackBlobRef.current != null;
+    const isNowLive   = playbackBlob == null;
+    prevPlaybackBlobRef.current = playbackBlob;
+
+    if (!wasPlaying || !isNowLive) return; // only fire on the non-null → null edge
+
+    // Reset all smoothers — their internal state reflects the pre-playback live
+    // session and no longer matches the mixer-frozen bone quaternions.
+    leftFingerSmoother.reset();
+    rightFingerSmoother.reset();
+    leftIKSmoother.reset();
+    rightIKSmoother.reset();
+    leftElbowSmoother.reset();
+    rightElbowSmoother.reset();
+    leftRestPoseSmoother.reset();
+    rightRestPoseSmoother.reset();
+    _hasPrevHalfTwist.Left = false;
+    _hasPrevHalfTwist.Right = false;
+    _prevHalfTwistAngle.Left = 0;
+    _prevHalfTwistAngle.Right = 0;
+    _hasLeftElbowHint = false;
+    _hasRightElbowHint = false;
+
+    // Snap all arm/hand/finger bones back to A-pose so the live session (and
+    // the next startRecording snapshot) starts from the correct rest pose.
+    restoreHandRestPose(nodes, LEFT_HAND_BONES);
+    restoreHandRestPose(nodes, RIGHT_HAND_BONES);
+  }, [playbackBlob, nodes]);
 
   // ── Secondary motion ────────────────────────────────────────────────────
   // Look up per-avatar metadata and initialise the spring secondary motion.
@@ -779,7 +880,9 @@ function Avatar({ url, onLoaded, playbackBlob }: AvatarProps) {
     );
 
     // ── arm IK (position wrist to match webcam hand position) ─────────────
-    if (leftWristPos) {
+    // Skip until the rest-pose capture in useEffect has completed; running IK
+    // with identity rest quaternions produces inverted arm rotations.
+    if (leftWristPos && _armRestCaptured) {
       const smoothedLeftPos = leftIKSmoother.smooth(leftWristPos, delta);
       wristPosToWorld(smoothedLeftPos, _ikTarget);
       // Elbow hint: use live-tracked elbow position from PoseLandmarker when
@@ -815,7 +918,7 @@ function Avatar({ url, onLoaded, playbackBlob }: AvatarProps) {
         _leftArmRestDir, _leftForeArmRestDir,
         _leftArmRestWorldQuat, _leftForeArmRestWorldQuat
       );
-    } else {
+    } else if (!leftWristPos) {
       // No left hand detected — smoothly return arm + fingers to A-pose.
       leftRestPoseSmoother.smoothToRest(nodes, LEFT_HAND_BONES, _handRestQuats, delta);
       _hasPrevHalfTwist.Left = false;
@@ -827,7 +930,7 @@ function Avatar({ url, onLoaded, playbackBlob }: AvatarProps) {
       // a stale position that could be far from the new arm position.
       _hasLeftElbowHint = false;
     }
-    if (rightWristPos) {
+    if (rightWristPos && _armRestCaptured) {
       const smoothedRightPos = rightIKSmoother.smooth(rightWristPos, delta);
       wristPosToWorld(smoothedRightPos, _ikTarget);
       // Elbow hint: use live-tracked elbow position from PoseLandmarker when
@@ -860,7 +963,7 @@ function Avatar({ url, onLoaded, playbackBlob }: AvatarProps) {
         _rightArmRestDir, _rightForeArmRestDir,
         _rightArmRestWorldQuat, _rightForeArmRestWorldQuat
       );
-    } else {
+    } else if (!rightWristPos) {
       // No right hand detected — smoothly return arm + fingers to A-pose.
       rightRestPoseSmoother.smoothToRest(nodes, RIGHT_HAND_BONES, _handRestQuats, delta);
       _hasPrevHalfTwist.Right = false;
@@ -882,7 +985,7 @@ function Avatar({ url, onLoaded, playbackBlob }: AvatarProps) {
     applyFingerBones(nodes, "Left", smoothedLeft as any);
     applyFingerBones(nodes, "Right", smoothedRight as any);
 
-    // ── REST_POSE_TAU smoothing for in-frame hand bones ────────────────────
+    // ── REST_POSE_TAU smoothing for in-frame hand bones ──────────────��─────
     // After the IK solver (arm bones) and applyFingerBones (hand + finger bones)
     // have written the tracked target onto every bone for this frame, SLERP each
     // bone from its smoothed state toward that target using the same REST_POSE_TAU
@@ -915,36 +1018,23 @@ function Avatar({ url, onLoaded, playbackBlob }: AvatarProps) {
     // FingerQuats path.
     const boneSnapshot: Record<string, [number, number, number, number]> = {};
 
-    const BONES_TO_SNAPSHOT = [
-      // Arm IK chain (LeftArm/RightArm: pure IK output; LeftForeArm/RightForeArm:
-      // IK output PLUS 50% forearm twist from applyFingerBones — the twist is
-      // postmultiplied onto foreArm.quaternion AFTER solveArmIK runs, so the only
-      // way to get the correct final value is to read bone.quaternion after both
-      // passes finish).
-      { name: "LeftArm", active: !!leftWristPos },
-      { name: "LeftForeArm", active: !!leftWristPos },
-      { name: "RightArm", active: !!rightWristPos },
-      { name: "RightForeArm", active: !!rightWristPos },
-      // Wrist (LeftHand / RightHand): final value is
-      //   conjug(halfTwist) × (parentInv × wristWorldQuat)
-      // i.e. the world→local conversion PLUS the counter-twist that undoes the
-      // 50% twist applied to the forearm. The raw "Wrist" entry in FingerQuats
-      // is the unprocessed world-space quaternion from the worker — writing that
-      // straight to the bone skips both steps and causes over-twist in the GLB.
-      { name: "LeftHand", active: !!leftWristPos },
-      { name: "RightHand", active: !!rightWristPos },
-      // Thumb bones (rest * splay * bend — cannot be reconstructed from raw data)
-      { name: "LeftHandThumb1", active: !!leftWristPos },
-      { name: "LeftHandThumb2", active: !!leftWristPos },
-      { name: "LeftHandThumb3", active: !!leftWristPos },
-      { name: "RightHandThumb1", active: !!rightWristPos },
-      { name: "RightHandThumb2", active: !!rightWristPos },
-      { name: "RightHandThumb3", active: !!rightWristPos },
-    ];
+    // Always snapshot arm/wrist/thumb bones regardless of whether the hand is
+    // currently detected. When the hand is not visible, smoothToRest() is
+    // actively animating these bones back toward A-pose — that transition IS
+    // part of the motion the user sees, and must be baked into every frame so
+    // playback is WYSIWYG. Using a static fallback in the exporter (the old
+    // approach) caused a jump: frames without hand data snapped to the bind
+    // pose instead of showing the smooth return animation.
+    const ARM_AND_THUMB_BONES = [
+      "LeftArm", "LeftForeArm", "LeftHand",
+      "LeftHandThumb1", "LeftHandThumb2", "LeftHandThumb3",
+      "RightArm", "RightForeArm", "RightHand",
+      "RightHandThumb1", "RightHandThumb2", "RightHandThumb3",
+    ] as const;
 
-    for (const { name, active } of BONES_TO_SNAPSHOT) {
+    for (const name of ARM_AND_THUMB_BONES) {
       const bone = (nodes as any)[name];
-      if (bone && active) {
+      if (bone) {
         const q = bone.quaternion;
         boneSnapshot[name] = [q.x, q.y, q.z, q.w];
       }
