@@ -127,9 +127,14 @@ export function usePlaybackAnimation({
         let clip = gltf.animations[0];
         if (!clip) return;
 
-        // Strip spring-bone tracks so the mixer does not fight secondary motion
+        // Strip spring-bone tracks so the mixer does not fight secondary motion.
+        // Morph-target tracks (morphTargetInfluences) must always be kept so
+        // blendshapes play alongside bones — they are never in excludeBoneNames.
         if (excludeBoneNames && excludeBoneNames.size > 0) {
           const filtered = clip.tracks.filter((t) => {
+            // Always keep morph-target tracks — they drive blendshapes, not bones.
+            if (t.name.includes("morphTargetInfluences")) return true;
+            // For bone tracks: extract the bare bone name and check exclusion list.
             const dotIdx = t.name.lastIndexOf(".");
             const withoutProp = dotIdx !== -1 ? t.name.slice(0, dotIdx) : t.name;
             const pipeIdx = withoutProp.lastIndexOf("|");

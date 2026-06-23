@@ -48,9 +48,14 @@ export function useAnimationPlayer({ characterScene, getIsMediaPipeActive, exclu
     // overwrites Verlet-integrated transforms. Track names can be plain
     // "BoneName.quaternion", "Armature|BoneName.quaternion", or
     // ".bones[BoneName].quaternion" — handle all three formats.
+    // Morph-target tracks (morphTargetInfluences) are always kept so
+    // blendshapes play alongside bones when the GLB includes them.
     if (excludeBoneNames && excludeBoneNames.size > 0) {
       const before = clip.tracks.length;
       const filteredTracks = clip.tracks.filter((track) => {
+        // Always keep morph-target tracks — they drive blendshapes, not bones.
+        if (track.name.includes("morphTargetInfluences")) return true;
+        // For bone tracks: extract the bare bone name and check exclusion list.
         const dotIdx = track.name.lastIndexOf(".");
         const withoutProp = dotIdx !== -1 ? track.name.slice(0, dotIdx) : track.name;
         const pipeIdx = withoutProp.lastIndexOf("|");
