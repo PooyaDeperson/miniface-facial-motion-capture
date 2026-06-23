@@ -153,6 +153,10 @@ html {
   font-size: 16px;
   height: 100%;
   color-scheme: light dark;
+}
+
+/* overflow:hidden is scoped to the full-screen app shell, not the whole document */
+.App {
   overflow: hidden;
 }
 
@@ -1193,12 +1197,6 @@ button {
   line-height: 22px;
   letter-spacing: -0px;
 }
-
-
-html {
-  overflow: hidden;
-}
-
 
 
 #root {

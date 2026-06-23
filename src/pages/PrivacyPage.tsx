@@ -17,11 +17,11 @@ export default function PrivacyPage() {
     <div className="legal-page">
       <div className="legal-container">
         {/* Back link */}
-        <a href="/" className="legal-back" aria-label="Back to app">
+        <a href="/" className="legal-back" aria-label="Back to home page">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          Back to app
+          Back to home
         </a>
 
         {/* Header */}
@@ -442,7 +442,7 @@ export default function PrivacyPage() {
             &nbsp;&middot;&nbsp;
             <a href="/terms" className="legal-link">Terms of Service</a>
             &nbsp;&middot;&nbsp;
-            <a href="/" className="legal-link">Back to app</a>
+            <a href="/" className="legal-link">Back to home</a>
           </p>
           <p style={{ marginTop: "8px" }}>
             &copy; {new Date().getFullYear()} {OWNER_NAME} &mdash; {DOMAIN}
