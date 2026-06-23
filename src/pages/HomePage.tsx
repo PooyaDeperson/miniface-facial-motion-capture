@@ -17,12 +17,14 @@
  * No camera permission, no login popup — fully crawlable by search engines.
  */
 
-import { useState, useCallback, Component } from "react";
+import { useState, useCallback, useEffect, Component } from "react";
 import "../App.css";
 import AvatarCanvas from "../AvatarCanvas";
 
 const PONYTAIL_URL =
   "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023142/miniface/avatar/avatar-ponytail.glb";
+
+const HOMEPAGE_ANIM_URL = "/animation/homepage/homepage-anim.glb";
 
 // ── Error boundary so a failed 3D canvas never crashes the whole page ────────
 class AvatarErrorBoundary extends Component<
@@ -44,6 +46,18 @@ class AvatarErrorBoundary extends Component<
 
 export default function HomePage() {
   const [avatarReady, setAvatarReady] = useState(false);
+  const [animBlob, setAnimBlob] = useState<Blob | null>(null);
+
+  // Fetch the homepage animation GLB once and store as a Blob so AvatarCanvas
+  // can play it back via its playbackBlob prop (same path as recorded sessions).
+  useEffect(() => {
+    let cancelled = false;
+    fetch(HOMEPAGE_ANIM_URL)
+      .then((res) => res.blob())
+      .then((blob) => { if (!cancelled) setAnimBlob(blob); })
+      .catch(() => { /* silently ignore — avatar will stay in idle pose */ });
+    return () => { cancelled = true; };
+  }, []);
 
   const handleAvatarReady = useCallback((ready: boolean) => {
     setAvatarReady(ready);
@@ -51,7 +65,7 @@ export default function HomePage() {
 
   return (
     <main
-      className="App pos-rel overflow-hidden"
+      className="App pos-rel overflow-hidden bg-secondary"
       aria-label="miniface — real-time facial motion capture"
     >
       {/* ── 3D Avatar background scene ────────────────────────────────── */}
@@ -61,7 +75,7 @@ export default function HomePage() {
           avatarKey={0}
           setAvatarReady={handleAvatarReady}
           isFlipped={false}
-          playbackBlob={null}
+          playbackBlob={animBlob}
           motionLoading={false}
         />
       </AvatarErrorBoundary>
