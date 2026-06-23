@@ -82,7 +82,7 @@ export default function HomePage() {
 
       {/* ── Hero text + CTA — center-bottom overlay ───────────────────── */}
       <section
-        className="pos-abs bottom-0 left-0 right-0 flex flex-col items-center text-center pb-86"
+        className="pos-abs bottom-0 left-0 right-0 flex flex-col items-center text-center"
         style={{ zIndex: 10, paddingBottom: "clamp(64px, 10vh, 120px)" }}
         aria-labelledby="hero-heading"
       >
@@ -91,15 +91,14 @@ export default function HomePage() {
           className="text-primary"
           style={{ fontSize: "clamp(22px, 4vw, 36px)", fontWeight: 400, lineHeight: "1.25", marginBottom: "10px", letterSpacing: "-0.01em" }}
         >
-          miniface — animate your face in real time
+          miniface — real-time facial motion capture for vtubers &amp; streamers
         </h1>
 
         <p
           className="text-secondary"
-          style={{ fontSize: "clamp(15px, 2vw, 18px)", lineHeight: "1.5", marginBottom: "28px", maxWidth: "520px", padding: "0 16px" }}
+          style={{ fontSize: "clamp(15px, 2vw, 18px)", lineHeight: "1.5", marginBottom: "28px", maxWidth: "560px", padding: "0 16px" }}
         >
-          AI-powered facial motion capture that runs entirely in your browser.
-          No download, no install — just your face and a 3D character.
+          Animate your 3D avatar live with face tracking, upper body, and finger tracking — right in your browser.
         </p>
 
         {/* Primary CTA — uses the same .button.primary class from the app */}
@@ -111,48 +110,62 @@ export default function HomePage() {
         >
           animate now
         </a>
-
-        {/* ── SEO supporting text ─────────────────────────────────────── */}
-        <p
-          className="text-tertiary"
-          style={{ fontSize: "13px", marginTop: "20px", maxWidth: "480px", lineHeight: "1.6", padding: "0 16px" }}
-        >
-          miniface is a free, open-source, browser-based facial motion capture tool.
-          Track your face live and record character animations using AI computer vision —
-          on desktop, iOS, and Android.
-        </p>
       </section>
 
-      {/* ── Footer ──────────────────────────────────────────────────────── */}
+      {/* ── Footer — links + SEO descriptive content ────────────────────── */}
       <footer
-        className="pos-abs bottom-0 left-0 right-0 flex flex-row items-center justify-center flex-wrap gap-2 text-muted"
-        style={{ zIndex: 10, padding: "12px 16px", fontSize: "12px" }}
+        className="pos-abs bottom-0 left-0 right-0 text-center"
+        style={{ zIndex: 10, padding: "10px 16px 14px", fontSize: "12px" }}
         aria-label="Site footer"
       >
-        <span style={{ fontWeight: 500 }}>miniface.org</span>
-        <span aria-hidden="true">&middot;</span>
-        <a
-          href="https://github.com/PooyaDeperson/miniface-facial-motion-capture"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-muted"
-          style={{ textDecoration: "underline" }}
-          aria-label="miniface on GitHub (opens in new tab)"
+        {/* ── SEO descriptive paragraphs ─────────────────────────────── */}
+        <p
+          className="text-tertiary"
+          style={{ maxWidth: "640px", margin: "0 auto 8px", lineHeight: "1.6" }}
         >
-          github
-        </a>
-        <span aria-hidden="true">&middot;</span>
-        <a href="/terms" className="text-muted" style={{ textDecoration: "underline" }}>
-          terms
-        </a>
-        <span aria-hidden="true">&middot;</span>
-        <a href="/privacy" className="text-muted" style={{ textDecoration: "underline" }}>
-          privacy
-        </a>
-        <span aria-hidden="true">&middot;</span>
-        <a href="/cookies" className="text-muted" style={{ textDecoration: "underline" }}>
-          cookies
-        </a>
+          miniface is a free, open-source browser app for vtubers, streamers, and animators.
+          Use your webcam to drive a 3D avatar in real time — no software to install, no account required to start.
+          Supports realtime face animation, upper body tracking, and finger tracking.
+        </p>
+        <p
+          className="text-tertiary"
+          style={{ maxWidth: "640px", margin: "0 auto 10px", lineHeight: "1.6" }}
+        >
+          Record and export 3D motion data as GLB animation files.
+          Compatible with desktop browsers, iOS, and Android.
+          Built on AI-powered computer vision and WebGL — runs entirely on your device.
+        </p>
+
+        {/* ── Nav links ──────────────────────────────────────────────── */}
+        <nav
+          className="flex flex-row items-center justify-center flex-wrap gap-2 text-muted"
+          aria-label="Footer navigation"
+        >
+          <span style={{ fontWeight: 500 }}>miniface.org</span>
+          <span aria-hidden="true">&middot;</span>
+          <a
+            href="https://github.com/PooyaDeperson/miniface-facial-motion-capture"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-muted"
+            style={{ textDecoration: "underline" }}
+            aria-label="miniface source code on GitHub (opens in new tab)"
+          >
+            github
+          </a>
+          <span aria-hidden="true">&middot;</span>
+          <a href="/terms" className="text-muted" style={{ textDecoration: "underline" }}>
+            terms
+          </a>
+          <span aria-hidden="true">&middot;</span>
+          <a href="/privacy" className="text-muted" style={{ textDecoration: "underline" }}>
+            privacy
+          </a>
+          <span aria-hidden="true">&middot;</span>
+          <a href="/cookies" className="text-muted" style={{ textDecoration: "underline" }}>
+            cookies
+          </a>
+        </nav>
       </footer>
     </main>
   );
