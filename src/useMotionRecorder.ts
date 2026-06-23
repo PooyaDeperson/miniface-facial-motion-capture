@@ -39,6 +39,7 @@ import {
 } from "three";
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter";
 import type { SecondaryMotionSystem } from "./SecondaryMotionSystem";
+import { clearHandTracking } from "./FaceTracking";
 import type { FingerQuats } from "./FaceTracking";
 
 // ─── playback notification (module-level) ─────────────────────────────────────
@@ -135,6 +136,14 @@ let _headMeshes: Mesh[] = [];
 /** The avatar URL that was active when setSceneForExport was last called */
 let _avatarUrl: string | null = null;
 /**
+ * Bind-pose quaternions for every hand/arm bone, captured at setSceneForExport()
+ * time when the skeleton is guaranteed to be in its rest pose (before any live
+ * tracking has touched the bones). Used as the authoritative "no hand visible"
+ * fallback when building GLB tracks, instead of the live bone.quaternion value
+ * which may be mid-animation at export time.
+ */
+let _bindPoseQuats: Record<string, [number, number, number, number]> = {};
+/**
  * Optional secondary motion system. When set, its bone quaternions are
  * snapshotted every frame and baked into the exported AnimationClip.
  */
@@ -159,6 +168,22 @@ export function subscribeRecorder(fn: Listener): () => void {
   return () => _listeners.delete(fn);
 }
 
+// ─── recording-start pub/sub ──────────────────────────────────────────────────
+// Avatar.tsx subscribes to this to reset arm/finger smoothers and elbow hints
+// the moment a new recording begins. This prevents stale smoother state from a
+// prior live session from producing wrong poses in the first few captured frames.
+
+const _startListeners = new Set<Listener>();
+
+export function subscribeRecordingStart(fn: Listener): () => void {
+  _startListeners.add(fn);
+  return () => _startListeners.delete(fn);
+}
+
+function _notifyStart() {
+  _startListeners.forEach((fn) => fn());
+}
+
 // ─── scene reference (called from Avatar.tsx) ─────────────────────────────────
 
 /**
@@ -167,6 +192,17 @@ export function subscribeRecorder(fn: Listener): () => void {
  * without needing to traverse the R3F tree from outside the Canvas.
  * avatarUrl is stored so it can be embedded in the exported GLB extras.
  */
+// Bone names whose bind-pose quaternion we snapshot at scene-load time.
+// These are the bones that can be animated by hand tracking; their fallback
+// value when the hand is not visible must be the bind pose, not whatever
+// the live skeleton happens to be at GLB-export time.
+const HAND_ARM_BONE_NAMES = [
+  "LeftArm", "LeftForeArm", "LeftHand",
+  "LeftHandThumb1", "LeftHandThumb2", "LeftHandThumb3",
+  "RightArm", "RightForeArm", "RightHand",
+  "RightHandThumb1", "RightHandThumb2", "RightHandThumb3",
+] as const;
+
 export function setSceneForExport(
   scene: Group,
   nodes: Record<string, any>,
@@ -177,6 +213,17 @@ export function setSceneForExport(
   _nodes = nodes;
   _headMeshes = [...meshes];
   if (avatarUrl) _avatarUrl = avatarUrl;
+
+  // Snapshot the bind-pose quaternion for every hand/arm bone right now,
+  // while the skeleton is in its rest pose (before any live tracking runs).
+  _bindPoseQuats = {};
+  for (const name of HAND_ARM_BONE_NAMES) {
+    const bone = nodes[name];
+    if (bone?.quaternion) {
+      const q = bone.quaternion;
+      _bindPoseQuats[name] = [q.x, q.y, q.z, q.w];
+    }
+  }
 }
 
 /**
@@ -237,6 +284,17 @@ export function startRecording(): void {
   _startTime = performance.now();
   _isRecording = true;
   _addUnloadGuard();
+
+  // Clear any stale hand-tracking globals immediately so Avatar.tsx's smoothers
+  // don't carry over a mid-gesture pose from the moments before recording began.
+  // This ensures the first captured frame reflects what MediaPipe delivers on the
+  // very next animation tick, not whatever residue was left by earlier live tracking.
+  clearHandTracking();
+
+  // Notify Avatar.tsx (and any other subscribers) that a new recording has
+  // started so they can reset arm/finger smoothers and elbow hint state.
+  _notifyStart();
+
   _notify();
 }
 
@@ -245,6 +303,12 @@ export function stopRecording(): void {
   _isRecording = false;
   _removeUnloadGuard();
   _finalDuration = (performance.now() - _startTime) / 1000;
+
+  // Immediately clear hand-tracking globals so Avatar.tsx's RestPoseSmoother
+  // starts returning arms/fingers to A-pose on the next frame — prevents the
+  // hand pose from staying frozen in the live view after recording ends.
+  clearHandTracking();
+
   _notify();
 
   // Immediately build the GLB blob in memory so playback can start right away,
@@ -388,7 +452,7 @@ export async function buildGLBBlob(): Promise<{ blob: Blob; durationSeconds: num
 
       // GLTFExporter resolves morphTargetInfluences tracks by the shape NAME
       // string (not the numeric index). It internally does:
-      //   mesh.morphTargetDictionary[trackName] → index
+      //   mesh.morphTargetDictionary[trackName] �� index
       // Passing the index as a number causes "Morph target name not found: N".
       tracks.push(
         new NumberKeyframeTrack(
@@ -502,9 +566,12 @@ export async function buildGLBBlob(): Promise<{ blob: Blob; durationSeconds: num
     const bone = nodes[boneName];
     if (!bone) continue; // non-RPM rig — skip
 
+    // Avatar.tsx now snapshots these bones every frame (regardless of whether
+    // the hand is visible), so armBones[boneName] is always present. We read
+    // the captured value directly — no static bind-pose fallback needed.
     const quatValues = new Float32Array(frames.length * 4);
-    // Read the bone's current local quaternion as a fallback (rest pose).
-    const fallback = bone.quaternion;
+    const bp = _bindPoseQuats[boneName];
+    let hasMotion = false;
 
     for (let i = 0; i < frames.length; i++) {
       const q = frames[i].armBones?.[boneName];
@@ -513,14 +580,30 @@ export async function buildGLBBlob(): Promise<{ blob: Blob; durationSeconds: num
         quatValues[i * 4 + 1] = q[1];
         quatValues[i * 4 + 2] = q[2];
         quatValues[i * 4 + 3] = q[3];
+        // Motion = any frame that differs from the bind pose by a meaningful amount.
+        if (bp) {
+          const dx = q[0] - bp[0], dy = q[1] - bp[1],
+                dz = q[2] - bp[2], dw = q[3] - bp[3];
+          if (dx*dx + dy*dy + dz*dz + dw*dw > 1e-6) hasMotion = true;
+        } else {
+          hasMotion = true;
+        }
       } else {
-        // Hand not visible this frame — hold rest pose.
-        quatValues[i * 4 + 0] = fallback.x;
-        quatValues[i * 4 + 1] = fallback.y;
-        quatValues[i * 4 + 2] = fallback.z;
-        quatValues[i * 4 + 3] = fallback.w;
+        // Fallback (should not be reached with the new always-snapshot approach,
+        // but kept as a safety net for older recordings or non-RPM rigs).
+        if (bp) {
+          quatValues[i * 4 + 0] = bp[0];
+          quatValues[i * 4 + 1] = bp[1];
+          quatValues[i * 4 + 2] = bp[2];
+          quatValues[i * 4 + 3] = bp[3];
+        } else {
+          quatValues[i * 4 + 3] = 1; // identity
+        }
       }
     }
+
+    // Skip face-only recordings where the arm never left the bind pose.
+    if (!hasMotion) continue;
 
     tracks.push(
       new QuaternionKeyframeTrack(`${boneName}.quaternion`, times, quatValues)
@@ -544,7 +627,7 @@ export async function buildGLBBlob(): Promise<{ blob: Blob; durationSeconds: num
   for (const side of ["Left", "Right"] as const) {
     const frameKey = side === "Left" ? "leftFingers" : "rightFingers";
 
-    // ── wrist / Hand bone ──────────────────────────────────────────────────
+    // ─��� wrist / Hand bone ──────────────────────────────────────────────────
     // The wrist bone's final local quaternion is:
     //   conjug(halfTwist) × (parentInv × wristWorldQuat)
     // i.e. the raw world-space "Wrist" entry from FingerQuats converted to
@@ -557,7 +640,9 @@ export async function buildGLBBlob(): Promise<{ blob: Blob; durationSeconds: num
     const wristBone = nodes[wristBoneName];
     if (wristBone) {
       const quatValues = new Float32Array(frames.length * 4);
-      const fallback = wristBone.quaternion;
+      // Avatar.tsx now snapshots wrist bone every frame, so armBones[wristBoneName]
+      // is always present. Use captured value directly.
+      const bp = _bindPoseQuats[wristBoneName];
       let hasMotion = false;
       for (let i = 0; i < frames.length; i++) {
         const q = frames[i].armBones?.[wristBoneName];
@@ -566,13 +651,23 @@ export async function buildGLBBlob(): Promise<{ blob: Blob; durationSeconds: num
           quatValues[i * 4 + 1] = q[1];
           quatValues[i * 4 + 2] = q[2];
           quatValues[i * 4 + 3] = q[3];
-          if (Math.abs(q[3]) < 0.9999) hasMotion = true;
+          // Motion = differs from bind pose by a meaningful amount.
+          if (bp) {
+            const dx = q[0]-bp[0], dy = q[1]-bp[1], dz = q[2]-bp[2], dw = q[3]-bp[3];
+            if (dx*dx + dy*dy + dz*dz + dw*dw > 1e-6) hasMotion = true;
+          } else {
+            hasMotion = true;
+          }
         } else {
-          // Hand not visible this frame — hold rest pose.
-          quatValues[i * 4 + 0] = fallback.x;
-          quatValues[i * 4 + 1] = fallback.y;
-          quatValues[i * 4 + 2] = fallback.z;
-          quatValues[i * 4 + 3] = fallback.w;
+          // Safety fallback for non-RPM rigs or older snapshots.
+          if (bp) {
+            quatValues[i * 4 + 0] = bp[0];
+            quatValues[i * 4 + 1] = bp[1];
+            quatValues[i * 4 + 2] = bp[2];
+            quatValues[i * 4 + 3] = bp[3];
+          } else {
+            quatValues[i * 4 + 3] = 1;
+          }
         }
       }
       if (hasMotion) {
@@ -598,15 +693,20 @@ export async function buildGLBBlob(): Promise<{ blob: Blob; durationSeconds: num
       const quatValues = new Float32Array(frames.length * 4);
       let hasMotion = false;
 
+      // Thumb bind pose (for motion detection threshold and safety fallback).
+      // Non-thumb finger joints have identity bind pose, so [0,0,0,1] is correct.
+      const thumbBp = isThumb ? _bindPoseQuats[boneName] : null;
+
       for (let i = 0; i < frames.length; i++) {
         let q: number[] | null = null;
 
         if (isThumb) {
-          // Prefer the direct bone snapshot (includes rest + splay + bend).
+          // Avatar.tsx snapshots thumb bones every frame into armBones.
           const snap = frames[i].armBones?.[boneName];
           q = snap ? Array.from(snap) : null;
         } else {
-          // Non-thumb: raw FingerQuats entry is correct (identity rest pose).
+          // Non-thumb: raw FingerQuats entry (identity rest pose, only present
+          // when hand is visible).
           const fingerData = frames[i][frameKey];
           q = fingerData ? (fingerData as any)[key] : null;
         }
@@ -616,10 +716,21 @@ export async function buildGLBBlob(): Promise<{ blob: Blob; durationSeconds: num
           quatValues[i * 4 + 1] = q[1];
           quatValues[i * 4 + 2] = q[2];
           quatValues[i * 4 + 3] = q[3];
-          if (Math.abs(q[3]) < 0.9999) hasMotion = true;
+          // For thumbs: motion = differs from bind pose. For fingers: any non-identity.
+          if (thumbBp) {
+            const dx = q[0]-thumbBp[0], dy = q[1]-thumbBp[1],
+                  dz = q[2]-thumbBp[2], dw = q[3]-thumbBp[3];
+            if (dx*dx + dy*dy + dz*dz + dw*dw > 1e-6) hasMotion = true;
+          } else {
+            if (Math.abs(q[3]) < 0.9999) hasMotion = true;
+          }
         } else {
-          // Hand not detected this frame — use identity quaternion.
-          quatValues[i * 4 + 3] = 1;
+          // Safety fallback: bind pose for thumbs (always-snapshot means this
+          // path should not be reached for thumbs), identity for finger joints.
+          quatValues[i * 4 + 0] = thumbBp ? thumbBp[0] : 0;
+          quatValues[i * 4 + 1] = thumbBp ? thumbBp[1] : 0;
+          quatValues[i * 4 + 2] = thumbBp ? thumbBp[2] : 0;
+          quatValues[i * 4 + 3] = thumbBp ? thumbBp[3] : 1;
         }
       }
 
@@ -641,7 +752,7 @@ export async function buildGLBBlob(): Promise<{ blob: Blob; durationSeconds: num
     );
   }
 
-  // ── build AnimationClip ──────────────────────────────────────────────────��──
+  // ── build AnimationClip ──────────────────────────────────────────────────
   const clip = new AnimationClip("FacialCapture", -1, tracks);
   const durationSeconds = clip.duration;
 
@@ -714,7 +825,7 @@ export async function buildAndExportGLB(): Promise<void> {
   document.body.removeChild(anchor);
   setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
 
-  // ── notify playback listeners ──────────────────────────────────────────────
+  // ── notify playback listeners ─────────────────────────────────��────────────
   const motionId = _makeMotionId();
   _notifyPlaybackReady({ blob, motionId, name: fileName, durationSeconds });
 

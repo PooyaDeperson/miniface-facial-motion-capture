@@ -83,12 +83,14 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
         setPhaseAndNotify("recording");
         setFrameCount(state.frameCount);
       } else if (state.hasFrames) {
-        // Stay in review; don't reset if already in review/done
-        setPhase((prev) => {
-          const next = prev === "idle" ? "review" : prev;
-          onPhaseChange?.(next);
-          return next;
-        });
+        // Stay in review; don't reset if already in review/done.
+        // IMPORTANT: never call onPhaseChange inside a setPhase updater —
+        // that would fire a parent setState during React's render phase and
+        // trigger the "Cannot update a component while rendering" warning
+        // (which also stalls the click handler by ~400 ms and blocks the rAF loop).
+        setPhase((prev) => (prev === "idle" ? "review" : prev));
+        // Fire the parent notification outside the updater, in the effect body.
+        onPhaseChange?.("review");
         setFrameCount(state.frameCount);
         setElapsed(state.duration);
       } else {
