@@ -25,17 +25,6 @@ import { AnimationMixer, AnimationClip, Object3D, Mesh } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { useFrame } from "@react-three/fiber";
 
-// ─── Persistent debug log buffer (readable from DevTools / agent-browser eval) ─
-declare global { interface Window { __v0logs: string[] } }
-if (typeof window !== "undefined") {
-  if (!window.__v0logs) window.__v0logs = [];
-}
-function v0log(...args: unknown[]) {
-  const msg = args.map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a))).join(" ");
-  console.log("[v0]", msg);
-  if (typeof window !== "undefined") window.__v0logs.push(msg);
-}
-
 // ─── Mesh-name priority list (mirrors Avatar.tsx line 623) ───────────────────
 const HEAD_MESH_NAMES = [
   "Wolf3D_Head",
@@ -152,7 +141,6 @@ export function usePlaybackAnimation({
 
   // Load the blob and create the mixer
   useEffect(() => {
-    v0log("playback useEffect: characterScene=", !!characterScene, "playbackBlob=", !!playbackBlob, "blobSize=", playbackBlob?.size ?? 0);
     if (!characterScene || !playbackBlob) {
       destroyMixer();
       return;
@@ -174,25 +162,7 @@ export function usePlaybackAnimation({
         let clip = gltf.animations[0];
         if (!clip) return;
 
-        // ── Debug: log all morph-target tracks from the GLB ──────────────────
-        const morphTracks = clip.tracks.filter((t) => t.name.includes("morphTargetInfluences"));
-        v0log("playback: morph track count in GLB:", morphTracks.length);
-        if (morphTracks.length > 0) {
-          v0log("playback: first 3 morph track names:", morphTracks.slice(0, 3).map((t) => t.name));
-        }
-
-        // ── Debug: log what mesh names exist in the character scene ──────────
         const morphMeshName = findMorphMeshName(characterScene);
-        v0log("playback: resolved morphMeshName:", morphMeshName);
-        if (!morphMeshName) {
-          v0log("playback: walking scene for morph meshes...");
-          characterScene.traverse((child) => {
-            const mesh = child as Mesh;
-            if (mesh.morphTargetDictionary) {
-              v0log("  mesh found:", mesh.name, "keys:", Object.keys(mesh.morphTargetDictionary).slice(0, 5));
-            }
-          });
-        }
 
         // Strip spring-bone tracks so the mixer does not fight secondary motion.
         // Morph-target tracks (morphTargetInfluences) must always be kept so
@@ -216,11 +186,7 @@ export function usePlaybackAnimation({
         // Remap morphTargetInfluences track names to match the mesh that
         // actually exists in this avatar's scene (same priority list as Avatar.tsx).
         if (morphMeshName) {
-          const before = clip.tracks.filter((t) => t.name.includes("morphTargetInfluences")).map((t) => t.name);
           clip = remapMorphTracks(clip, morphMeshName);
-          const after = clip.tracks.filter((t) => t.name.includes("morphTargetInfluences")).map((t) => t.name);
-          v0log("playback: morph tracks before remap:", before.slice(0, 3));
-          v0log("playback: morph tracks after remap:", after.slice(0, 3));
         }
 
         clipRef.current = clip;

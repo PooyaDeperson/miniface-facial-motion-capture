@@ -26,9 +26,13 @@ interface AvatarCanvasProps {
   setIsFlipped?: (v: boolean) => void;
   playbackBlob?: Blob | null;
   motionLoading?: boolean;
+  /** Explicit width for the Canvas element — e.g. "100%" or "640px". Defaults to the CSS class sizing. */
+  canvasWidth?: string | number;
+  /** Explicit height for the Canvas element — e.g. "100vh" or "480px". Defaults to the CSS class sizing. */
+  canvasHeight?: string | number;
 }
 
-const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarReady, isFlipped, setIsFlipped, playbackBlob, motionLoading }) => {
+const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarReady, isFlipped, setIsFlipped, playbackBlob, motionLoading, canvasWidth, canvasHeight }) => {
   const [loading, setLoading] = useState(true);
 
   const cameraPosition = [-0.0, 1.62, 1.09] as [number, number, number];
@@ -55,6 +59,7 @@ const AvatarCanvas: React.FC<AvatarCanvasProps> = ({ url, avatarKey, setAvatarRe
 
       <Canvas
         className={`avatar-container mb:pos tb:avatar-pos bottom-0 pos-abs-important z-1 ${isFlipped ? " flipped-x" : ""}`}
+        style={canvasWidth || canvasHeight ? { width: canvasWidth, height: canvasHeight } : undefined}
         camera={{
           fov: 27,
           position: cameraPosition,
