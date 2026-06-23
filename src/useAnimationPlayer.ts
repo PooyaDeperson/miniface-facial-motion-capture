@@ -10,8 +10,71 @@
 
 import { useEffect, useRef } from "react";
 import { useGLTF } from "@react-three/drei";
-import { AnimationMixer, AnimationClip, Object3D } from "three";
+import { AnimationMixer, AnimationClip, Object3D, Mesh } from "three";
 import { useFrame } from "@react-three/fiber";
+
+// ─── Mesh-name priority list (mirrors Avatar.tsx line 623) ───────────────────
+// Used to find the morph-target mesh inside the character scene so that
+// morphTargetInfluences track names can be remapped to the mesh that actually
+// exists in the loaded avatar.
+const HEAD_MESH_NAMES = [
+  "Wolf3D_Head",
+  "Wolf3D_Teeth",
+  "Wolf3D_Beard",
+  "Wolf3D_Avatar",
+  "Wolf3D_Head_Custom",
+  "avatar",
+  "Avatar",
+  "face",
+];
+
+/**
+ * Walk the character scene and return the name of the first mesh that both
+ * appears in HEAD_MESH_NAMES AND has a morphTargetDictionary. Returns null
+ * when no such mesh exists (avatar has no blendshapes).
+ */
+function findMorphMeshName(characterScene: Object3D): string | null {
+  for (const name of HEAD_MESH_NAMES) {
+    const obj = characterScene.getObjectByName(name) as Mesh | undefined;
+    if (obj && obj.morphTargetDictionary) return name;
+  }
+  return null;
+}
+
+/**
+ * Remap every morphTargetInfluences track so its object-name prefix matches
+ * the mesh that actually lives in the scene. Three.js resolves AnimationMixer
+ * tracks by looking up the object name in the root scene — if the track says
+ * "Wolf3D_Head.morphTargetInfluences[jawOpen]" but the avatar only has an
+ * "Avatar" mesh, the track simply never binds and blendshapes stay silent.
+ *
+ * We strip whatever prefix the exported GLB used and replace it with the
+ * real mesh name found in the character scene.
+ */
+function remapMorphTracks(clip: AnimationClip, meshName: string): AnimationClip {
+  const remapped = clip.tracks.map((track) => {
+    if (!track.name.includes("morphTargetInfluences")) return track;
+
+    // Track names can be:
+    //   "Wolf3D_Head.morphTargetInfluences[jawOpen]"
+    //   "Armature|Wolf3D_Head.morphTargetInfluences[jawOpen]"
+    //   ".morphTargetInfluences[jawOpen]"   (no mesh prefix)
+    const morphIdx = track.name.indexOf(".morphTargetInfluences");
+    if (morphIdx === -1) return track;
+
+    const suffix = track.name.slice(morphIdx); // ".morphTargetInfluences[...]"
+    const newName = `${meshName}${suffix}`;
+
+    if (newName === track.name) return track; // already correct
+
+    // Clone the track with the corrected name — the values array is shared
+    // (read-only during playback) so this is allocation-cheap.
+    const TrackCtor = track.constructor as any;
+    return new TrackCtor(newName, track.times, track.values, track.interpolation);
+  });
+
+  return new AnimationClip(clip.name, clip.duration, remapped);
+}
 
 const ANIMATION_PATH = "/animation/idle.glb";
 
@@ -67,6 +130,13 @@ export function useAnimationPlayer({ characterScene, getIsMediaPipeActive, exclu
       if (before !== filteredTracks.length) {
         clip = new AnimationClip(clip.name, clip.duration, filteredTracks);
       }
+    }
+
+    // Remap morphTargetInfluences track names to match the mesh that actually
+    // exists in this avatar's scene (uses same priority list as Avatar.tsx).
+    const morphMeshName = findMorphMeshName(characterScene);
+    if (morphMeshName) {
+      clip = remapMorphTracks(clip, morphMeshName);
     }
 
     const mixer = new AnimationMixer(characterScene);
