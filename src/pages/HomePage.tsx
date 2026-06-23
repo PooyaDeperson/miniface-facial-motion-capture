@@ -12,17 +12,18 @@
  * HomePage.tsx
  *
  * Public-facing landing page at "/".
- * Renders the ponytail avatar scene with title + subtitle
- * centered at the bottom, a CTA button, and a small footer.
+ * Renders a vertical flow layout: title, subtitle, descriptive text,
+ * 3D avatar canvas, and footer — all with relative positioning.
  * No camera permission, no login popup — fully crawlable by search engines.
  */
 
 import { useState, useCallback, useEffect, Component } from "react";
+import { useNavigate } from "react-router-dom";
 import "../App.css";
 import AvatarCanvas from "../AvatarCanvas";
 
 const PONYTAIL_URL =
-  "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023142/miniface/avatar/avatar-ponytail.glb";
+  "/avatar/avatar-ponytail.glb";
 
 const HOMEPAGE_ANIM_URL = "/animation/homepage/homepage-anim.glb";
 
@@ -45,6 +46,7 @@ class AvatarErrorBoundary extends Component<
 }
 
 export default function HomePage() {
+  const navigate = useNavigate();
   const [avatarReady, setAvatarReady] = useState(false);
   const [animBlob, setAnimBlob] = useState<Blob | null>(null);
 
@@ -65,84 +67,89 @@ export default function HomePage() {
 
   return (
     <main
-      className="App pos-rel bg-secondary"
-      style={{ overflowY: "auto", overflowX: "hidden" }}
+      className="homepage pos-rel scroll-y"
+      
       aria-label="miniface — real-time facial motion capture"
     >
-      {/* ── 3D Avatar background scene ────────────────────────────────── */}
-      <AvatarErrorBoundary>
-        <AvatarCanvas
-          url={PONYTAIL_URL}
-          avatarKey={0}
-          setAvatarReady={handleAvatarReady}
-          isFlipped={false}
-          playbackBlob={animBlob}
-          motionLoading={false}
-          canvasWidth="100%"
-          canvasHeight="100vh"
-        />
-      </AvatarErrorBoundary>
 
-      {/* ── Hero text + CTA — center-bottom overlay ───────────────────── */}
-      <section
-        className="pos-abs bottom-0 left-0 right-0 flex flex-col items-center text-center"
-        style={{ zIndex: 10, paddingBottom: "clamp(64px, 10vh, 120px)" }}
-        aria-labelledby="hero-heading"
-      >
+      {/* ── Title ──────────────────────────────────────────────────────── */}
+      <header className="pos-rel flex flex-col items-center text-center px-6 py-6">
         <h1
           id="hero-heading"
           className="text-primary"
-          style={{ fontSize: "clamp(22px, 4vw, 36px)", fontWeight: 400, lineHeight: "1.25", marginBottom: "10px", letterSpacing: "-0.01em" }}
+          style={{ fontSize: "clamp(28px, 5vw, 48px)", fontWeight: 400, lineHeight: "1.2", letterSpacing: "-0.02em" }}
         >
-          miniface — real-time facial motion capture for vtubers &amp; streamers
+          miniface
         </h1>
-
         <p
           className="text-secondary"
-          style={{ fontSize: "clamp(15px, 2vw, 18px)", lineHeight: "1.5", marginBottom: "28px", maxWidth: "560px", padding: "0 16px" }}
+          style={{ fontSize: "clamp(16px, 2.5vw, 24px)", fontWeight: 300, lineHeight: "1.4", marginTop: "8px" }}
+        >
+          Real-time facial motion capture for VTubers & Streamers
+        </p>
+      </header>
+
+      {/* ── Descriptive Text ───────────────────────────────────────────── */}
+      <section className="pos-rel flex flex-col items-center text-center px-6">
+        <p
+          className="text-secondary"
+          style={{ fontSize: "clamp(16px, 2.5vw, 24px)", lineHeight: "1.7", maxWidth: "640px" }}
         >
           Animate your 3D avatar live with face tracking, upper body, and finger tracking — right in your browser.
-        </p>
-
-        {/* Primary CTA — uses the same .button.primary class from the app */}
-        <a
-          href="/app"
-          className="button primary flex flex-row justify-center items-center gap-1"
-          style={{ fontSize: "18px", padding: "14px 36px", textDecoration: "none", display: "inline-flex" }}
-          aria-label="Open the miniface facial motion capture app"
-        >
-          animate now
-        </a>
-      </section>
-
-      {/* ── Footer — links + SEO descriptive content ────────────────────── */}
-      <footer
-        className="pos-abs bottom-0 left-0 right-0 text-center"
-        style={{ zIndex: 10, padding: "10px 16px 14px", fontSize: "12px" }}
-        aria-label="Site footer"
-      >
-        {/* ── SEO descriptive paragraphs ─────────────────────────────── */}
-        <p
-          className="text-tertiary"
-          style={{ maxWidth: "640px", margin: "0 auto 8px", lineHeight: "1.6" }}
-        >
-          miniface is a free, open-source browser app for vtubers, streamers, and animators.
-          Use your webcam to drive a 3D avatar in real time — no software to install, no account required to start.
-          Supports realtime face animation, upper body tracking, and finger tracking.
+          No software to install, no account required to start.
         </p>
         <p
-          className="text-tertiary"
-          style={{ maxWidth: "640px", margin: "0 auto 10px", lineHeight: "1.6" }}
+          className="text-secondary"
+          style={{ fontSize: "clamp(16px, 2.5vw, 24px)", lineHeight: "1.7", maxWidth: "640px", marginTop: "12px" }}
         >
           Record and export 3D motion data as GLB animation files.
-          Compatible with desktop browsers, iOS, and Android.
           Built on AI-powered computer vision and WebGL — runs entirely on your device.
         </p>
 
-        {/* ── Nav links ──────────────────────────────────────────────── */}
+        {/* Primary CTA */}
+        <a
+          onClick={() => navigate("/app")}
+          className="button br-100 primary flex flex-row justify-center items-center gap-1"
+          style={{ fontSize: "18px", padding: "8px 36px", textDecoration: "none", marginTop: "24px" }}
+          aria-label="Open the miniface facial motion capture app"
+        >
+          animate Now
+        </a>
+      </section>
+
+      {/* ── 3D Avatar Canvas ───────────────────────────────────────────── */}
+      <section className="pos-rel w-full" style={{ height: "500px" }}>
+        <AvatarErrorBoundary>
+          <AvatarCanvas
+            url={PONYTAIL_URL}
+            avatarKey={0}
+            setAvatarReady={handleAvatarReady}
+            isFlipped={false}
+            playbackBlob={animBlob}
+            motionLoading={false}
+            canvasWidth="100%"
+            canvasHeight="100%"
+          />
+        </AvatarErrorBoundary>
+      </section>
+
+      {/* ── Footer ─────────────────────────────────────────────────────── */}
+      <footer
+        className="pos-abs w-full bottom-0 px-6 left-50percent z-2 flex flex-col items-center text-center"
+        aria-label="Site footer"
+      >
+            <a
+          onClick={() => navigate("/app")}
+          className="button br-100 primary flex flex-row justify-center items-center gap-1"
+          style={{ fontSize: "18px", padding: "8px 36px", textDecoration: "none", marginTop: "24px" }}
+          aria-label="Open the miniface facial motion capture app"
+        >
+          let's go, it's free
+        </a>
         <nav
           className="flex flex-row items-center justify-center flex-wrap gap-2 text-muted"
           aria-label="Footer navigation"
+          style={{ fontSize: "13px", lineHeight: "2", marginTop: "12px" }}
         >
           <span style={{ fontWeight: 500 }}>miniface.org</span>
           <span aria-hidden="true">&middot;</span>
@@ -169,7 +176,15 @@ export default function HomePage() {
             cookies
           </a>
         </nav>
+
+        <p
+          className="text-muted"
+          style={{ fontSize: "11px", marginTop: "12px" }}
+        >
+          &copy; {new Date().getFullYear()} miniface. Created by Pooya Moradi M.
+        </p>
       </footer>
+
     </main>
   );
 }

@@ -57,19 +57,19 @@ export interface AvatarMetadata {
 
 const AVATAR_URLS = {
   ponytail:
-    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023142/miniface/avatar/avatar-ponytail.glb",
+    "/avatar/avatar-ponytail.glb",
 
   short:
-    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023143/miniface/avatar/avatar-short.glb",
+    "/avatar/avatar-short.glb",
 
   curly:
-    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782022983/miniface/avatar/avatar-curly.glb",
+    "/avatar/avatar-curly.glb",
 
   wavy:
-    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023132/miniface/avatar/avatar-wavy.glb",
+    "/avatar/avatar-wavy.glb",
 
   braids:
-    "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023136/miniface/avatar/avatar-braids.glb",
+    "/avatar/avatar-braids.glb",
 };
 
 // ─── Registry ────────────────────────────────────────────────────────────────

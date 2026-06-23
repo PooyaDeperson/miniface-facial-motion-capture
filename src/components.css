@@ -629,7 +629,7 @@ button.secondary {
   margin-top: 16px;
 }
 
-button.primary {
+button.primary, a.primary {
   background-color: var(--purple-900);
   color: var(--gray-100);
 }
@@ -639,7 +639,8 @@ button:hover,
 button:active,
 div.pattern-card,
 div.color-card,
-button.tab-button {
+button.tab-button,
+a.primary {
   transition: scale 100ms ease-in-out, filter 100ms ease-in-out, transform 50ms ease-in-out;
 }
 
@@ -653,7 +654,8 @@ button.avatar-btn:active,
 div.pattern-card:active,
 div.color-card:active,
 button.tab-button:active,
-.rec-btn:active {
+.rec-btn:active,
+a.primary {
   transform: translateY(2px);
 }
 

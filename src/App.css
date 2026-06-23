@@ -269,22 +269,7 @@ button {
   transition: scale 100ms ease-in-out, filter 100ms ease-in-out, transform 50ms ease-in-out;
 }
 
-/* =========================
-   ROOT LAYOUT
-========================= */
-#root {
-  width: 100%;
-  height: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: flex;
-}
-
-.App {
-  width: inherit;
-  height: inherit;
-}
+/*
 
 /* =========================
    Z-INDEX
@@ -439,7 +424,14 @@ button {
   transform: translateX(-50%)!important;
 }
 
+.overflow-y {
+  overflow-y: auto;
 
+}
+.overflow-x {
+  overflow-x: auto;
+  
+}
 .right-0 {
   right: 0;
 }
@@ -1199,7 +1191,10 @@ button {
 }
 
 
-#root {
+/* =========================
+   ROOT LAYOUT
+========================= */
+#root:not(:has(> .homepage)) {
   width: 100%;
   height: 100%;
   position: absolute;
@@ -1208,9 +1203,9 @@ button {
   display: flex;
 }
 
-.App {
-  width: inherit;
-  height: inherit;
+.homepage {
+  width: 100%;
+  min-height: 100vh;
 }
 
 /* Positioning */
@@ -1331,6 +1326,14 @@ button {
 
 .p-6 {
   padding: 24px;
+}
+.px-6 {
+  padding-left: 24px;
+  padding-right: 24px;
+}
+.py-6 {
+  padding-top: 24px;
+  padding-bottom: 24px;
 }
 
 .p-6 {
