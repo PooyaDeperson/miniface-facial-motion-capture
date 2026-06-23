@@ -17,16 +17,32 @@
  * No camera permission, no login popup — fully crawlable by search engines.
  */
 
-import { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useCallback, Component } from "react";
 import "../App.css";
 import AvatarCanvas from "../AvatarCanvas";
 
 const PONYTAIL_URL =
   "https://res.cloudinary.com/da1zca4wj/image/upload/v1782023142/miniface/avatar/avatar-ponytail.glb";
 
+// ── Error boundary so a failed 3D canvas never crashes the whole page ────────
+class AvatarErrorBoundary extends Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) return null;
+    return this.props.children;
+  }
+}
+
 export default function HomePage() {
-  const navigate = useNavigate();
   const [avatarReady, setAvatarReady] = useState(false);
 
   const handleAvatarReady = useCallback((ready: boolean) => {
@@ -39,14 +55,16 @@ export default function HomePage() {
       aria-label="miniface — real-time facial motion capture"
     >
       {/* ── 3D Avatar background scene ────────────────────────────────── */}
-      <AvatarCanvas
-        url={PONYTAIL_URL}
-        avatarKey={0}
-        setAvatarReady={handleAvatarReady}
-        isFlipped={false}
-        playbackBlob={null}
-        motionLoading={false}
-      />
+      <AvatarErrorBoundary>
+        <AvatarCanvas
+          url={PONYTAIL_URL}
+          avatarKey={0}
+          setAvatarReady={handleAvatarReady}
+          isFlipped={false}
+          playbackBlob={null}
+          motionLoading={false}
+        />
+      </AvatarErrorBoundary>
 
       {/* ── Hero text + CTA — center-bottom overlay ───────────────────── */}
       <section
