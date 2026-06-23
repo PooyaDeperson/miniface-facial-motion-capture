@@ -54,8 +54,11 @@ export default function HomePage() {
     let cancelled = false;
     fetch(HOMEPAGE_ANIM_URL)
       .then((res) => res.blob())
-      .then((blob) => { if (!cancelled) setAnimBlob(blob); })
-      .catch(() => { /* silently ignore — avatar will stay in idle pose */ });
+      .then((blob) => {
+        console.log("[v0] HomePage: anim blob fetched, size=", blob.size);
+        if (!cancelled) setAnimBlob(blob);
+      })
+      .catch((err) => { console.log("[v0] HomePage: anim fetch failed:", err); });
     return () => { cancelled = true; };
   }, []);
 
@@ -65,7 +68,8 @@ export default function HomePage() {
 
   return (
     <main
-      className="App pos-rel overflow-hidden bg-secondary"
+      className="App pos-rel bg-secondary"
+      style={{ overflowY: "auto" }}
       aria-label="miniface — real-time facial motion capture"
     >
       {/* ── 3D Avatar background scene ────────────────────────────────── */}
