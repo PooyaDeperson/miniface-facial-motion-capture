@@ -32,3 +32,12 @@ README_AVATAR_SETUP.md
 SETUP_CHECKLIST.md
 VERCEL_ENV_SETUP.md
 AVATAR_SETUP.md
+test.env
+public/avatar/avatar-wavy.glb
+public/avatar/avatar-short.glb
+public/avatar/avatar-ponytail.glb
+public/avatar/avatar-curly.glb
+public/avatar/avatar-braids.glb
+src/avatarMetadata.ts
+src/avatarMetadata.ts
+src/avatarMetadata.ts

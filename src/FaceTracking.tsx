@@ -43,6 +43,19 @@ export let isMobileTracking = false;
 /** True while the worker is actively delivering detection results. */
 export let isMediaPipeActive = false;
 
+/**
+ * Immediately clears all hand-tracking globals (finger bones, wrist positions).
+ * Called by useMotionRecorder when recording stops so the avatar's RestPoseSmoother
+ * starts returning arms/fingers to A-pose on the very next frame, rather than
+ * waiting for the user to physically move their hands out of the webcam frame.
+ */
+export function clearHandTracking(): void {
+  leftFingerBones  = null;
+  rightFingerBones = null;
+  leftWristPos     = null;
+  rightWristPos    = null;
+}
+
 // ─── Finger bone globals ──────────────────────────────────────────────────────
 // Each digit has 4 bones (e.g. LeftHandIndex1–4). Each value is
 // [x, y, z, w] quaternion or null when no hand is detected.
