@@ -67,10 +67,11 @@ function remapMorphTracks(clip: AnimationClip, meshName: string): AnimationClip 
 
     if (newName === track.name) return track; // already correct
 
-    // Clone the track with the corrected name — the values array is shared
-    // (read-only during playback) so this is allocation-cheap.
-    const TrackCtor = track.constructor as any;
-    return new TrackCtor(newName, track.times, track.values, track.interpolation);
+    // Clone the track then update its name — clone() preserves all internal
+    // state (times, values, interpolation) without touching private fields.
+    const cloned = track.clone();
+    cloned.name = newName;
+    return cloned;
   });
 
   return new AnimationClip(clip.name, clip.duration, remapped);

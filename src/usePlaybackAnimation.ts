@@ -21,43 +21,9 @@
  */
 
 import { useEffect, useRef, useCallback } from "react";
-import { AnimationMixer, AnimationClip, Object3D, Mesh } from "three";
+import { AnimationMixer, AnimationClip, Object3D } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { useFrame } from "@react-three/fiber";
-
-// ─── Mesh-name priority list (mirrors Avatar.tsx line 623) ───────────────────
-const HEAD_MESH_NAMES = [
-  "Wolf3D_Head",
-  "Wolf3D_Teeth",
-  "Wolf3D_Beard",
-  "Wolf3D_Avatar",
-  "Wolf3D_Head_Custom",
-  "avatar",
-  "Avatar",
-  "face",
-];
-
-function findMorphMeshName(characterScene: Object3D): string | null {
-  for (const name of HEAD_MESH_NAMES) {
-    const obj = characterScene.getObjectByName(name) as Mesh | undefined;
-    if (obj && obj.morphTargetDictionary) return name;
-  }
-  return null;
-}
-
-function remapMorphTracks(clip: AnimationClip, meshName: string): AnimationClip {
-  const remapped = clip.tracks.map((track) => {
-    if (!track.name.includes("morphTargetInfluences")) return track;
-    const morphIdx = track.name.indexOf(".morphTargetInfluences");
-    if (morphIdx === -1) return track;
-    const suffix = track.name.slice(morphIdx);
-    const newName = `${meshName}${suffix}`;
-    if (newName === track.name) return track;
-    const TrackCtor = track.constructor as any;
-    return new TrackCtor(newName, track.times, track.values, track.interpolation);
-  });
-  return new AnimationClip(clip.name, clip.duration, remapped);
-}
 
 export interface PlaybackState {
   isPlaying: boolean;
@@ -178,13 +144,6 @@ export function usePlaybackAnimation({
             return !excludeBoneNames.has(finalName);
           });
           clip = new AnimationClip(clip.name, clip.duration, filtered);
-        }
-
-        // Remap morphTargetInfluences track names to match the mesh that
-        // actually exists in this avatar's scene (same priority list as Avatar.tsx).
-        const morphMeshName = findMorphMeshName(characterScene);
-        if (morphMeshName) {
-          clip = remapMorphTracks(clip, morphMeshName);
         }
 
         clipRef.current = clip;
