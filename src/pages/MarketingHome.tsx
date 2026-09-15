@@ -21,7 +21,7 @@ function ProductVideo({ compact = false }: { compact?: boolean }) {
         src={VIDEO_SRC}
         aria-label="Miniface motion capture product demonstration"
       />
-      <div className="video-caption"><span className="status-dot" />Live capture / Miniface</div>
+      {/* <div className="video-caption"><span className="status-dot" />Live capture / Miniface</div> */}
     </div>
   );
 }
@@ -57,7 +57,7 @@ export default function MarketingHome() {
 
       <section className="showcase" aria-label="Product demonstration" id="how-it-works">
         <ProductVideo />
-        <div className="showcase-note"><span>Motion, without the hardware.</span><span>Scroll to explore ↓</span></div>
+        {/* <div className="showcase-note"><span>Motion, without the hardware.</span><span>Scroll to explore ↓</span></div> */}
       </section>
 
       <section className="feature-intro feature-intro--compact" id="features" aria-labelledby="features-title">
