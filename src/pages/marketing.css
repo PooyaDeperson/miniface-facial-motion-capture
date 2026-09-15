@@ -1,3 +1,15 @@
+/* App.css intentionally locks the animation workspace to the viewport. Keep that behavior on /animate, but override it whenever the marketing route is mounted. */
+html:has(.marketing-page),
+body:has(.marketing-page),
+#root:has(.marketing-page) {
+  height: auto !important;
+  max-height: none !important;
+  min-height: 100%;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  position: static !important;
+}
+
 .marketing-page {
   --ink: var(--text-primary);
   --muted-ink: var(--text-secondary);
