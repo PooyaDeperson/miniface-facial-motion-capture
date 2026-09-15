@@ -11,7 +11,7 @@ const features = [
     eyebrow: "Face tracker",
     title: "Your expressions. Live.",
     copy: "Capture facial movement in real time and bring every expression directly onto your character.",
-    cta: "Try Face Tracking",
+    cta: "Try face tracking",
     className: "feature--violet",
   },
   {
@@ -19,7 +19,7 @@ const features = [
     eyebrow: "Finger tracker",
     title: "Every gesture comes through.",
     copy: "Track your fingers and hands in real time so your character can react to more than just your face.",
-    cta: "Track Your Hands",
+    cta: "Track your hands",
     className: "feature--blue",
   },
   {
@@ -35,7 +35,7 @@ const features = [
     eyebrow: "Character selector",
     title: "Pick your character. Own the scene.",
     copy: "Choose the character you want to perform with and jump straight into motion capture.",
-    cta: "Choose a Character",
+    cta: "Choose a character",
     className: "feature--gold",
   },
   {
@@ -43,7 +43,7 @@ const features = [
     eyebrow: "Mobile ready",
     title: "Your phone is enough.",
     copy: "Capture motion wherever you are. No studio setup. No complicated hardware.",
-    cta: "Try It on Mobile",
+    cta: "Try it on mobile",
     className: "feature--mint",
   },
 ];
@@ -106,33 +106,22 @@ export default function MarketingHome() {
         <h2>More range.<br /><span>More character.</span></h2>
       </section>
 
-      <div className="feature-list">
-        {features.map((feature, index) => (
-          <section className={`feature ${feature.className}`} key={feature.number} aria-labelledby={`feature-${feature.number}`}>
-            <div className="feature-content">
-              <div className="feature-number">{feature.number} <span>/ 05</span></div>
+      <section className="feature-selector" aria-label="Motion capture features">
+        <div className="feature-selector-grid">
+          {features.map((feature) => (
+            <article className={`feature-card ${feature.className}`} key={feature.number}>
+              <div className="feature-card-top">
+                <span className="feature-number">{feature.number} <span>/ 05</span></span>
+                <span className="feature-card-mark" aria-hidden="true">↗</span>
+              </div>
               <p className="eyebrow">{feature.eyebrow}</p>
-              <h2 id={`feature-${feature.number}`}>{feature.title}</h2>
+              <h3>{feature.title}</h3>
               <p className="feature-copy">{feature.copy}</p>
               <a className="text-link" href="/animate">{feature.cta} <Arrow /></a>
-            </div>
-            <div className="feature-visual" aria-hidden="true">
-              <div className="visual-grid" />
-              {index === 0 && <div className="visual-face"><span>◌</span><i /><i /><i /><i /></div>}
-              {index === 1 && <div className="visual-hand"><span>✦</span><i /><i /><i /><i /><i /></div>}
-              {index === 2 && <div className="visual-record"><span className="record-dot" /> REC <strong>00:24</strong></div>}
-              {index === 3 && <div className="visual-character"><span>✧</span><div /></div>}
-              {index === 4 && <div className="visual-phone"><div><span /><span /><span /></div></div>}
-            </div>
-          </section>
-        ))}
-      </div>
-
-      <section className="final-cta" aria-labelledby="final-title">
-        <p className="eyebrow"><span className="eyebrow-line" />The stage is yours</p>
-        <h2 id="final-title">Ready to bring your character <em>to life?</em></h2>
-        <p>Capture your face. Move your hands. Become the character.</p>
-        <a className="button button--light" href="/animate">Start creating <Arrow /></a>
+            </article>
+          ))}
+        </div>
+        <a className="button selector-cta" href="/animate">Animate now <Arrow /></a>
       </section>
 
       <footer className="marketing-footer">
