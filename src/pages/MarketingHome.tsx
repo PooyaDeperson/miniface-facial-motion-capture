@@ -27,6 +27,8 @@ function ProductVideo({ compact = false }: { compact?: boolean }) {
 }
 
 export default function MarketingHome() {
+  const currentYear = new Date().getFullYear();
+
   return (
     <main className="marketing-page">
       <nav className="marketing-nav" aria-label="Main navigation">
@@ -68,7 +70,7 @@ export default function MarketingHome() {
       <footer className="marketing-footer">
         <a className="brand-mark" href="/" aria-label="Miniface for vtubers home"><img className="brand-logo" src="/images/seo/favicon180.jpg" alt="" /><span>miniface for vtubers</span></a>
         <span>Motion capture for the next character generation.</span>
-        <div><a href="/privacy">Privacy</a><a href="/terms">Terms</a><span>© 2024 - {new Date().getFullYear()} miniface</span></div>
+        <div><a href="/privacy">Privacy</a><a href="/terms">Terms</a><span>© 2024 - {currentYear} miniface</span></div>
       </footer>
     </main>
   );
