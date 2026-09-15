@@ -5,7 +5,7 @@
   --line: var(--border-secondary);
   --violet: var(--interactive-primary);
   min-height: 100vh;
-  overflow: hidden;
+  overflow: visible;
   background: var(--paper);
   color: var(--ink);
   font-family: 'Chicle', Georgia, cursive;
