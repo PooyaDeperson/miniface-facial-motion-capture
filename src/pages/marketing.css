@@ -21,6 +21,7 @@ body:has(.marketing-page),
   background: var(--paper);
   color: var(--ink);
   font-family: 'Chicle', Georgia, cursive;
+  text-transform: lowercase;
 }
 .marketing-page a { text-decoration: none; }
 .marketing-nav { align-items: center; display: flex; gap: 28px; justify-content: space-between; margin: 0 auto; max-width: 1440px; padding: 24px clamp(20px, 5vw, 76px); }
@@ -54,6 +55,8 @@ body:has(.marketing-page),
 .feature-intro { margin: 0 auto; max-width: 1320px; padding: 70px clamp(20px, 8vw, 130px) 54px; }
 .feature-intro h2 { font-size: clamp(30px, 4vw, 52px); }
 .feature-intro h2 span { color: var(--muted-ink); }
+.feature-intro--compact { padding-bottom: 120px; }
+.feature-summary { color: var(--muted-ink); font-family: inherit; font-size: 18px; line-height: 1.35; margin: 28px 0 30px; max-width: 620px; }
 .feature-selector { margin: 0 auto; max-width: 1320px; padding: 0 clamp(20px, 5vw, 76px) 110px; }
 .feature-selector-grid { border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .feature-card { border-bottom: 1px solid var(--line); min-height: 315px; padding: 28px clamp(20px, 3vw, 44px) 34px 0; }

@@ -5,49 +5,6 @@ const VIDEO_SRC =
 const VIDEO_POSTER =
   "https://res.cloudinary.com/da1zca4wj/image/upload/v1783679900/blendshapes/in-app/login-mocap-auth-poster.webp";
 
-const features = [
-  {
-    number: "01",
-    eyebrow: "Face tracker",
-    title: "Your expressions. Live.",
-    copy: "Capture facial movement in real time and bring every expression directly onto your character.",
-    cta: "Try face tracking",
-    className: "feature--violet",
-  },
-  {
-    number: "02",
-    eyebrow: "Finger tracker",
-    title: "Every gesture comes through.",
-    copy: "Track your fingers and hands in real time so your character can react to more than just your face.",
-    cta: "Track your hands",
-    className: "feature--blue",
-  },
-  {
-    number: "03",
-    eyebrow: "Motion library",
-    title: "Capture it. Replay it.",
-    copy: "Record your motion and turn live performances into reusable character animation.",
-    cta: "Record a Take",
-    className: "feature--pink",
-  },
-  {
-    number: "04",
-    eyebrow: "Character selector",
-    title: "Pick your character. Own the scene.",
-    copy: "Choose the character you want to perform with and jump straight into motion capture.",
-    cta: "Choose a character",
-    className: "feature--gold",
-  },
-  {
-    number: "05",
-    eyebrow: "Mobile ready",
-    title: "Your phone is enough.",
-    copy: "Capture motion wherever you are. No studio setup. No complicated hardware.",
-    cta: "Try it on mobile",
-    className: "feature--mint",
-  },
-];
-
 function Arrow() {
   return <span aria-hidden="true">↗</span>;
 }
@@ -101,27 +58,11 @@ export default function MarketingHome() {
         <div className="showcase-note"><span>Motion, without the hardware.</span><span>Scroll to explore ↓</span></div>
       </section>
 
-      <section className="feature-intro" id="features">
+      <section className="feature-intro feature-intro--compact" id="features" aria-labelledby="features-title">
         <p className="eyebrow"><span className="eyebrow-line" />Everything you need to perform</p>
-        <h2>More range.<br /><span>More character.</span></h2>
-      </section>
-
-      <section className="feature-selector" aria-label="Motion capture features">
-        <div className="feature-selector-grid">
-          {features.map((feature) => (
-            <article className={`feature-card ${feature.className}`} key={feature.number}>
-              <div className="feature-card-top">
-                <span className="feature-number">{feature.number} <span>/ 05</span></span>
-                <span className="feature-card-mark" aria-hidden="true">↗</span>
-              </div>
-              <p className="eyebrow">{feature.eyebrow}</p>
-              <h3>{feature.title}</h3>
-              <p className="feature-copy">{feature.copy}</p>
-              <a className="text-link" href="/animate">{feature.cta} <Arrow /></a>
-            </article>
-          ))}
-        </div>
-        <a className="button selector-cta" href="/animate">Animate now <Arrow /></a>
+        <h2 id="features-title">More range.<br /><span>More character.</span></h2>
+        <p className="feature-summary">Capture facial expressions, finger gestures, and full-body reactions in real time. Choose your character, record performances for the motion library, and create from the camera you already have — even on mobile.</p>
+        <a className="button" href="/animate">Animate now <Arrow /></a>
       </section>
 
       <footer className="marketing-footer">
