@@ -20,6 +20,7 @@ function ProductVideo({ compact = false }: { compact?: boolean }) {
         poster={VIDEO_POSTER}
         src={VIDEO_SRC}
         aria-label="Miniface motion capture product demonstration"
+        className="rounded-xl overflow-hidden"
       />
       {/* <div className="video-caption"><span className="status-dot" />Live capture / Miniface</div> */}
     </div>
