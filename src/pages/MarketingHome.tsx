@@ -46,7 +46,7 @@ export default function MarketingHome() {
 
       <section className="marketing-hero" aria-labelledby="hero-title">
         <div className="hero-copy">
-          <p className="eyebrow"><span className="eyebrow-line" />Browser-based motion capture</p>
+          {/* <p className="eyebrow"><span className="eyebrow-line" />Browser-based motion capture</p> */}
           <h1 id="hero-title">Realtime facial and finger motion capture <em>for streamers.</em></h1>
           <p className="hero-description">Bring your digital character to life from the camera you already have. Capture expressions, gestures, and reactions in real time.</p>
           <a className="button" href="/animate">Start creating <Arrow /></a>
@@ -62,7 +62,7 @@ export default function MarketingHome() {
       </section>
 
       <section className="feature-intro feature-intro--compact" id="features" aria-labelledby="features-title">
-        <p className="eyebrow"><span className="eyebrow-line" />Everything you need to perform</p>
+        {/* <p className="eyebrow"><span className="eyebrow-line" />Everything you need to perform</p> */}
         <h2 id="features-title">More ways.<br /><span>To perform.</span></h2>
         <p className="feature-summary">Capture facial expressions, finger gestures, and full-body reactions in real time. Choose your character, record performances for the motion library, and create from the camera you already have — even on mobile.</p>
         <a className="button" href="/animate">Animate now <Arrow /></a>
