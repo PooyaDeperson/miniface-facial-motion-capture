@@ -51,9 +51,9 @@ export default function MarketingHome() {
           <p className="hero-description">Bring your digital character to life from the camera you already have. Capture expressions, gestures, and reactions in real time.</p>
           <a className="button" href="/animate">Start creating <Arrow /></a>
         </div>
-        <div className="hero-meta" aria-label="Product highlights">
+        {/* <div className="hero-meta" aria-label="Product highlights">
           <span>01 / 05</span><span>Face + hands + character</span>
-        </div>
+        </div> */}
       </section>
 
       <section className="showcase" aria-label="Product demonstration" id="how-it-works">
@@ -63,7 +63,7 @@ export default function MarketingHome() {
 
       <section className="feature-intro feature-intro--compact" id="features" aria-labelledby="features-title">
         {/* <p className="eyebrow"><span className="eyebrow-line" />Everything you need to perform</p> */}
-        <h2 id="features-title">More ways.<br /><span>To perform.</span></h2>
+        <h2 id="features-title">More ways.<span>To perform.</span></h2>
         <p className="feature-summary">Capture facial expressions, finger gestures, and full-body reactions in real time. Choose your character, record performances for the motion library, and create from the camera you already have — even on mobile.</p>
         <a className="button" href="/animate">Animate now <Arrow /></a>
       </section>
