@@ -1,9 +1,9 @@
 import "./marketing.css";
 
 const VIDEO_SRC =
-  "https://res.cloudinary.com/da1zca4wj/video/upload/v1783679909/blendshapes/in-app/login-mocap-auth-video.mp4";
+  "https://res.cloudinary.com/da1zca4wj/video/upload/v1789469805/vtuber.miniface.demo_nbfiwm.mp4";
 const VIDEO_POSTER =
-  "https://res.cloudinary.com/da1zca4wj/image/upload/v1783679900/blendshapes/in-app/login-mocap-auth-poster.webp";
+  "/images/seo/vtuber.miniface.demo.poster.webp";
 
 function Arrow() {
   return <span aria-hidden="true">↗</span>;
