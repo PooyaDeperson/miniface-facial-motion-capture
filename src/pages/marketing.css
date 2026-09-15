@@ -26,6 +26,7 @@ body:has(.marketing-page),
 .marketing-page a { text-decoration: none; }
 .marketing-nav { align-items: center; display: flex; gap: 28px; justify-content: space-between; margin: 0 auto; max-width: 1440px; padding: 24px clamp(20px, 5vw, 76px); }
 .brand-mark { align-items: center; display: inline-flex; font-size: 19px; font-weight: 750; letter-spacing: -.06em; gap: 8px; }
+.brand-logo { border-radius: 50%; display: inline-block; height: 22px; object-fit: cover; width: 22px; }
 .brand-orbit { border: 2px solid currentColor; border-radius: 50%; display: inline-block; height: 17px; position: relative; transform: rotate(-28deg); width: 17px; }
 .brand-orbit::after { background: currentColor; border-radius: 50%; content: ""; height: 4px; position: absolute; right: -3px; top: -2px; width: 4px; }
 .nav-links { display: flex; gap: 28px; margin-left: auto; margin-right: 16px; }

@@ -31,8 +31,8 @@ export default function MarketingHome() {
     <main className="marketing-page">
       <nav className="marketing-nav" aria-label="Main navigation">
         <a className="brand-mark" href="/" aria-label="Miniface home">
-          <span className="brand-orbit" aria-hidden="true" />
-          <span>miniface</span>
+          <img className="brand-logo" src="/images/seo/favicon180.jpg" alt="" />
+          <span>miniface for vtubers</span>
         </a>
         <div className="nav-links">
           <a href="#features">Features</a>
@@ -60,15 +60,15 @@ export default function MarketingHome() {
 
       <section className="feature-intro feature-intro--compact" id="features" aria-labelledby="features-title">
         <p className="eyebrow"><span className="eyebrow-line" />Everything you need to perform</p>
-        <h2 id="features-title">More range.<br /><span>More character.</span></h2>
+        <h2 id="features-title">More ways.<br /><span>To perform.</span></h2>
         <p className="feature-summary">Capture facial expressions, finger gestures, and full-body reactions in real time. Choose your character, record performances for the motion library, and create from the camera you already have — even on mobile.</p>
         <a className="button" href="/animate">Animate now <Arrow /></a>
       </section>
 
       <footer className="marketing-footer">
-        <a className="brand-mark" href="/" aria-label="Miniface home"><span className="brand-orbit" aria-hidden="true" /><span>miniface</span></a>
+        <a className="brand-mark" href="/" aria-label="Miniface for vtubers home"><img className="brand-logo" src="/images/seo/favicon180.jpg" alt="" /><span>miniface for vtubers</span></a>
         <span>Motion capture for the next character generation.</span>
-        <div><a href="/privacy">Privacy</a><a href="/terms">Terms</a><span>© 2025 Miniface</span></div>
+        <div><a href="/privacy">Privacy</a><a href="/terms">Terms</a><span>© 2024 - {new Date().getFullYear()} miniface</span></div>
       </footer>
     </main>
   );
