@@ -89,7 +89,7 @@ body:has(.marketing-page),
   color: var(--muted-ink);
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0;
+  letter-spacing: 0.04rem;
 }
 
 .button {

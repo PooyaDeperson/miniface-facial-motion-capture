@@ -49,7 +49,7 @@ export default function MarketingHome() {
           {/* <p className="eyebrow"><span className="eyebrow-line" />Browser-based motion capture</p> */}
           <h1 id="hero-title">realtime facial and finger motion capture <em>for streamers.</em></h1>
           <p className="hero-description">bring your digital character to life from the camera you already have. Capture expressions, gestures, and reactions in real time.</p>
-          <a className="button" href="/animate">start creating <Arrow /></a>
+          <a className="button" href="/animate">start creating</a>
         </div>
         {/* <div className="hero-meta" aria-label="Product highlights">
           <span>01 / 05</span><span>Face + hands + character</span>
