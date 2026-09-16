@@ -37,19 +37,19 @@ export default function MarketingHome() {
           <img className="brand-logo" src="/images/seo/favicon180.jpg" alt="" />
           <span>miniface for vtubers</span>
         </a>
-        <div className="nav-links">
+        {/* <div className="nav-links">
           <a href="#features">Features</a>
           <a href="#how-it-works">How it works</a>
         </div>
-        <a className="button button--small" href="/animate">Start creating <Arrow /></a>
+        <a className="button" href="/animate">Start creating</a> */}
       </nav>
 
       <section className="marketing-hero" aria-labelledby="hero-title">
         <div className="hero-copy">
           {/* <p className="eyebrow"><span className="eyebrow-line" />Browser-based motion capture</p> */}
-          <h1 id="hero-title">Realtime facial and finger motion capture <em>for streamers.</em></h1>
-          <p className="hero-description">Bring your digital character to life from the camera you already have. Capture expressions, gestures, and reactions in real time.</p>
-          <a className="button" href="/animate">Start creating <Arrow /></a>
+          <h1 id="hero-title">realtime facial and finger motion capture <em>for streamers.</em></h1>
+          <p className="hero-description">bring your digital character to life from the camera you already have. Capture expressions, gestures, and reactions in real time.</p>
+          <a className="button" href="/animate">start creating <Arrow /></a>
         </div>
         {/* <div className="hero-meta" aria-label="Product highlights">
           <span>01 / 05</span><span>Face + hands + character</span>
@@ -63,9 +63,9 @@ export default function MarketingHome() {
 
       <section className="feature-intro feature-intro--compact" id="features" aria-labelledby="features-title">
         {/* <p className="eyebrow"><span className="eyebrow-line" />Everything you need to perform</p> */}
-        <h2 id="features-title">More ways.<span>To perform.</span></h2>
-        <p className="feature-summary">Capture facial expressions, finger gestures, and full-body reactions in real time. Choose your character, record performances for the motion library, and create from the camera you already have — even on mobile.</p>
-        <a className="button" href="/animate">Animate now <Arrow /></a>
+        <h2 id="features-title">more ways.<span> to perform.</span></h2>
+        <p className="feature-summary">capture facial expressions, finger gestures, and full-body reactions in real time. Choose your character, record performances for the motion library, and create from the camera you already have, even on mobile.</p>
+        <a className="button" href="/animate">animate now</a>
       </section>
 
       <footer className="marketing-footer">

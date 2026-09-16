@@ -93,17 +93,21 @@ body:has(.marketing-page),
 }
 
 .button {
+  font-weight: 400;
+  letter-spacing: 0;
   align-items: center;
   background: var(--ink);
   border-radius: 999px;
   color: white;
   display: inline-flex;
   font-size: 13px;
-  font-weight: 700;
+
   gap: 22px;
-  letter-spacing: -.01em;
+
   padding: 16px 19px 16px 22px;
   transition: transform .2s ease, background .2s ease;
+  font-size: 18px;
+  line-height: 22px;
 }
 
 .button span,
@@ -119,7 +123,7 @@ body:has(.marketing-page),
 }
 
 .button--small {
-  font-size: 12px;
+  font-size: 13px;
   padding: 11px 13px 11px 16px;
 }
 
