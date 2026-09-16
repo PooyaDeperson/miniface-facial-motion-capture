@@ -690,13 +690,3 @@ body:has(.marketing-page),
     padding-bottom: 80px;
   }
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .button {
-    transition: none;
-  }
-
-  .button:hover {
-    transform: none;
-  }
-}

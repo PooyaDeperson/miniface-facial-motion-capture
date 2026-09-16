@@ -649,18 +649,24 @@ a.button.primary {
 button,
 button:hover,
 button:active,
+a.button,
+a.button:hover,
+a.button:active,
 div.pattern-card,
 div.color-card,
 button.tab-button {
   transition: scale 100ms ease-in-out, filter 100ms ease-in-out, transform 50ms ease-in-out;
 }
 
-button:not(.avatar-btn, .rec-btn, .motion-file-container):hover {
+button:not(.avatar-btn, .rec-btn, .motion-file-container):hover,
+a.button:hover {
   filter: brightness(1.5);
 }
 
 button.primary:active,
 button.secondary:active,
+a.button.primary:active,
+a.button.secondary:active,
 button.avatar-btn:active,
 div.pattern-card:active,
 div.color-card:active,
