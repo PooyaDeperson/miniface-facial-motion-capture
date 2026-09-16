@@ -70,7 +70,7 @@ export default function MarketingHome() {
 
       <footer className="marketing-footer">
         <a className="brand-mark" href="/" aria-label="Miniface for vtubers home"><img className="brand-logo" src="/images/seo/favicon180.jpg" alt="" /><span>miniface for vtubers</span></a>
-        <span>Motion capture for the next character generation.</span>
+        <span>realtime open source and free facial motion capture</span>
         <div><a href="/privacy">Privacy</a><a href="/terms">Terms</a><span>© 2024 - {currentYear} miniface</span></div>
       </footer>
     </main>
