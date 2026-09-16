@@ -101,8 +101,8 @@ body:has(.marketing-page),
   color: white;
   display: inline-flex;
   font-size: 13px;
-
-  gap: 22px;
+  justify-content: center;
+  gap: 8px;
 
   padding: 16px 19px 16px 22px;
   transition: transform .2s ease, background .2s ease;
@@ -118,8 +118,8 @@ body:has(.marketing-page),
 
 .button:hover,
 .button:focus-visible {
-  background: var(--violet);
-  transform: translateY(-2px);
+  /* background: var(--violet);
+  transform: translateY(-2px); */
 }
 
 .button--small {
