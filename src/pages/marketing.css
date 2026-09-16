@@ -140,7 +140,7 @@ body:has(.marketing-page),
 .marketing-hero {
   margin: 0 auto;
   max-width: 1440px;
-  padding: clamp(92px, 13vw, 184px) clamp(20px, 9vw, 140px) 72px;
+  padding: clamp(92px, 8vw, 184px) clamp(20px, 9vw, 140px) 72px;
   position: relative;
 }
 
