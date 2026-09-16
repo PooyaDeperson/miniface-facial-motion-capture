@@ -625,11 +625,23 @@ button.camera-dropdown {
    BUTTONS (THEMED)
 ========================= */
 button.primary,
-button.secondary {
+button.secondary,
+a.button.primary,
+a.button.secondary {
   margin-top: 16px;
 }
 
-button.primary {
+a.button {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  justify-content: center;
+  padding: 10px;
+  text-decoration: none;
+}
+
+button.primary,
+a.button.primary {
   background-color: var(--purple-900);
   color: var(--gray-100);
 }

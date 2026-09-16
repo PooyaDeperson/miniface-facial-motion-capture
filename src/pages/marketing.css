@@ -92,44 +92,9 @@ body:has(.marketing-page),
   letter-spacing: 0.04rem;
 }
 
-.button {
-  font-weight: 400;
-  letter-spacing: 0;
-  align-items: center;
-  background: var(--ink);
-  border-radius: 999px;
-  color: white;
-  display: inline-flex;
-  font-size: 13px;
-  justify-content: center;
-  gap: 8px;
-
-  padding: 16px 19px 16px 22px;
-  transition: transform .2s ease, background .2s ease;
-  font-size: 18px;
-  line-height: 22px;
-}
-
-.button span,
 .text-link span {
   font-size: 18px;
   line-height: 0;
-}
-
-.button:hover,
-.button:focus-visible {
-  /* background: var(--violet);
-  transform: translateY(-2px); */
-}
-
-.button--small {
-  font-size: 13px;
-  padding: 11px 13px 11px 16px;
-}
-
-.button--light {
-  background: var(--paper);
-  color: var(--ink);
 }
 
 .marketing-page :focus-visible {
