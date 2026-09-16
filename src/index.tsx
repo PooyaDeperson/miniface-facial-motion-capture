@@ -16,6 +16,15 @@ import CookiesPage from './pages/CookiesPage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
 import MarketingHome from './pages/MarketingHome';
+import { supabase } from './supabaseClient';
+import { restoreAuthReturnUrl } from './authRedirect';
+
+// OAuth callbacks can land on `/` instead of `/animate`. Initialize Supabase
+// before routing so its access-token hash is consumed on every route.
+if (supabase) {
+  supabase.auth.getSession().then(() => restoreAuthReturnUrl());
+}
+
 // Keep the motion-capture app lazy so the marketing page does not initialize auth or camera code.
 
 const App = lazy(() => import('./App'));
