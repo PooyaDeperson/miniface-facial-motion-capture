@@ -47,8 +47,8 @@ export default function MarketingHome() {
       <section className="marketing-hero" aria-labelledby="hero-title">
         <div className="hero-copy">
           {/* <p className="eyebrow"><span className="eyebrow-line" />Browser-based motion capture</p> */}
-          <h1 id="hero-title">realtime facial and finger motion capture <em>for streamers.</em></h1>
-          <p className="hero-description">bring your digital character to life from the camera you already have. Capture expressions, gestures, and reactions in real time.</p>
+          <h1 id="hero-title">miniface for vtubers: realtime facial and finger motion capture <em>for streamers.</em></h1>
+          <p className="hero-description">miniface for vtubers brings your digital character to life from the camera you already have. Capture facial expressions, finger gestures, and live reactions in real time for streams, videos, and virtual performances.</p>
           <a className="button primary" href="/animate">start animating</a>
         </div>
         {/* <div className="hero-meta" aria-label="Product highlights">
@@ -64,7 +64,7 @@ export default function MarketingHome() {
       <section className="feature-intro feature-intro--compact" id="features" aria-labelledby="features-title">
         {/* <p className="eyebrow"><span className="eyebrow-line" />Everything you need to perform</p> */}
         <h2 id="features-title">more ways.<span> to perform.</span></h2>
-        <p className="feature-summary">capture facial expressions, finger gestures, and full-body reactions in real time. Choose your character, record performances for the motion library, and create from the camera you already have, even on mobile.</p>
+        <p className="feature-summary">miniface for vtubers gives streamers and streamer VTubers browser-based face tracking, finger motion capture, and expressive avatar animation. Choose your character, record performances for the motion library, and create from the camera you already have, even on mobile.</p>
         <a className="button" href="/animate">animate now</a>
       </section>
 

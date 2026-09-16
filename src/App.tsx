@@ -37,6 +37,18 @@ import type { User } from "@supabase/supabase-js";
 import { getAuthRedirectUrl, rememberAuthReturnUrl, restoreAuthReturnUrl } from "./authRedirect";
 
 function App() {
+  useEffect(() => {
+    document.title = "miniface for vtubers | Animate Your Streamer Avatar";
+    const description = "Animate your VTuber avatar with miniface for vtubers. Capture face and finger motion in real time with browser-based tracking for streams and virtual performances.";
+    let meta = document.querySelector('meta[name="description"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "description");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", description);
+  }, []);
+
   const [url, setUrl] = useState<string | null>(null);
   const [avatarKey, setAvatarKey] = useState(0);
   const [avatarReady, setAvatarReady] = useState(false);
