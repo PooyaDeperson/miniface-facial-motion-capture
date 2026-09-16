@@ -16,10 +16,6 @@ import CookiesPage from './pages/CookiesPage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
 import MarketingHome from './pages/MarketingHome';
-import { restoreAuthReturnUrl } from './authRedirect';
-
-restoreAuthReturnUrl();
-
 // Keep the motion-capture app lazy so the marketing page does not initialize auth or camera code.
 
 const App = lazy(() => import('./App'));
