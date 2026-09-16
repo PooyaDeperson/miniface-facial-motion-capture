@@ -34,7 +34,7 @@ import { hasDriveAccess, clearDriveTokens, listDriveMotions, uploadToDrive, subs
 import type { DriveMotionFile } from "./useDriveSync";
 import { getAllAvatars } from "./avatarMetadata";
 import type { User } from "@supabase/supabase-js";
-import { getAuthRedirectUrl, rememberAuthReturnUrl } from "./authRedirect";
+import { getAuthRedirectUrl, rememberAuthReturnUrl, restoreAuthReturnUrl } from "./authRedirect";
 
 function App() {
   const [url, setUrl] = useState<string | null>(null);
@@ -117,6 +117,9 @@ function App() {
     // Seed immediately from the existing session (sync in Supabase JS v2).
     supabase.auth.getSession().then(({ data }) => {
       setCurrentUser(data.session?.user ?? null);
+      // Supabase must consume the OAuth hash before we restore the original
+      // route; otherwise replacing the URL first discards access_token.
+      restoreAuthReturnUrl();
     });
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       setCurrentUser(session?.user ?? null);
