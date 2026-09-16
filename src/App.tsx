@@ -34,7 +34,7 @@ import { hasDriveAccess, clearDriveTokens, listDriveMotions, uploadToDrive, subs
 import type { DriveMotionFile } from "./useDriveSync";
 import { getAllAvatars } from "./avatarMetadata";
 import type { User } from "@supabase/supabase-js";
-import { getAuthRedirectUrl } from "./authRedirect";
+import { getAuthRedirectUrl, rememberAuthReturnUrl } from "./authRedirect";
 
 function App() {
   const [url, setUrl] = useState<string | null>(null);
@@ -88,6 +88,7 @@ function App() {
   /** Directly triggers Google OAuth with Drive scope — skips the AuthModal. */
   const handleGoogleReAuth = useCallback(async () => {
     if (!supabase) return;
+    rememberAuthReturnUrl();
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
