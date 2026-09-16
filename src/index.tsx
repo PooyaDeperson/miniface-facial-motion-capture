@@ -15,10 +15,9 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import CookiesPage from './pages/CookiesPage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
-import MarketingHome from './pages/MarketingHome';
 
-// Keep the motion-capture app lazy so the marketing page does not initialize auth or camera code.
-
+// Lazy-load App so that supabaseClient.ts (which throws if env vars are missing)
+// is only imported when the "/" route is actually rendered.
 const App = lazy(() => import('./App'));
 
 const root = ReactDOM.createRoot(
@@ -28,8 +27,7 @@ root.render(
   <React.StrictMode>
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<MarketingHome />} />
-        <Route path="/animate" element={<Suspense fallback={null}><App /></Suspense>} />
+        <Route path="/" element={<Suspense fallback={null}><App /></Suspense>} />
         <Route path="/cookies" element={<CookiesPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
