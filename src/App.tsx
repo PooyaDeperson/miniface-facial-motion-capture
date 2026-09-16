@@ -34,6 +34,7 @@ import { hasDriveAccess, clearDriveTokens, listDriveMotions, uploadToDrive, subs
 import type { DriveMotionFile } from "./useDriveSync";
 import { getAllAvatars } from "./avatarMetadata";
 import type { User } from "@supabase/supabase-js";
+import { getAuthRedirectUrl } from "./authRedirect";
 
 function App() {
   const [url, setUrl] = useState<string | null>(null);
@@ -90,7 +91,7 @@ function App() {
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: getAuthRedirectUrl(),
         skipBrowserRedirect: false,
         scopes: DRIVE_SCOPE,
         queryParams: {

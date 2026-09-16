@@ -17,6 +17,7 @@ import { useState, useEffect } from "react";
 import { supabase, isSupabaseAvailable } from "../supabaseClient";
 import { DRIVE_SCOPE } from "../useDriveSync";
 import PermissionPopup from "./PermissionPopup";
+import { getAuthRedirectUrl } from "../authRedirect";
 
 interface PostRecordAuthPopupProps {
   onClose: () => void;
@@ -51,7 +52,7 @@ export default function PostRecordAuthPopup({
     const { error: err } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: getAuthRedirectUrl(),
         skipBrowserRedirect: false,
         scopes: DRIVE_SCOPE,
         queryParams: {
