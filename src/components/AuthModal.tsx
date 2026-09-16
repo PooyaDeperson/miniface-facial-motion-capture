@@ -8,6 +8,7 @@ import { supabase, isSupabaseAvailable } from "../supabaseClient";
 import { hasDriveAccess, DRIVE_SCOPE } from "../useDriveSync";
 import type { User } from "@supabase/supabase-js";
 import PermissionPopup from "./PermissionPopup";
+import { getAuthRedirectUrl } from "../authRedirect";
 
 interface AuthModalProps {
   onClose: () => void;
@@ -73,7 +74,7 @@ export default function AuthModal({ onClose, onDriveConnected, hasPendingMotion 
     const { error: err } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: getAuthRedirectUrl(),
         skipBrowserRedirect: false,
         scopes: DRIVE_SCOPE,
         queryParams: {
