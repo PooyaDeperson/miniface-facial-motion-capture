@@ -47,8 +47,8 @@ export default function MarketingHome() {
       <section className="marketing-hero" aria-labelledby="hero-title">
         <div className="hero-copy">
           {/* <p className="eyebrow"><span className="eyebrow-line" />Browser-based motion capture</p> */}
-          <h1 id="hero-title">miniface for vtubers: realtime facial and finger motion capture <em>for streamers.</em></h1>
-          <p className="hero-description">miniface for vtubers brings your digital character to life from the camera you already have. Capture facial expressions, finger gestures, and live reactions in real time for streams, videos, and virtual performances.</p>
+          <h1 id="hero-title">realtime facial and finger motion capture <em>for streamers.</em></h1>
+          <p className="hero-description">bring your digital character to life from the camera you already have. Capture facial expressions, finger gestures, and live reactions in real time for streams, videos, and virtual performances.</p>
           <a className="button primary" href="/animate">start animating</a>
         </div>
         {/* <div className="hero-meta" aria-label="Product highlights">
