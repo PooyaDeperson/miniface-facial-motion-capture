@@ -84,7 +84,7 @@ export default function MarketingHome() {
             realtime facial and finger motion capture <em>for <RotatingAudienceWord />.</em>
           </h1>
           <p className="hero-description">bring your digital character to life from the camera you already have. Capture facial expressions, finger gestures, and live reactions in real time for streams, videos, and virtual performances.</p>
-          <a className="button primary" href="/animate">start animating</a>
+          <a className="button primary regular" href="/animate">start animating</a>
         </div>
         {/* <div className="hero-meta" aria-label="Product highlights">
           <span>01 / 05</span><span>Face + hands + character</span>
@@ -100,7 +100,7 @@ export default function MarketingHome() {
         {/* <p className="eyebrow"><span className="eyebrow-line" />Everything you need to perform</p> */}
         <h2 id="features-title">more ways.<span> to perform.</span></h2>
         <p className="feature-summary">miniface for vtubers gives streamers and streamer VTubers browser-based face tracking, finger motion capture, and expressive avatar animation. Choose your character, record performances for the motion library, and create from the camera you already have, even on mobile.</p>
-        <a className="button" href="/animate">animate now</a>
+        <a className="button primary regular" href="/animate">animate now</a>
       </section>
 
       <footer className="marketing-footer">
