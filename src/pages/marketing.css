@@ -34,7 +34,7 @@ body:has(.marketing-page),
   gap: 28px;
   justify-content: space-between;
   margin: 0 auto;
-  max-width: 1440px;
+  max-width: 1320px;
   padding: 24px clamp(20px, 5vw, 76px);
 }
 
@@ -104,8 +104,8 @@ body:has(.marketing-page),
 
 .marketing-hero {
   margin: 0 auto;
-  max-width: 1440px;
-  padding: clamp(92px, 8vw, 184px) clamp(20px, 9vw, 140px) 72px;
+  max-width: 1320px;
+  padding: clamp(92px, 8vw, 184px) clamp(20px, 5vw, 76px) 72px;
   position: relative;
 }
 
@@ -268,7 +268,7 @@ body:has(.marketing-page),
 .feature-intro {
   margin: 0 auto;
   max-width: 1320px;
-  padding: 70px clamp(20px, 8vw, 130px) 54px;
+  padding: 70px clamp(20px, 5vw, 76px) 54px;
 }
 
 .feature-intro h2 {
