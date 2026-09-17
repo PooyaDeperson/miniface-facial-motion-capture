@@ -1,3 +1,4 @@
+import { useEffect, useState, type CSSProperties } from "react";
 import "./marketing.css";
 
 const VIDEO_SRC =
@@ -7,6 +8,38 @@ const VIDEO_POSTER =
 
 function Arrow() {
   return <span aria-hidden="true">↗</span>;
+}
+
+const AUDIENCE_WORDS = [
+  { label: "streamers", color: "#b694ff" },
+  { label: "vtubers", color: "#d09aff" },
+  { label: "animators", color: "#9b83ff" },
+];
+
+function RotatingAudienceWord() {
+  const [wordIndex, setWordIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setWordIndex((currentIndex) => (currentIndex + 1) % AUDIENCE_WORDS.length);
+    }, 2800);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const word = AUDIENCE_WORDS[wordIndex];
+
+  return (
+    <span
+      className="hero-audience-word"
+      style={{ "--audience-color": word.color } as CSSProperties}
+      aria-live="polite"
+    >
+      <span className="hero-audience-word__label" key={word.label}>
+        {word.label}
+      </span>
+    </span>
+  );
 }
 
 function ProductVideo({ compact = false }: { compact?: boolean }) {
@@ -47,8 +80,10 @@ export default function MarketingHome() {
       <section className="marketing-hero" aria-labelledby="hero-title">
         <div className="hero-copy">
           {/* <p className="eyebrow"><span className="eyebrow-line" />Browser-based motion capture</p> */}
-          <h1 id="hero-title">miniface for vtubers: realtime facial and finger motion capture <em>for streamers.</em></h1>
-          <p className="hero-description">miniface for vtubers brings your digital character to life from the camera you already have. Capture facial expressions, finger gestures, and live reactions in real time for streams, videos, and virtual performances.</p>
+          <h1 id="hero-title">
+            realtime facial and finger motion capture <em>for <RotatingAudienceWord />.</em>
+          </h1>
+          <p className="hero-description">bring your digital character to life from the camera you already have. Capture facial expressions, finger gestures, and live reactions in real time for streams, videos, and virtual performances.</p>
           <a className="button primary" href="/animate">start animating</a>
         </div>
         {/* <div className="hero-meta" aria-label="Product highlights">

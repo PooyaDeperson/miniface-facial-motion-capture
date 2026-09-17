@@ -349,7 +349,8 @@
 }
 
 
-.avatar-switcher button, .motion-file-container {
+.avatar-switcher button,
+.motion-file-container {
   transform-origin: center center;
   width: 52px;
   height: 72px;
@@ -370,17 +371,18 @@ button.avatar-btn.avatar-selection:hover,
 button.avatar-btn.avatar-selection.active,
 .motion-file-container:hover,
 .motion-file-container.loading,
-.motion-file-container.active
- {
-  transform: rotate(0deg)!important;
+.motion-file-container.active {
+  transform: rotate(0deg) !important;
   scale: 0.95;
 }
+
 .motion-file-container.loading {
   scale: 0.9;
   opacity: 0.6;
   filter: grayscale(1);
   cursor: var(--cursor-default)
 }
+
 button.avatar-btn.avatar-selection.active,
 .motion-file-container.active {
   border-color: var(--interactive-primary)
@@ -400,9 +402,11 @@ button.avatar-btn.avatar-selection.active,
   margin: 0 auto;
   outline: 4px solid var(--gray-100-op50);
 }
+
 .title.prompt-title {
   min-width: 320px;
 }
+
 .popup-container.prompt-popup {
   pointer-events: all;
 }
@@ -485,7 +489,7 @@ button.avatar-btn.avatar-selection.active,
 .selector-inner-container {
   display: flex;
   flex-direction: column;
-  
+
   align-items: flex-start;
   gap: 30px;
   height: 100%;
@@ -564,12 +568,14 @@ button.icon-holder.tab-button:not(.active) {
 button.cd-selected>.has-icon.selected-icon {
   background: no-repeat center / contain var(--selected-icon);
 }
+
 .pattern-color-container-switcher {
   background-color: var(--border-soft);
-    max-height: 400px;
-    max-width: 300px;
-    width: fit-content;
+  max-height: 400px;
+  max-width: 300px;
+  width: fit-content;
 }
+
 /* =========================
    POPUP CONTAINER
 ========================= */
@@ -636,7 +642,7 @@ a.button {
   border-radius: 999px;
   display: inline-flex;
   justify-content: center;
-  padding: 10px;
+  padding: 10px 16px;
   text-decoration: none;
 }
 
@@ -919,6 +925,7 @@ canvas:active {
 .avatar-switcher.switcher-disabled {
   animation: hide-right 0.3s ease forwards;
 }
+
 .motion-library-panel.switcher-disabled {
   animation: hide-right 0.3s ease forwards;
 }
