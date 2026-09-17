@@ -154,18 +154,17 @@ body:has(.marketing-page),
 .hero-audience-word {
   align-items: center;
   background: color-mix(in srgb, var(--audience-color) 22%, transparent);
-  border: 1px solid color-mix(in srgb, var(--audience-color) 48%, transparent);
-  border-radius: 100%;
+  border: 0;
+  border-radius: 99px;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
-  color: var(--audience-color);
   display: inline-flex;
   height: 1.18em;
   justify-content: center;
   min-width: 7.1ch;
   overflow: hidden;
-  padding: .04em .28em .1em;
-  transition: background-color 420ms ease, border-color 420ms ease, color 420ms ease;
+  padding: .08em .4em .14em;
+  transition: background-color 420ms ease;
   vertical-align: -.12em;
   white-space: nowrap;
 }
