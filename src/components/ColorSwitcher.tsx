@@ -113,7 +113,7 @@ const ColorPatternSwitcher: React.FC<ColorPatternSwitcherProps> = ({ disabled = 
 
       {/* Color Selector */}
       {expandedTab === "color" && (
-        <div className="pt-12 br-24 pb-86 pr-10 selector-inner-container pl-110 reveal slide-up inner-container selector-container color-container">
+        <div className="pt-12 br-24 pb-86 pr-10 selector-inner-container pl-85 reveal slide-up inner-container selector-container color-container">
           {colors.map((color) => (
             <div
               key={color.hex}
@@ -130,7 +130,7 @@ const ColorPatternSwitcher: React.FC<ColorPatternSwitcherProps> = ({ disabled = 
 
       {/* Pattern Selector */}
       {expandedTab === "pattern" && (
-        <div className="pt-12 br-24 pb-86 pr-10 pl-110 selector-inner-container reveal slide-up inner-container selector-container pattern-container">
+        <div className="pt-12 br-24 pb-86 pr-10 pl-85 selector-inner-container reveal slide-up inner-container selector-container pattern-container">
           {patterns.map((pattern) => (
             <div
               key={pattern.name}
