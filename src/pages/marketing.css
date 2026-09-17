@@ -48,7 +48,7 @@ body:has(.marketing-page),
 }
 
 .brand-logo {
-  border-radius: 50%;
+  border-radius: 8px;
   display: inline-block;
   height: 22px;
   object-fit: cover;
@@ -648,20 +648,20 @@ body:has(.marketing-page),
 
 .marketing-footer {
   align-items: center;
-  background: var(--ink);
-  border-top: 1px solid rgba(255, 255, 255, .12);
+  background: var(--bg-brand);
+  border-top: 1px solid var(--border-brand-soft);
+  color: var(--text-inverse);
   display: flex;
   gap: 30px;
   justify-content: space-between;
   padding: 25px clamp(20px, 5vw, 76px);
 }
 
-.marketing-footer .brand-mark {
-  color: white;
-}
-
-.marketing-footer>span {
-  color: #777684;
+.marketing-footer .brand-mark,
+.marketing-footer a,
+.marketing-footer>span,
+.marketing-footer div {
+  color: var(--text-inverse);
 }
 
 .marketing-footer div {
