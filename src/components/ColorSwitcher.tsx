@@ -47,13 +47,13 @@ interface ColorPatternSwitcherProps {
 }
 
 const ColorPatternSwitcher: React.FC<ColorPatternSwitcherProps> = ({ disabled = false }) => {
-const [activeColor, setActiveColor] = useState<string>(
-  () => localStorage.getItem("activeColor") || "#8bd9fbff"
-);
+  const [activeColor, setActiveColor] = useState<string>(
+    () => localStorage.getItem("activeColor") || "#8bd9fbff"
+  );
 
-const [activePattern, setActivePattern] = useState<string>(
-  () => localStorage.getItem("activePattern") || "var(--pattern-waves2)"
-);
+  const [activePattern, setActivePattern] = useState<string>(
+    () => localStorage.getItem("activePattern") || "var(--pattern-waves2)"
+  );
   const [expandedTab, setExpandedTab] = useState<"color" | "pattern" | null>(
     null
   );
@@ -84,15 +84,14 @@ const [activePattern, setActivePattern] = useState<string>(
 
   return (
     <div
-      className={`pattern-color-container-switcher bg-blur tb:size selector-container reveal slide-up cc-pattern-selector-container pos-abs bottom-0 p-1 left-0 z-7 m-6 br-24 ${expandedTab ? " h-full" : ""}${disabled ? " switcher-disabled" : ""}`}
+      className={`pattern-color-container-switcher bg-blur tb:size selector-container reveal slide-up cc-pattern-selector-container pos-fixed bottom-0 p-1 left-0 z-7 m-6 br-24 ${expandedTab ? " h-full" : ""}${disabled ? " switcher-disabled" : ""}`}
       ref={containerRef}
     >
       <div className="bg-blur flex-col cc-pattern-selector pos-abs bottom-0 left-0 z-7 m-2 tb:m-3 gap-2 br-16 p-1">
         {/* Color Button */}
         <button
-          className={`icon-holder br-12 tab-button size-48 tb:size-60 ${
-            expandedTab === "color" ? "active" : ""
-          }`}
+          className={`icon-holder br-12 tab-button size-48 tb:size-60 ${expandedTab === "color" ? "active" : ""
+            }`}
           onClick={() =>
             setExpandedTab(expandedTab === "color" ? null : "color")
           }
@@ -102,9 +101,8 @@ const [activePattern, setActivePattern] = useState<string>(
 
         {/* Pattern Button */}
         <button
-          className={`icon-holder br-12 tab-button size-48 tb:size-60 ${
-            expandedTab === "pattern" ? "active" : ""
-          }`}
+          className={`icon-holder br-12 tab-button size-48 tb:size-60 ${expandedTab === "pattern" ? "active" : ""
+            }`}
           onClick={() =>
             setExpandedTab(expandedTab === "pattern" ? null : "pattern")
           }
@@ -115,7 +113,7 @@ const [activePattern, setActivePattern] = useState<string>(
 
       {/* Color Selector */}
       {expandedTab === "color" && (
-        <div className="pt-12 br-24 pb-86 pr-10 selector-inner-container pl-110 reveal slide-up inner-container selector-container color-container">
+        <div className="pt-12 br-24 pb-86 pr-10 selector-inner-container pl-85 reveal slide-up inner-container selector-container color-container">
           {colors.map((color) => (
             <div
               key={color.hex}
@@ -132,16 +130,15 @@ const [activePattern, setActivePattern] = useState<string>(
 
       {/* Pattern Selector */}
       {expandedTab === "pattern" && (
-        <div className="pt-12 br-24 pb-86 pr-10 pl-110 selector-inner-container reveal slide-up inner-container selector-container pattern-container">
+        <div className="pt-12 br-24 pb-86 pr-10 pl-85 selector-inner-container reveal slide-up inner-container selector-container pattern-container">
           {patterns.map((pattern) => (
             <div
               key={pattern.name}
               onClick={() => setActivePattern(pattern.value)}
               className={`icon-holder pattern-card br-16 pattern-${pattern.name
                 .toLowerCase()
-                .replace(/\s+/g, "-")} ${
-                activePattern === pattern.value ? "selected" : ""
-              }`}
+                .replace(/\s+/g, "-")} ${activePattern === pattern.value ? "selected" : ""
+                }`}
             />
           ))}
         </div>
