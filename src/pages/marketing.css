@@ -151,6 +151,36 @@ body:has(.marketing-page),
   font-style: normal;
 }
 
+.hero-audience-word {
+  animation: audience-word-in 560ms cubic-bezier(.22, 1, .36, 1) both;
+  background: color-mix(in srgb, var(--audience-color) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--audience-color) 48%, transparent);
+  border-radius: 100%;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  color: var(--audience-color);
+  display: inline-block;
+  padding: .04em .28em .1em;
+  white-space: nowrap;
+}
+
+@keyframes audience-word-in {
+  from {
+    opacity: 0;
+    transform: translateY(70%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-audience-word {
+    animation: none;
+  }
+}
+
 .hero-description {
   color: var(--muted-ink);
   font-size: 18px;
