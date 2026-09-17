@@ -159,14 +159,15 @@ body:has(.marketing-page),
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
   display: inline-flex;
-  height: 1.18em;
+  height: 1.58em;
   justify-content: center;
   min-width: 7.1ch;
   overflow: hidden;
-  padding: .08em .4em .14em;
+  padding: 0.44em 0.7em 0.44em;
   transition: background-color 420ms ease;
   vertical-align: -.12em;
   white-space: nowrap;
+  transition: width 200ms ease-in-out;
 }
 
 .hero-audience-word__label {
@@ -179,6 +180,7 @@ body:has(.marketing-page),
     opacity: 0;
     transform: translateY(70%);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);

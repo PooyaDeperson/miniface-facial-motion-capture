@@ -634,7 +634,7 @@ button.primary,
 button.secondary,
 a.button.primary,
 a.button.secondary {
-  margin-top: 12px 16px;
+  margin-top: 16px;
 }
 
 a.button {
@@ -642,7 +642,7 @@ a.button {
   border-radius: 999px;
   display: inline-flex;
   justify-content: center;
-  padding: 10px;
+  padding: 10px 16px;
   text-decoration: none;
 }
 
