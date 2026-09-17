@@ -19,29 +19,37 @@ import MarketingHome from './pages/MarketingHome';
 import { supabase } from './supabaseClient';
 import { restoreAuthReturnUrl } from './authRedirect';
 
-// OAuth callbacks can land on `/` instead of `/animate`. Initialize Supabase
-// before routing so its access-token hash is consumed on every route.
-if (supabase) {
-  supabase.auth.getSession().then(() => restoreAuthReturnUrl());
-}
-
 // Keep the motion-capture app lazy so the marketing page does not initialize auth or camera code.
-
 const App = lazy(() => import('./App'));
 
-const root = ReactDOM.createRoot(
-  document.getElementById('root') as HTMLElement
-);
-root.render(
-  <React.StrictMode>
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<MarketingHome />} />
-        <Route path="/animate" element={<Suspense fallback={null}><App /></Suspense>} />
-        <Route path="/cookies" element={<CookiesPage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
-        <Route path="/terms" element={<TermsPage />} />
-      </Routes>
-    </BrowserRouter>
-  </React.StrictMode>
-);
+function renderApp() {
+  const root = ReactDOM.createRoot(
+    document.getElementById('root') as HTMLElement
+  );
+
+  root.render(
+    <React.StrictMode>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<MarketingHome />} />
+          <Route path="/animate" element={<Suspense fallback={null}><App /></Suspense>} />
+          <Route path="/cookies" element={<CookiesPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+        </Routes>
+      </BrowserRouter>
+    </React.StrictMode>
+  );
+}
+
+// Supabase may return OAuth callbacks to `/` before the saved page is restored.
+// Wait for it to consume the callback first, then render the router. This keeps
+// the marketing page from painting for a frame during every auth redirect.
+if (supabase) {
+  supabase.auth.getSession().then(() => {
+    restoreAuthReturnUrl();
+    renderApp();
+  });
+} else {
+  renderApp();
+}
