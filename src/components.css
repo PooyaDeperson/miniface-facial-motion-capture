@@ -668,7 +668,7 @@ button.tab-button {
   transition: scale 100ms ease-in-out, filter 100ms ease-in-out, transform 50ms ease-in-out;
 }
 
-button.regular {
+.regular {
   width: fit-content;
 
 }
