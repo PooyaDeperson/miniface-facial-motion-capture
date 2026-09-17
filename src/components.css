@@ -661,7 +661,16 @@ a.button:active,
 div.pattern-card,
 div.color-card,
 button.tab-button {
+  gap: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: scale 100ms ease-in-out, filter 100ms ease-in-out, transform 50ms ease-in-out;
+}
+
+button.regular {
+  width: fit-content;
+
 }
 
 button:not(.avatar-btn, .rec-btn, .motion-file-container):hover,
