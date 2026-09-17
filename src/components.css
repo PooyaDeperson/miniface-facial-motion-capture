@@ -572,7 +572,7 @@ button.cd-selected>.has-icon.selected-icon {
 .pattern-color-container-switcher {
   background-color: var(--border-soft);
   max-height: 400px;
-  max-width: 300px;
+  max-width: 330px;
   width: fit-content;
 }
 
