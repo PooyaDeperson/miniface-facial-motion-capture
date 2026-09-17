@@ -147,7 +147,7 @@ body:has(.marketing-page),
 
 .marketing-page h1 em,
 .marketing-page .final-cta h2 em {
-  color: var(--violet);
+  /* color: var(--violet); */
   font-style: normal;
 }
 
