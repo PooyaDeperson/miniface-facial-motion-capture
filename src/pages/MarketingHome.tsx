@@ -32,11 +32,12 @@ function RotatingAudienceWord() {
   return (
     <span
       className="hero-audience-word"
-      key={word.label}
       style={{ "--audience-color": word.color } as CSSProperties}
       aria-live="polite"
     >
-      {word.label}
+      <span className="hero-audience-word__label" key={word.label}>
+        {word.label}
+      </span>
     </span>
   );
 }
