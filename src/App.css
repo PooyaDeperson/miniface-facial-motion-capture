@@ -181,8 +181,8 @@ body {
 a,
 button,
 button>*,
-a.brand-mark,
-.cursor-pointer {
+.cursor-pointer,
+a.brand-mark {
   cursor: var(--cursor-pointer), auto;
 }
 
