@@ -32,15 +32,29 @@ interface CameraPermissionsProps {
   disabled?: boolean;
   isFlipped?: boolean;
   setIsFlipped?: (v: boolean) => void;
+  isAuthenticated: boolean;
+  onLoginRequest: () => void;
 }
 
-export default function CameraPermissions({ onStreamReady, disabled, isFlipped, setIsFlipped }: CameraPermissionsProps) {
+export default function CameraPermissions({
+  onStreamReady,
+  disabled,
+  isFlipped,
+  setIsFlipped,
+  isAuthenticated,
+  onLoginRequest,
+}: CameraPermissionsProps) {
   const [permissionState, setPermissionState] = useState<"prompt" | "denied" | "granted" | "inuse">("prompt");
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string | null>(null);
   const activeStreamRef = useRef<MediaStream | null>(null);
 
   const requestCamera = async (deviceId?: string) => {
+    if (!isAuthenticated) {
+      onLoginRequest();
+      return;
+    }
+
     try {
       // Stop any previously active tracks before opening a new stream so the
       // old camera is released and we don't accumulate stale MediaStreamTracks.
@@ -102,6 +116,21 @@ export default function CameraPermissions({ onStreamReady, disabled, isFlipped, 
     localStorage.setItem("selectedCamera", deviceId);
     requestCamera(deviceId);
   };
+
+  useEffect(() => {
+    if (isAuthenticated && permissionState === "prompt") {
+      void requestCamera(selectedCamera || undefined);
+      return;
+    }
+
+    if (!isAuthenticated && activeStreamRef.current) {
+      activeStreamRef.current.getTracks().forEach((track) => track.stop());
+      activeStreamRef.current = null;
+    }
+  // The camera request intentionally runs only when authentication changes;
+  // requestCamera is recreated because it closes over the current auth state.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (navigator.permissions) {

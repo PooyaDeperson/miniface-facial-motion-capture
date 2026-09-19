@@ -623,6 +623,8 @@ function App() {
         disabled={isSwitcherDisabled || isInPlayback}
         isFlipped={isFlipped}
         setIsFlipped={setIsFlipped}
+        isAuthenticated={currentUser !== null}
+        onLoginRequest={() => setShowAuthModal(true)}
       />
 
       <TrackingLoader
