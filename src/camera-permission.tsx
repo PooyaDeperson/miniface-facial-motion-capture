@@ -211,25 +211,16 @@ export default function CameraPermissions({
         />
       )}
 
-      {permissionState === "denied" && (() => {
-        const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-        return (
-          <PermissionPopup
-            variant="denied"
-            title="oh... you haven't given camera access yet."
-            image={isMobile
-              ? "/images/app/explainers/campermission-denied-mobile.webp"
-              : "/images/app/explainers/campermission-denied-pc.webp"
-            }
-            imagAlt={isMobile
-              ? "How to enable camera permission on mobile"
-              : "How to enable camera permission on desktop"
-            }
-            subtitle="at the top, tap the Site Info icon and enable the camera toggle in the settings."
-            showButton={false}
-          />
-        );
-      })()}
+      {permissionState === "denied" && (
+        <PermissionPopup
+          variant="denied"
+          title="camera access is blocked."
+          subtitle="please allow camera access in your browser settings, then try again."
+          buttonText="try again"
+          onClick={() => requestCamera(selectedCamera || undefined)}
+          showButton
+        />
+      )}
 
       {permissionState === "inuse" && (
         <PermissionPopup
