@@ -126,8 +126,36 @@
   /* scrollbar-arrow-color:      transparent; ← arrow buttons */
 }
 
+.camera-preview-start {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 9991;
+  width: min(400px, calc(100vw - 2rem));
+}
+
+.camera-preview {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  background: #111;
+}
+
+.primary-button {
+  border: 0;
+  padding: 0.75rem 1.5rem;
+  color: #fff;
+  background: #111;
+  font-weight: 600;
+}
+
+.primary-button:hover {
+  filter: brightness(1.15);
+}
+
 /* =========================
-   BOX SIZING / RESET -
+  BOX SIZING / RESET -
 ========================= */
 *,
 *::before,

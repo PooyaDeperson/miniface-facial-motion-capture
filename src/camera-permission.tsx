@@ -34,6 +34,7 @@ interface CameraPermissionsProps {
   setIsFlipped?: (v: boolean) => void;
   isAuthenticated: boolean;
   onLoginRequest: () => void;
+  onStartAnimation: () => void;
 }
 
 export default function CameraPermissions({
@@ -43,21 +44,17 @@ export default function CameraPermissions({
   setIsFlipped,
   isAuthenticated,
   onLoginRequest,
+  onStartAnimation,
 }: CameraPermissionsProps) {
   const [permissionState, setPermissionState] = useState<"prompt" | "denied" | "granted" | "inuse">("prompt");
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string | null>(null);
-  const [hasClickedCameraPrompt, setHasClickedCameraPrompt] = useState(false);
+  const [cameraPromptAcknowledged, setCameraPromptAcknowledged] = useState(false);
+  const [startAnimationPending, setStartAnimationPending] = useState(false);
+  const previewVideoRef = useRef<HTMLVideoElement | null>(null);
   const activeStreamRef = useRef<MediaStream | null>(null);
 
   const requestCamera = async (deviceId?: string) => {
-    setHasClickedCameraPrompt(true);
-
-    if (!isAuthenticated) {
-      onLoginRequest();
-      return;
-    }
-
     try {
       // Stop any previously active tracks before opening a new stream so the
       // old camera is released and we don't accumulate stale MediaStreamTracks.
@@ -84,6 +81,7 @@ export default function CameraPermissions({
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       activeStreamRef.current = stream;
       setPermissionState("granted");
+      setCameraPromptAcknowledged(true);
 
       onStreamReady(stream);
     } catch (err: any) {
@@ -114,25 +112,33 @@ export default function CameraPermissions({
   const handleCameraChange = (deviceId: string) => {
     setSelectedCamera(deviceId);
     localStorage.setItem("selectedCamera", deviceId);
-    requestCamera(deviceId);
+    void requestCamera(deviceId);
   };
 
-  useEffect(() => {
+  const handleStartAnimation = () => {
     if (!isAuthenticated) {
-      if (activeStreamRef.current) {
-        activeStreamRef.current.getTracks().forEach((track) => track.stop());
-        activeStreamRef.current = null;
-      }
+      setStartAnimationPending(true);
+      onLoginRequest();
       return;
     }
 
-    if (hasClickedCameraPrompt && !activeStreamRef.current) {
-      void requestCamera(selectedCamera || undefined);
+    setStartAnimationPending(false);
+    onStartAnimation();
+  };
+
+  useEffect(() => {
+    if (isAuthenticated && startAnimationPending) {
+      setStartAnimationPending(false);
+      onStartAnimation();
     }
-  // The camera request intentionally runs only when authentication changes;
-  // requestCamera is recreated because it closes over the current auth state.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [isAuthenticated, onStartAnimation, startAnimationPending]);
+
+  useEffect(() => {
+    if (previewVideoRef.current && activeStreamRef.current) {
+      previewVideoRef.current.srcObject = activeStreamRef.current;
+      void previewVideoRef.current.play().catch(() => undefined);
+    }
+  }, [cameraPromptAcknowledged]);
 
   useEffect(() => {
     if (navigator.permissions) {
@@ -164,7 +170,7 @@ export default function CameraPermissions({
 
   return (
     <>
-      {!hasClickedCameraPrompt && (
+      {!cameraPromptAcknowledged && (
         <PermissionPopup
           variant="prompt"
           title="pssst… give camera access to animate!"
@@ -204,6 +210,26 @@ export default function CameraPermissions({
           onClick={() => requestCamera(selectedCamera || undefined)}
           showButton
         />
+      )}
+
+      {cameraPromptAcknowledged && activeStreamRef.current && (
+        <div className="camera-preview-start flex flex-col items-center gap-3">
+          <video
+            ref={previewVideoRef}
+            autoPlay
+            playsInline
+            muted
+            aria-label="Camera preview"
+            className={`camera-preview br-12 ${isFlipped ? "flipped-x" : ""}`}
+          />
+          <button
+            type="button"
+            className="primary-button"
+            onClick={handleStartAnimation}
+          >
+            start animation
+          </button>
+        </div>
       )}
 
       {/* Main control div */}

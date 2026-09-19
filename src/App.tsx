@@ -59,6 +59,7 @@ function App() {
   const [initError, setInitError] = useState<string | null>(null);
   const [recordingPhase, setRecordingPhase] = useState<"idle" | "recording" | "review" | "done">("idle");
   const [isFlipped, setIsFlipped] = useState(true);
+  const [animationStarted, setAnimationStarted] = useState(false);
 
   // ── Playback state ────────────────────────────────────────────────────────
   const [playbackBlob, setPlaybackBlob] = useState<Blob | null>(null);
@@ -133,6 +134,12 @@ function App() {
   // same already-resolved user — eliminating the async flash in AuthModal where
   // it would render the signed-out view for a frame before getSession resolved.
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    if (!currentUser) {
+      setAnimationStarted(false);
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -464,7 +471,8 @@ function App() {
   // ── "Do another" → back to idle, clear playback ───────────────────────────
   // Called by BOTH PlaybackControls (scrubber bar) and RecordingControls.
   const handleDoAnother = useCallback(() => {
-    setPlaybackBlob(null);
+  setAnimationStarted(false);
+  setPlaybackBlob(null);
     setActiveMotionId(null);
     setActiveMotionName(undefined);
     pendingPlaybackRef.current = null;
@@ -486,7 +494,8 @@ function App() {
 
   // ── Start live capture from inside library panel or player ───────────────
   const handleStartLive = useCallback(() => {
-    const wasInPlayback = !!playbackBlob;
+  setAnimationStarted(false);
+  const wasInPlayback = !!playbackBlob;
 
     // If currently recording, stop gracefully before switching
     if (recordingPhase === "recording") {
@@ -625,6 +634,7 @@ function App() {
         setIsFlipped={setIsFlipped}
         isAuthenticated={currentUser !== null}
         onLoginRequest={() => setShowAuthModal(true)}
+        onStartAnimation={() => setAnimationStarted(true)}
       />
 
       <TrackingLoader
@@ -633,7 +643,7 @@ function App() {
         error={initError}
       />
 
-      {videoStream && !isInPlayback && (
+      {animationStarted && videoStream && !isInPlayback && (
         <FaceTracking
           videoStream={videoStream}
           onMediapipeReady={handleMediapipeReady}
