@@ -126,11 +126,7 @@
   /* scrollbar-arrow-color:      transparent; ← arrow buttons */
 }
 
-.camera-preview-start {
-  position: fixed;
-  z-index: 9991;
-  width: min(400px, calc(100vw - 2rem));
-}
+
 
 .camera-preview-stop {
   position: fixed;
