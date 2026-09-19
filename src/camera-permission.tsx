@@ -121,12 +121,24 @@ export default function CameraPermissions({
     setCameras(videoInputs);
 
     const savedCamera = localStorage.getItem("selectedCamera");
-    if (savedCamera && videoInputs.find((d) => d.deviceId === savedCamera)) {
-      setSelectedCamera(savedCamera);
-    } else if (videoInputs.length > 0) {
-      setSelectedCamera(videoInputs[0].deviceId);
-    }
+    const preferredCamera = savedCamera && videoInputs.find((d) => d.deviceId === savedCamera)
+      ? savedCamera
+      : videoInputs[0]?.deviceId ?? null;
+
+    setSelectedCamera(preferredCamera);
+    return { devices: videoInputs, preferredCamera };
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleCameraAccessLost = useCallback(() => {
+    cameraRequestIdRef.current += 1;
+    activeStreamRef.current?.getTracks().forEach((track) => track.stop());
+    activeStreamRef.current = null;
+    setPreviewStream(null);
+    setCameraPromptAcknowledged(false);
+    setPermissionState("denied");
+    setCameras([]);
+    if (animationStarted) onStopAnimation();
+  }, [animationStarted, onStopAnimation]);
 
   const handleCameraChange = (deviceId: string) => {
     if (animationStarted) return;
@@ -171,23 +183,57 @@ export default function CameraPermissions({
   }, [previewStream, cameraPromptAcknowledged]);
 
   useEffect(() => {
-    if (navigator.permissions) {
-      navigator.permissions.query({ name: "camera" as PermissionName }).then((result) => {
-        setPermissionState(result.state as any);
-        if (result.state === "granted") loadCameras();
+    if (!navigator.permissions) return;
 
-        result.onchange = () => {
-          // Only update if we're not already showing the "in use" error —
-          // a permission change event should not stomp over the hardware-busy state.
-          setPermissionState((prev) => {
-            if (prev === "inuse") return prev;
-            return result.state as any;
-          });
-          if (result.state === "granted") loadCameras();
-        };
-      });
-    }
-  }, [loadCameras]);
+    let permissionStatus: PermissionStatus | null = null;
+    let cancelled = false;
+
+    const applyPermissionState = async (state: PermissionState) => {
+      if (cancelled) return;
+
+      if (state === "granted") {
+        setPermissionState("granted");
+        setCameraPromptAcknowledged(true);
+        const { preferredCamera } = await loadCameras();
+        if (!cancelled && !activeStreamRef.current && preferredCamera) {
+          void requestCamera(preferredCamera);
+        }
+        return;
+      }
+
+      if (state === "denied") {
+        handleCameraAccessLost();
+      } else {
+        setPermissionState("prompt");
+      }
+    };
+
+    navigator.permissions.query({ name: "camera" as PermissionName }).then((result) => {
+      if (cancelled) return;
+      permissionStatus = result;
+      void applyPermissionState(result.state);
+      result.onchange = () => void applyPermissionState(result.state);
+    });
+
+    return () => {
+      cancelled = true;
+      if (permissionStatus) permissionStatus.onchange = null;
+    };
+  }, [handleCameraAccessLost, loadCameras]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const stream = activeStreamRef.current;
+    if (!stream) return;
+
+    const handleTrackEnded = () => {
+      if (stream === activeStreamRef.current && stream.getVideoTracks().every((track) => track.readyState === "ended")) {
+        handleCameraAccessLost();
+      }
+    };
+
+    stream.getVideoTracks().forEach((track) => track.addEventListener("ended", handleTrackEnded));
+    return () => stream.getVideoTracks().forEach((track) => track.removeEventListener("ended", handleTrackEnded));
+  }, [previewStream, handleCameraAccessLost]);
 
   const dropdownOptions: Option[] = cameras.map((cam, idx) => {
     const icon = idx % 2 === 0 ? CameraIcon : VideoIcon;
@@ -200,7 +246,7 @@ export default function CameraPermissions({
 
   return (
     <>
-      {!cameraPromptAcknowledged && (
+      {permissionState === "prompt" && !cameraPromptAcknowledged && (
         <PermissionPopup
           variant="prompt"
           title="pssst… give camera access to animate!"
@@ -213,10 +259,10 @@ export default function CameraPermissions({
 
       {permissionState === "denied" && (
         <PermissionPopup
-          variant="denied"
-          title="camera access is blocked."
-          subtitle="please allow camera access in your browser settings, then try again."
-          buttonText="try again"
+          variant="prompt"
+          title="pssst… give camera access to animate!"
+          subtitle="camera access was turned off. allow it in your browser settings, then tap 'allow camera access' to continue."
+          buttonText="allow camera access"
           onClick={() => requestCamera(selectedCamera || undefined)}
           showButton
         />
