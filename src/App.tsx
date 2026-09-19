@@ -266,9 +266,11 @@ function App() {
     setMediapipeReady(true);
   }, []);
 
-  // Start a 30-second timeout once avatar + stream are both ready.
+  // Start the fallback timeout only after the authenticated user explicitly
+  // starts animation. Camera permission and preview alone must not initialise
+  // MediaPipe or trigger model loading.
   useEffect(() => {
-    if (avatarReady && videoStream && !mediapipeReady) {
+    if (currentUser && animationStarted && avatarReady && videoStream && !mediapipeReady) {
       mediapipeTimeoutRef.current = setTimeout(() => {
         setMediapipeReady(true);
       }, 30000);
@@ -279,7 +281,7 @@ function App() {
         mediapipeTimeoutRef.current = null;
       }
     };
-  }, [avatarReady, videoStream, mediapipeReady]);
+  }, [currentUser, animationStarted, avatarReady, videoStream, mediapipeReady]);
 
   const handleAvatarChange = (newUrl: string, keepPending = false) => {
     discardRecording();
@@ -638,12 +640,12 @@ function App() {
       />
 
       <TrackingLoader
-        visible={avatarReady && videoStream != null && !mediapipeReady && !isInPlayback}
+        visible={currentUser !== null && animationStarted && avatarReady && videoStream != null && !mediapipeReady && !isInPlayback}
         progress={initProgress}
         error={initError}
       />
 
-      {animationStarted && videoStream && !isInPlayback && (
+      {currentUser !== null && animationStarted && videoStream && !isInPlayback && (
         <FaceTracking
           videoStream={videoStream}
           onMediapipeReady={handleMediapipeReady}
