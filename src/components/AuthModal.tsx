@@ -199,7 +199,7 @@ export default function AuthModal({ onClose, onDriveConnected, hasPendingMotion 
       backdrop
       onBackdropClick={onClose}
       aria-label="Sign in"
-      title="connect to animate and save motions"
+      title="connect to animate and save your motions"
       className="auth-popup"
     >
       <p className="subtitle prompt-subtitle mt-4">
