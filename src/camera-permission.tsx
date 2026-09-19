@@ -280,7 +280,7 @@ export default function CameraPermissions({
       )}
 
       {cameraPromptAcknowledged && activeStreamRef.current && !animationStarted && (
-        <div className="camera-preview-start flex flex-col items-center gap-3">
+        <div className="camera-preview-start flex flex-col pos-abs top-0 m-5">
           <video
             ref={previewVideoRef}
             autoPlay
@@ -291,7 +291,7 @@ export default function CameraPermissions({
           />
           <button
             type="button"
-            className="primary-button"
+            className="button primary prompt-button"
             onClick={handleStartAnimation}
           >
             start animation
