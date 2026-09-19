@@ -225,9 +225,8 @@ body:has(.marketing-page),
 }
 
 .marketing-video {
-  background: #161620;
-  border-radius: 5px;
-  box-shadow: 0 20px 70px rgba(20, 19, 40, .18);
+
+
   overflow: hidden;
   position: relative;
 }

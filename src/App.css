@@ -171,7 +171,7 @@ body {
 /* =========================
    CURSORS
 ========================= */
-* {
+*:not(button, a, .cursor-pointer, button > *) {
   cursor: var(--cursor-default), auto;
 }
 
