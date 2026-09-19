@@ -86,7 +86,7 @@ body:has(.marketing-page),
 .nav-links a,
 .marketing-footer a,
 .marketing-footer span {
-  color: var(--muted-ink);
+
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04rem;
