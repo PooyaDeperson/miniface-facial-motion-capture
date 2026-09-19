@@ -48,7 +48,7 @@ body:has(.marketing-page),
 }
 
 .brand-logo {
-  border-radius: 8px;
+  border-radius: 6px;
   display: inline-block;
   height: 22px;
   object-fit: cover;

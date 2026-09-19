@@ -44,7 +44,7 @@ function RotatingAudienceWord() {
 
 function ProductVideo({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={`marketing-video br-2 ${compact ? "marketing-video--compact" : ""}`}>
+    <div className={`marketing-video br-6 ${compact ? "marketing-video--compact" : ""}`}>
       <video
         autoPlay
         muted
