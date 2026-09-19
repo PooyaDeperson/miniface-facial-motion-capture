@@ -199,11 +199,11 @@ export default function AuthModal({ onClose, onDriveConnected, hasPendingMotion 
       backdrop
       onBackdropClick={onClose}
       aria-label="Sign in"
-      title="Connect to save your motion and sync forever"
+      title="connect to animate and save your motions"
       className="auth-popup"
     >
       <p className="subtitle prompt-subtitle mt-4">
-        sign in with Google to save your motions to Drive and access them from any device.{" "}
+        verify that you are human using your Google email...{" "}
         By continuing you agree to{" "}
         <a href="/terms" target="_blank" rel="noreferrer">Terms</a> and{" "}
         <a href="/privacy" target="_blank" rel="noreferrer">Privacy</a>.

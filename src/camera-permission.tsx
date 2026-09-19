@@ -32,12 +32,26 @@ interface CameraPermissionsProps {
   disabled?: boolean;
   isFlipped?: boolean;
   setIsFlipped?: (v: boolean) => void;
+  isAuthenticated: boolean;
+  onLoginRequest: () => void;
+  onStartAnimation: () => void;
 }
 
-export default function CameraPermissions({ onStreamReady, disabled, isFlipped, setIsFlipped }: CameraPermissionsProps) {
+export default function CameraPermissions({
+  onStreamReady,
+  disabled,
+  isFlipped,
+  setIsFlipped,
+  isAuthenticated,
+  onLoginRequest,
+  onStartAnimation,
+}: CameraPermissionsProps) {
   const [permissionState, setPermissionState] = useState<"prompt" | "denied" | "granted" | "inuse">("prompt");
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string | null>(null);
+  const [cameraPromptAcknowledged, setCameraPromptAcknowledged] = useState(false);
+  const [startAnimationPending, setStartAnimationPending] = useState(false);
+  const previewVideoRef = useRef<HTMLVideoElement | null>(null);
   const activeStreamRef = useRef<MediaStream | null>(null);
 
   const requestCamera = async (deviceId?: string) => {
@@ -67,6 +81,7 @@ export default function CameraPermissions({ onStreamReady, disabled, isFlipped, 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       activeStreamRef.current = stream;
       setPermissionState("granted");
+      setCameraPromptAcknowledged(true);
 
       onStreamReady(stream);
     } catch (err: any) {
@@ -89,19 +104,41 @@ export default function CameraPermissions({ onStreamReady, disabled, isFlipped, 
     const savedCamera = localStorage.getItem("selectedCamera");
     if (savedCamera && videoInputs.find((d) => d.deviceId === savedCamera)) {
       setSelectedCamera(savedCamera);
-      requestCamera(savedCamera);
     } else if (videoInputs.length > 0) {
-      const firstCam = videoInputs[0].deviceId;
-      setSelectedCamera(firstCam);
-      requestCamera(firstCam);
+      setSelectedCamera(videoInputs[0].deviceId);
     }
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCameraChange = (deviceId: string) => {
     setSelectedCamera(deviceId);
     localStorage.setItem("selectedCamera", deviceId);
-    requestCamera(deviceId);
+    void requestCamera(deviceId);
   };
+
+  const handleStartAnimation = () => {
+    if (!isAuthenticated) {
+      setStartAnimationPending(true);
+      onLoginRequest();
+      return;
+    }
+
+    setStartAnimationPending(false);
+    onStartAnimation();
+  };
+
+  useEffect(() => {
+    if (isAuthenticated && startAnimationPending) {
+      setStartAnimationPending(false);
+      onStartAnimation();
+    }
+  }, [isAuthenticated, onStartAnimation, startAnimationPending]);
+
+  useEffect(() => {
+    if (previewVideoRef.current && activeStreamRef.current) {
+      previewVideoRef.current.srcObject = activeStreamRef.current;
+      void previewVideoRef.current.play().catch(() => undefined);
+    }
+  }, [cameraPromptAcknowledged]);
 
   useEffect(() => {
     if (navigator.permissions) {
@@ -133,12 +170,12 @@ export default function CameraPermissions({ onStreamReady, disabled, isFlipped, 
 
   return (
     <>
-      {permissionState === "prompt" && (
+      {!cameraPromptAcknowledged && (
         <PermissionPopup
           variant="prompt"
           title="pssst… give camera access to animate!"
-          subtitle="use your camera for fun face animation! by tapping 'let’s go & allow,' you agree to camera and cookie use."
-          buttonText="let’s go & allow"
+          subtitle="use your camera for fun face animation! by tapping 'allow camera access' you agree to camera and cookie use."
+          buttonText="allow camera access"
           onClick={() => requestCamera(selectedCamera || undefined)}
           showButton
         />
@@ -173,6 +210,26 @@ export default function CameraPermissions({ onStreamReady, disabled, isFlipped, 
           onClick={() => requestCamera(selectedCamera || undefined)}
           showButton
         />
+      )}
+
+      {cameraPromptAcknowledged && activeStreamRef.current && (
+        <div className="camera-preview-start flex flex-col items-center gap-3">
+          <video
+            ref={previewVideoRef}
+            autoPlay
+            playsInline
+            muted
+            aria-label="Camera preview"
+            className={`camera-preview br-12 ${isFlipped ? "flipped-x" : ""}`}
+          />
+          <button
+            type="button"
+            className="primary-button"
+            onClick={handleStartAnimation}
+          >
+            start animation
+          </button>
+        </div>
       )}
 
       {/* Main control div */}
