@@ -47,19 +47,16 @@ export default function CameraPermissions({
   const [permissionState, setPermissionState] = useState<"prompt" | "denied" | "granted" | "inuse">("prompt");
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string | null>(null);
-  const [cameraPromptAcknowledged, setCameraPromptAcknowledged] = useState(false);
-  const [cameraRequestPending, setCameraRequestPending] = useState(false);
+  const [hasClickedCameraPrompt, setHasClickedCameraPrompt] = useState(false);
   const activeStreamRef = useRef<MediaStream | null>(null);
 
   const requestCamera = async (deviceId?: string) => {
+    setHasClickedCameraPrompt(true);
+
     if (!isAuthenticated) {
-      setCameraRequestPending(true);
       onLoginRequest();
       return;
     }
-
-    setCameraRequestPending(false);
-    setCameraPromptAcknowledged(true);
 
     try {
       // Stop any previously active tracks before opening a new stream so the
@@ -129,13 +126,13 @@ export default function CameraPermissions({
       return;
     }
 
-    if (cameraRequestPending && !activeStreamRef.current) {
+    if (hasClickedCameraPrompt && !activeStreamRef.current) {
       void requestCamera(selectedCamera || undefined);
     }
   // The camera request intentionally runs only when authentication changes;
   // requestCamera is recreated because it closes over the current auth state.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, cameraRequestPending]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (navigator.permissions) {
@@ -165,11 +162,9 @@ export default function CameraPermissions({
     };
   });
 
-  const shouldShowCameraPrompt = !cameraPromptAcknowledged;
-
   return (
     <>
-      {shouldShowCameraPrompt && (
+      {!hasClickedCameraPrompt && (
         <PermissionPopup
           variant="prompt"
           title="pssst… give camera access to animate!"
