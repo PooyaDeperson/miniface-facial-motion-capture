@@ -96,6 +96,7 @@ function App() {
   // Lifted from MotionLibrary so the popup is always visible, even when the
   // library panel is closed.
   const [noDriveAccessDetected, setNoDriveAccessDetected] = useState(false);
+  const [driveDisconnecting, setDriveDisconnecting] = useState(false);
 
   /** Directly triggers Google OAuth with Drive scope — skips the AuthModal. */
   const handleGoogleReAuth = useCallback(async () => {
@@ -113,6 +114,15 @@ function App() {
         },
       },
     });
+  }, []);
+
+  /** Signs the user out from the persistent missing-Drive-permission popup. */
+  const handleDriveDisconnect = useCallback(async () => {
+    if (!supabase) return;
+    setDriveDisconnecting(true);
+    clearDriveTokens();
+    await supabase.auth.signOut();
+    window.location.reload();
   }, []);
 
   // ── Drive scope state (drive token can appear after sign-in redirect) ─────
@@ -348,7 +358,7 @@ function App() {
     });
   }, []);
 
-  // ── Subscribe to sign-in without Drive scope ──────────────────────────────
+  // ── Subscribe to sign-in without Drive scope ────────────────────────��─────
   // When the user signs in with Google but does NOT grant Drive appdata access,
   // supabaseClient fires notifyNoDriveScope(). We auto-open the AuthModal so
   // they immediately see the friendly "grant Drive access" prompt. Their
@@ -767,6 +777,15 @@ function App() {
           >
             <span className="has-icon icon-size-14 google-icon" aria-hidden="true" />
             continue with Google
+          </button>
+          <button
+            className="button primary w-full mt-8"
+            onClick={handleDriveDisconnect}
+            disabled={driveDisconnecting}
+            aria-label="Disconnect and sign out"
+            style={{ background: "var(--bg-secondary)", color: "var(--text-primary)" }}
+          >
+            {driveDisconnecting ? "disconnecting..." : "disconnect"}
           </button>
         </PermissionPopup>
       )}
