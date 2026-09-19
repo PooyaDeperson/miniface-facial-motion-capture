@@ -165,9 +165,11 @@ export default function CameraPermissions({
     };
   });
 
+  const shouldShowCameraPrompt = !cameraPromptAcknowledged;
+
   return (
     <>
-      {!cameraPromptAcknowledged && (
+      {shouldShowCameraPrompt && (
         <PermissionPopup
           variant="prompt"
           title="pssst… give camera access to animate!"
