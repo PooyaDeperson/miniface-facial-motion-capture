@@ -55,17 +55,18 @@ export default function CameraPermissions({
   const [selectedCamera, setSelectedCamera] = useState<string | null>(null);
   const [cameraPromptAcknowledged, setCameraPromptAcknowledged] = useState(false);
   const [startAnimationPending, setStartAnimationPending] = useState(false);
+  const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
   const previewVideoRef = useRef<HTMLVideoElement | null>(null);
   const activeStreamRef = useRef<MediaStream | null>(null);
+  const cameraRequestIdRef = useRef(0);
 
   const requestCamera = async (deviceId?: string) => {
+    const requestId = ++cameraRequestIdRef.current;
+
     try {
-      // Stop any previously active tracks before opening a new stream so the
-      // old camera is released and we don't accumulate stale MediaStreamTracks.
-      if (activeStreamRef.current) {
-        activeStreamRef.current.getTracks().forEach((t) => t.stop());
-        activeStreamRef.current = null;
-      }
+      // Acquire the replacement before stopping the current stream. This keeps
+      // the preview alive while switching and avoids a black frame when a
+      // device takes a moment to release its video track.
 
       // On mobile, strict resolution constraints (e.g. 1280x720) cause
       // getUserMedia to fail or return a degraded stream on many Samsung/Xiaomi
@@ -83,12 +84,26 @@ export default function CameraPermissions({
         audio: false,
       };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+      // A newer selection may have completed while this request was pending.
+      // Discard the stale stream instead of letting it replace the current feed.
+      if (requestId !== cameraRequestIdRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      const previousStream = activeStreamRef.current;
       activeStreamRef.current = stream;
+      setPreviewStream(stream);
       setPermissionState("granted");
       setCameraPromptAcknowledged(true);
 
+      previousStream?.getTracks().forEach((track) => track.stop());
       onStreamReady(stream);
     } catch (err: any) {
+      // Ignore failures from an outdated selection; a newer request owns the UI.
+      if (requestId !== cameraRequestIdRef.current) return;
+
       // NotReadableError / AbortError → hardware is locked by another app or tab
       // NotAllowedError / PermissionDeniedError → user blocked access in the browser
       const name: string = err?.name ?? "";
@@ -139,11 +154,21 @@ export default function CameraPermissions({
   }, [isAuthenticated, onStartAnimation, startAnimationPending]);
 
   useEffect(() => {
-    if (previewVideoRef.current && activeStreamRef.current) {
-      previewVideoRef.current.srcObject = activeStreamRef.current;
-      void previewVideoRef.current.play().catch(() => undefined);
-    }
-  }, [cameraPromptAcknowledged]);
+    const video = previewVideoRef.current;
+    if (!video || !previewStream) return;
+
+    video.srcObject = previewStream;
+    const playPreview = () => {
+      void video.play().catch(() => undefined);
+    };
+    video.addEventListener("loadedmetadata", playPreview);
+    playPreview();
+
+    return () => {
+      video.removeEventListener("loadedmetadata", playPreview);
+      if (video.srcObject === previewStream) video.srcObject = null;
+    };
+  }, [previewStream, cameraPromptAcknowledged]);
 
   useEffect(() => {
     if (navigator.permissions) {
