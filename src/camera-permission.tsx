@@ -47,9 +47,12 @@ export default function CameraPermissions({
   const [permissionState, setPermissionState] = useState<"prompt" | "denied" | "granted" | "inuse">("prompt");
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string | null>(null);
+  const [hasClickedCameraPrompt, setHasClickedCameraPrompt] = useState(false);
   const activeStreamRef = useRef<MediaStream | null>(null);
 
   const requestCamera = async (deviceId?: string) => {
+    setHasClickedCameraPrompt(true);
+
     if (!isAuthenticated) {
       onLoginRequest();
       return;
@@ -103,11 +106,8 @@ export default function CameraPermissions({
     const savedCamera = localStorage.getItem("selectedCamera");
     if (savedCamera && videoInputs.find((d) => d.deviceId === savedCamera)) {
       setSelectedCamera(savedCamera);
-      requestCamera(savedCamera);
     } else if (videoInputs.length > 0) {
-      const firstCam = videoInputs[0].deviceId;
-      setSelectedCamera(firstCam);
-      requestCamera(firstCam);
+      setSelectedCamera(videoInputs[0].deviceId);
     }
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -118,14 +118,16 @@ export default function CameraPermissions({
   };
 
   useEffect(() => {
-    if (isAuthenticated && permissionState === "prompt") {
-      void requestCamera(selectedCamera || undefined);
+    if (!isAuthenticated) {
+      if (activeStreamRef.current) {
+        activeStreamRef.current.getTracks().forEach((track) => track.stop());
+        activeStreamRef.current = null;
+      }
       return;
     }
 
-    if (!isAuthenticated && activeStreamRef.current) {
-      activeStreamRef.current.getTracks().forEach((track) => track.stop());
-      activeStreamRef.current = null;
+    if (hasClickedCameraPrompt && !activeStreamRef.current) {
+      void requestCamera(selectedCamera || undefined);
     }
   // The camera request intentionally runs only when authentication changes;
   // requestCamera is recreated because it closes over the current auth state.
@@ -162,7 +164,7 @@ export default function CameraPermissions({
 
   return (
     <>
-      {permissionState === "prompt" && (
+      {!hasClickedCameraPrompt && (
         <PermissionPopup
           variant="prompt"
           title="pssst… give camera access to animate!"
