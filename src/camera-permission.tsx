@@ -137,8 +137,8 @@ export default function CameraPermissions({ onStreamReady, disabled, isFlipped, 
         <PermissionPopup
           variant="prompt"
           title="pssst… give camera access to animate!"
-          subtitle="use your camera for fun face animation! by tapping 'let’s go & allow,' you agree to camera and cookie use."
-          buttonText="let’s go & allow"
+          subtitle="use your camera for fun face animation! by tapping 'allow camera access' you agree to camera and cookie use."
+          buttonText="allow camera access"
           onClick={() => requestCamera(selectedCamera || undefined)}
           showButton
         />
