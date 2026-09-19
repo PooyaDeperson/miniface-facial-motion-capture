@@ -171,9 +171,6 @@ body {
 /* =========================
    CURSORS
 ========================= */
-*:not(button, a, .cursor-pointer, button > *) {
-  cursor: var(--cursor-default), auto;
-}
 
 a,
 button,
@@ -181,6 +178,12 @@ button>*,
 .cursor-pointer {
   cursor: var(--cursor-pointer), auto;
 }
+
+* {
+  cursor: var(--cursor-default), auto;
+}
+
+
 
 /* =========================
    TYPOGRAPHY RESET
