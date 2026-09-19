@@ -172,18 +172,19 @@ body {
    CURSORS
 ========================= */
 
-a,
-button,
-button>*,
-.cursor-pointer {
-  cursor: var(--cursor-pointer), auto;
-}
+
 
 * {
   cursor: var(--cursor-default), auto;
 }
 
-
+a,
+button,
+button>*,
+a.brand-mark,
+.cursor-pointer {
+  cursor: var(--cursor-pointer), auto;
+}
 
 /* =========================
    TYPOGRAPHY RESET
