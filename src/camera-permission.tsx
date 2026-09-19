@@ -35,6 +35,8 @@ interface CameraPermissionsProps {
   isAuthenticated: boolean;
   onLoginRequest: () => void;
   onStartAnimation: () => void;
+  onStopAnimation: () => void;
+  animationStarted: boolean;
 }
 
 export default function CameraPermissions({
@@ -45,6 +47,8 @@ export default function CameraPermissions({
   isAuthenticated,
   onLoginRequest,
   onStartAnimation,
+  onStopAnimation,
+  animationStarted,
 }: CameraPermissionsProps) {
   const [permissionState, setPermissionState] = useState<"prompt" | "denied" | "granted" | "inuse">("prompt");
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
@@ -110,6 +114,7 @@ export default function CameraPermissions({
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCameraChange = (deviceId: string) => {
+    if (animationStarted) return;
     setSelectedCamera(deviceId);
     localStorage.setItem("selectedCamera", deviceId);
     void requestCamera(deviceId);
@@ -212,7 +217,7 @@ export default function CameraPermissions({
         />
       )}
 
-      {cameraPromptAcknowledged && activeStreamRef.current && (
+      {cameraPromptAcknowledged && activeStreamRef.current && !animationStarted && (
         <div className="camera-preview-start flex flex-col items-center gap-3">
           <video
             ref={previewVideoRef}
@@ -232,10 +237,21 @@ export default function CameraPermissions({
         </div>
       )}
 
+      {animationStarted && (
+        <button
+          type="button"
+          className="primary-button camera-preview-stop"
+          onClick={onStopAnimation}
+        >
+          stop animation
+        </button>
+      )}
+
       {/* Main control div */}
       <div className={`flex flex-row flex-start gap-1 pos-abs reveal fade scaleIn top-0 left-0 z-9991 m-1 tb:m-6`}>
         {permissionState === "granted" && cameras.length > 1 && (
-          <div className={`flex camera-selection cp-dropdown ${disabled ? " switcher-disabled" : ""}`}>
+          <div className={`flex camera-selection cp-dropdown ${disabled || animationStarted ? " switcher-disabled" : ""}`}>
+
             <CustomDropdown
               options={dropdownOptions}
               value={selectedCamera}

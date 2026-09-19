@@ -381,7 +381,7 @@ function App() {
     });
   }, []);
 
-  // ── Subscribe to Drive upload completions ──────────────────────────────��──
+  // ── Subscribe to Drive upload completions ────��─────────────────────────��──
   // When uploadToDrive() succeeds (from any call site — stopRecording, the
   // hasDrive-transition effect, etc.) we get the DriveMotionFile back and:
   //  1. Replace pendingMotion with the confirmed Drive file (real driveFileId)
@@ -627,6 +627,13 @@ function App() {
   const isInPlayback = playbackBlob !== null;
   const faceTrackingDisabled = isSwitcherDisabled || isInPlayback;
 
+  const handleStopAnimation = useCallback(() => {
+    setAnimationStarted(false);
+    setMediapipeReady(false);
+    setInitProgress(null);
+    setInitError(null);
+  }, []);
+
   return (
     <div className="App">
       <CameraPermissions
@@ -635,9 +642,11 @@ function App() {
         isFlipped={isFlipped}
         setIsFlipped={setIsFlipped}
         isAuthenticated={currentUser !== null}
-        onLoginRequest={() => setShowAuthModal(true)}
-        onStartAnimation={() => setAnimationStarted(true)}
-      />
+  onLoginRequest={() => setShowAuthModal(true)}
+  onStartAnimation={() => setAnimationStarted(true)}
+  onStopAnimation={handleStopAnimation}
+  animationStarted={animationStarted}
+  />
 
       <TrackingLoader
         visible={currentUser !== null && animationStarted && avatarReady && videoStream != null && !mediapipeReady && !isInPlayback}

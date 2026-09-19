@@ -128,10 +128,17 @@
 
 .camera-preview-start {
   position: fixed;
+  top: 1rem;
   left: 1rem;
-  bottom: 1rem;
   z-index: 9991;
   width: min(400px, calc(100vw - 2rem));
+}
+
+.camera-preview-stop {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 9992;
 }
 
 .camera-preview {
