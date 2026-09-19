@@ -280,7 +280,7 @@ export default function CameraPermissions({
       )}
 
       {cameraPromptAcknowledged && activeStreamRef.current && !animationStarted && (
-        <div className="camera-preview-start flex flex-col camera-feed w-1 overflow-hidden tb:w-400 br-12 tb:br-24 m-4 z-999">
+        <div className="camera-preview-start flex flex-col camera-feed w-1 overflow-hidden tb:w-400 br-12 tb:br-24 m-4 z-9991">
           <video
             ref={previewVideoRef}
             autoPlay
