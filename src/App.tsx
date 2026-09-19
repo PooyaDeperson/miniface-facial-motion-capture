@@ -266,9 +266,11 @@ function App() {
     setMediapipeReady(true);
   }, []);
 
-  // Start a 30-second timeout once avatar + stream are both ready.
+  // Start the fallback timeout only after the authenticated user explicitly
+  // starts animation. Camera permission and preview alone must not initialise
+  // MediaPipe or trigger model loading.
   useEffect(() => {
-    if (avatarReady && videoStream && !mediapipeReady) {
+    if (currentUser && animationStarted && avatarReady && videoStream && !mediapipeReady) {
       mediapipeTimeoutRef.current = setTimeout(() => {
         setMediapipeReady(true);
       }, 30000);
@@ -279,7 +281,7 @@ function App() {
         mediapipeTimeoutRef.current = null;
       }
     };
-  }, [avatarReady, videoStream, mediapipeReady]);
+  }, [currentUser, animationStarted, avatarReady, videoStream, mediapipeReady]);
 
   const handleAvatarChange = (newUrl: string, keepPending = false) => {
     discardRecording();
@@ -379,7 +381,7 @@ function App() {
     });
   }, []);
 
-  // ── Subscribe to Drive upload completions ──────────────────────────────��──
+  // ── Subscribe to Drive upload completions ────��─────────────────────────��──
   // When uploadToDrive() succeeds (from any call site — stopRecording, the
   // hasDrive-transition effect, etc.) we get the DriveMotionFile back and:
   //  1. Replace pendingMotion with the confirmed Drive file (real driveFileId)
@@ -625,6 +627,13 @@ function App() {
   const isInPlayback = playbackBlob !== null;
   const faceTrackingDisabled = isSwitcherDisabled || isInPlayback;
 
+  const handleStopAnimation = useCallback(() => {
+    setAnimationStarted(false);
+    setMediapipeReady(false);
+    setInitProgress(null);
+    setInitError(null);
+  }, []);
+
   return (
     <div className="App">
       <CameraPermissions
@@ -633,17 +642,19 @@ function App() {
         isFlipped={isFlipped}
         setIsFlipped={setIsFlipped}
         isAuthenticated={currentUser !== null}
-        onLoginRequest={() => setShowAuthModal(true)}
-        onStartAnimation={() => setAnimationStarted(true)}
-      />
+  onLoginRequest={() => setShowAuthModal(true)}
+  onStartAnimation={() => setAnimationStarted(true)}
+  onStopAnimation={handleStopAnimation}
+  animationStarted={animationStarted}
+  />
 
       <TrackingLoader
-        visible={avatarReady && videoStream != null && !mediapipeReady && !isInPlayback}
+        visible={currentUser !== null && animationStarted && avatarReady && videoStream != null && !mediapipeReady && !isInPlayback}
         progress={initProgress}
         error={initError}
       />
 
-      {animationStarted && videoStream && !isInPlayback && (
+      {currentUser !== null && animationStarted && videoStream && !isInPlayback && (
         <FaceTracking
           videoStream={videoStream}
           onMediapipeReady={handleMediapipeReady}
